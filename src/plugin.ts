@@ -381,6 +381,19 @@ export default class AgentClientPlugin extends Plugin {
 				this._acpClients.clear();
 			}),
 		);
+
+		// Keep the focused chat view in sync when the active leaf changes
+		// (e.g. clicking a chat tab in the tab bar). ChatPanel's DOM
+		// focus/click listeners only fire on interaction inside the view, so a
+		// tab-bar switch would otherwise leave the Session Manager highlight on
+		// the previous view until the user clicks into the new one.
+		this.registerEvent(
+			this.app.workspace.on("active-leaf-change", (leaf) => {
+				if (leaf?.view instanceof ChatView) {
+					this.setLastActiveChatViewId(leaf.view.viewId);
+				}
+			}),
+		);
 	}
 
 	onunload() {
