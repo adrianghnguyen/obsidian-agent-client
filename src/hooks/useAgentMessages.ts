@@ -194,13 +194,15 @@ export function useAgentMessages(
 		pendingUpdatesRef.current = [];
 		flushScheduledRef.current = false;
 
-		// Streaming deltas are dropped; terminal permission updates (which carry
-		// `permissionRequest`) are still applied so `findActivePermission` stops
-		// returning the cancelled/answered request.
+		// Streaming deltas are dropped; only terminal permission updates
+		// (cancelled or answered) are applied so `findActivePermission` stops
+		// returning the request. Active/pending permission updates are not
+		// replayed, so a cancel can never re-surface an active banner.
 		const permissionUpdates = queued.filter(
 			(u) =>
 				(u.type === "tool_call" || u.type === "tool_call_update") &&
-				u.permissionRequest !== undefined,
+				(u.permissionRequest?.isCancelled === true ||
+					u.permissionRequest?.selectedOptionId !== undefined),
 		);
 		if (permissionUpdates.length > 0) {
 			setMessages((prev) => {
