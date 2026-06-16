@@ -183,10 +183,39 @@ export function useAgentMessages(
 		ignoreUpdatesRef.current = ignore;
 	}, []);
 
-	/** Discard any pending RAF updates and reset the streaming flag. */
+	/**
+	 * Cancel-time cleanup. Discards in-flight streaming updates so they don't
+	 * bleed into the next reply (#200), but still applies any queued permission
+	 * lifecycle updates (cancel/response) so the permission banner clears
+	 * instead of staying stuck (#326).
+	 */
 	const clearPendingUpdates = useCallback((): void => {
+		const queued = pendingUpdatesRef.current;
 		pendingUpdatesRef.current = [];
 		flushScheduledRef.current = false;
+
+		// Streaming deltas are dropped; terminal permission updates (which carry
+		// `permissionRequest`) are still applied so `findActivePermission` stops
+		// returning the cancelled/answered request.
+		const permissionUpdates = queued.filter(
+			(u) =>
+				(u.type === "tool_call" || u.type === "tool_call_update") &&
+				u.permissionRequest !== undefined,
+		);
+		if (permissionUpdates.length > 0) {
+			setMessages((prev) => {
+				let result = prev;
+				for (const update of permissionUpdates) {
+					result = applySingleUpdate(
+						result,
+						update,
+						toolCallIndexRef.current,
+					);
+				}
+				return result;
+			});
+		}
+
 		setIsSending(false);
 	}, []);
 
