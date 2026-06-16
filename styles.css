@@ -1320,7 +1320,10 @@ If your plugin does not need CSS, delete this file.
 .agent-client-markdown-text-renderer.markdown-rendered pre,
 .agent-client-markdown-text-renderer.markdown-rendered table,
 .agent-client-markdown-text-renderer.markdown-rendered .mermaid,
-.agent-client-markdown-text-renderer.markdown-rendered svg {
+.agent-client-markdown-text-renderer.markdown-rendered svg,
+.agent-client-markdown-text-renderer.markdown-rendered .math-block,
+.agent-client-markdown-text-renderer.markdown-rendered
+	mjx-container[display="true"] {
 	overflow-x: auto;
 	display: block;
 }
