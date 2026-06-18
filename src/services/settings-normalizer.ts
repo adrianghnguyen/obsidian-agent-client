@@ -247,6 +247,21 @@ export function strRecord(raw: unknown): Record<string, string> {
 	return result;
 }
 
+/** Normalize a nested string record, e.g. agentId → { optionId → value }. */
+export function nestedStrRecord(
+	raw: unknown,
+): Record<string, Record<string, string>> {
+	const result: Record<string, Record<string, string>> = {};
+	const o = obj(raw);
+	if (!o) return result;
+	for (const [key, value] of Object.entries(o)) {
+		if (typeof key === "string" && key.length > 0) {
+			result[key] = strRecord(value);
+		}
+	}
+	return result;
+}
+
 /** Extract an {x, y} point, or return null if invalid */
 export function xyPoint(raw: unknown): { x: number; y: number } | null {
 	const o = obj(raw);

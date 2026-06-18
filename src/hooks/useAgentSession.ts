@@ -32,6 +32,7 @@ import {
 import {
 	applyLegacyValue,
 	tryRestoreConfigOption,
+	restoreSavedConfigOptions,
 	restoreLegacyConfig,
 } from "../services/session-state";
 
@@ -236,6 +237,12 @@ export function useAgentSession(
 
 				if (sessionResult.configOptions && sessionResult.sessionId) {
 					let configOptions = sessionResult.configOptions;
+					configOptions = await restoreSavedConfigOptions(
+						agentClient,
+						sessionResult.sessionId,
+						configOptions,
+						settings.lastUsedConfigOptions[agentId],
+					);
 					configOptions = await tryRestoreConfigOption(
 						agentClient,
 						sessionResult.sessionId,
@@ -366,6 +373,12 @@ export function useAgentSession(
 
 			if (configOptions && sessionId) {
 				let restored = configOptions;
+				restored = await restoreSavedConfigOptions(
+					agentClient,
+					sessionId,
+					restored,
+					settings.lastUsedConfigOptions[agentId],
+				);
 				restored = await tryRestoreConfigOption(
 					agentClient,
 					sessionId,
@@ -502,23 +515,36 @@ export function useAgentSession(
 				const changedOption = updatedOptions.find(
 					(o) => o.id === configId,
 				);
-				if (changedOption?.category === "model" && s.agentId) {
+				if (changedOption && s.agentId) {
 					const currentSettings = settingsAccess.getSnapshot();
-					void settingsAccess.updateSettings({
-						lastUsedModels: {
-							...currentSettings.lastUsedModels,
-							[s.agentId]: value,
-						},
-					});
-				}
-				if (changedOption?.category === "mode" && s.agentId) {
-					const currentSettings = settingsAccess.getSnapshot();
-					void settingsAccess.updateSettings({
-						lastUsedModes: {
-							...currentSettings.lastUsedModes,
-							[s.agentId]: value,
-						},
-					});
+					if (changedOption.category === "model") {
+						void settingsAccess.updateSettings({
+							lastUsedModels: {
+								...currentSettings.lastUsedModels,
+								[s.agentId]: value,
+							},
+						});
+					} else if (changedOption.category === "mode") {
+						void settingsAccess.updateSettings({
+							lastUsedModes: {
+								...currentSettings.lastUsedModes,
+								[s.agentId]: value,
+							},
+						});
+					} else {
+						const allOptions =
+							currentSettings.lastUsedConfigOptions;
+						const agentOptions = allOptions[s.agentId] ?? {};
+						void settingsAccess.updateSettings({
+							lastUsedConfigOptions: {
+								...allOptions,
+								[s.agentId]: {
+									...agentOptions,
+									[configId]: value,
+								},
+							},
+						});
+					}
 				}
 			} catch (error) {
 				getLogger().error("Failed to set config option:", error);

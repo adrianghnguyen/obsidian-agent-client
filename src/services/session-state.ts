@@ -74,6 +74,45 @@ export async function tryRestoreConfigOption(
 }
 
 /**
+ * Restore saved config option values by option id (non-legacy config options;
+ * model/mode use the category-based path above + lastUsedModels/lastUsedModes).
+ * Applies each saved value that still maps to a currently-available choice;
+ * unknown ids and stale/unavailable values are skipped. Mirrors the validation
+ * in tryRestoreConfigOption but keyed by id instead of category.
+ */
+export async function restoreSavedConfigOptions(
+	agentClient: AcpClient,
+	sessionId: string,
+	configOptions: SessionConfigOption[],
+	savedById: Record<string, string> | undefined,
+): Promise<SessionConfigOption[]> {
+	if (!savedById) return configOptions;
+
+	let result = configOptions;
+	for (const [optionId, savedValue] of Object.entries(savedById)) {
+		const option = result.find((o) => o.id === optionId);
+		if (!option) continue;
+		if (savedValue === option.currentValue) continue;
+		if (
+			!flattenConfigSelectOptions(option.options).some(
+				(o) => o.value === savedValue,
+			)
+		)
+			continue;
+		try {
+			result = await agentClient.setSessionConfigOption(
+				sessionId,
+				optionId,
+				savedValue,
+			);
+		} catch {
+			// Keep current value on failure.
+		}
+	}
+	return result;
+}
+
+/**
  * Restore last used mode/model via legacy APIs.
  * Only called when configOptions is not available.
  *
