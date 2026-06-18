@@ -725,19 +725,43 @@ export function ChatPanel({
 	const sessionRef = useRef(session);
 	const autoExportRef = useRef(autoExportIfEnabled);
 	const closeSessionRef = useRef(agent.closeSession);
+	const saveSessionMessagesRef = useRef(sessionHistory.saveSessionMessages);
+	// True once the user has actually run a turn in THIS session. The
+	// trailing-chunk re-save and close-time flush are armed only after a real
+	// turn, so messages that were merely loaded/replayed are never re-saved
+	// (which would bump updatedAt and corrupt "last used" ordering). (#320 review)
+	const sentThisSessionRef = useRef(false);
+	// Reference identity of the messages array last persisted to disk. Used to
+	// de-duplicate the turn-end save, the trailing-chunk re-save, and the
+	// close-time flush.
+	const lastSavedMessagesRef = useRef<ChatMessage[] | null>(null);
 	messagesRef.current = messages;
 	sessionRef.current = session;
 	autoExportRef.current = autoExportIfEnabled;
 	closeSessionRef.current = agent.closeSession;
+	saveSessionMessagesRef.current = sessionHistory.saveSessionMessages;
 
 	// Cleanup on unmount only - auto-export and close session
 	useEffect(() => {
 		return () => {
 			logger.log("[ChatPanel] Cleanup: auto-export and close session");
+			// Flush trailing-chunk content the debounced save may not have
+			// persisted yet (view closed within the debounce window). Only when a
+			// real turn ran this session and there is unsaved content. (#320 review)
+			const latest = messagesRef.current;
+			const sid = sessionRef.current.sessionId;
+			if (
+				sentThisSessionRef.current &&
+				sid &&
+				latest.length > 0 &&
+				lastSavedMessagesRef.current !== latest
+			) {
+				saveSessionMessagesRef.current(sid, latest);
+			}
 			void (async () => {
 				await autoExportRef.current(
 					"closeChat",
-					messagesRef.current,
+					latest,
 					sessionRef.current,
 				);
 				await closeSessionRef.current();
@@ -778,9 +802,13 @@ export function ChatPanel({
 	// Effects - Save Session Messages on Turn End
 	// ============================================================
 	const prevIsSendingRef = useRef<boolean>(false);
-	// Reference identity of the messages array last persisted to disk. Used to
-	// de-duplicate the turn-end save and the trailing-chunk re-save below.
-	const lastSavedMessagesRef = useRef<ChatMessage[] | null>(null);
+
+	// Re-loading/switching sessions disarms the trailing-chunk save & flush, so
+	// freshly loaded/replayed messages are never re-saved (which would bump
+	// updatedAt and corrupt "last used" ordering). (#320 review)
+	useEffect(() => {
+		sentThisSessionRef.current = false;
+	}, [session.sessionId]);
 
 	useEffect(() => {
 		const wasSending = prevIsSendingRef.current;
@@ -793,6 +821,7 @@ export function ChatPanel({
 			session.sessionId &&
 			messages.length > 0
 		) {
+			sentThisSessionRef.current = true;
 			lastSavedMessagesRef.current = messages;
 			sessionHistory.saveSessionMessages(session.sessionId, messages);
 			logger.log(
@@ -823,6 +852,7 @@ export function ChatPanel({
 	useEffect(() => {
 		const sessionId = session.sessionId;
 		if (isSending || !sessionId || messages.length === 0) return;
+		if (!sentThisSessionRef.current) return;
 		if (lastSavedMessagesRef.current === messages) return;
 		const timer = window.setTimeout(() => {
 			lastSavedMessagesRef.current = messages;
