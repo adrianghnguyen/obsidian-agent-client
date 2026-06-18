@@ -9,7 +9,7 @@ import {
 	type MenuItem,
 } from "obsidian";
 
-import type { AttachedFile, ChatInputState } from "../types/chat";
+import type { AttachedFile, ChatInputState, ChatMessage } from "../types/chat";
 import { isSameDirectory } from "../utils/platform";
 import { computeSessionTitle } from "../services/session-helpers";
 import { useHistoryModal } from "../hooks/useHistoryModal";
@@ -119,6 +119,9 @@ interface AppWithSettings {
 // ============================================================================
 // ChatPanel Component
 // ============================================================================
+
+/** Debounce (ms) for re-saving when trailing chunks arrive after a turn ends (#320). */
+const TRAILING_SAVE_DEBOUNCE_MS = 800;
 
 /**
  * Core chat panel component that encapsulates all chat logic.
@@ -775,6 +778,9 @@ export function ChatPanel({
 	// Effects - Save Session Messages on Turn End
 	// ============================================================
 	const prevIsSendingRef = useRef<boolean>(false);
+	// Reference identity of the messages array last persisted to disk. Used to
+	// de-duplicate the turn-end save and the trailing-chunk re-save below.
+	const lastSavedMessagesRef = useRef<ChatMessage[] | null>(null);
 
 	useEffect(() => {
 		const wasSending = prevIsSendingRef.current;
@@ -787,6 +793,7 @@ export function ChatPanel({
 			session.sessionId &&
 			messages.length > 0
 		) {
+			lastSavedMessagesRef.current = messages;
 			sessionHistory.saveSessionMessages(session.sessionId, messages);
 			logger.log(
 				`[ChatPanel] Session messages saved: ${session.sessionId}`,
@@ -807,6 +814,26 @@ export function ChatPanel({
 		settings.enableSystemNotifications,
 		activeAgentLabel,
 		logger,
+	]);
+
+	// Some agents (e.g. OpenCode) emit trailing message chunks *after* end_turn,
+	// so the turn-end save above runs before they arrive and the persisted copy
+	// is truncated. Re-save when messages change while idle, debounced so rapid
+	// trailing updates coalesce into a single write (avoids racing the file). (#320)
+	useEffect(() => {
+		const sessionId = session.sessionId;
+		if (isSending || !sessionId || messages.length === 0) return;
+		if (lastSavedMessagesRef.current === messages) return;
+		const timer = window.setTimeout(() => {
+			lastSavedMessagesRef.current = messages;
+			sessionHistory.saveSessionMessages(sessionId, messages);
+		}, TRAILING_SAVE_DEBOUNCE_MS);
+		return () => window.clearTimeout(timer);
+	}, [
+		isSending,
+		session.sessionId,
+		messages,
+		sessionHistory.saveSessionMessages,
 	]);
 
 	// ============================================================
