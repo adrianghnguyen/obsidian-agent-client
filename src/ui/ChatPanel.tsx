@@ -9,7 +9,7 @@ import {
 	type MenuItem,
 } from "obsidian";
 
-import type { AttachedFile, ChatInputState } from "../types/chat";
+import type { AttachedFile, ChatInputState, ChatMessage } from "../types/chat";
 import { isSameDirectory } from "../utils/platform";
 import { computeSessionTitle } from "../services/session-helpers";
 import { useHistoryModal } from "../hooks/useHistoryModal";
@@ -119,6 +119,9 @@ interface AppWithSettings {
 // ============================================================================
 // ChatPanel Component
 // ============================================================================
+
+/** Debounce (ms) for re-saving when trailing chunks arrive after a turn ends (#320). */
+const TRAILING_SAVE_DEBOUNCE_MS = 800;
 
 /**
  * Core chat panel component that encapsulates all chat logic.
@@ -722,19 +725,43 @@ export function ChatPanel({
 	const sessionRef = useRef(session);
 	const autoExportRef = useRef(autoExportIfEnabled);
 	const closeSessionRef = useRef(agent.closeSession);
+	const saveSessionMessagesRef = useRef(sessionHistory.saveSessionMessages);
+	// True once the user has actually run a turn in THIS session. The
+	// trailing-chunk re-save and close-time flush are armed only after a real
+	// turn, so messages that were merely loaded/replayed are never re-saved
+	// (which would bump updatedAt and corrupt "last used" ordering). (#320 review)
+	const sentThisSessionRef = useRef(false);
+	// Reference identity of the messages array last persisted to disk. Used to
+	// de-duplicate the turn-end save, the trailing-chunk re-save, and the
+	// close-time flush.
+	const lastSavedMessagesRef = useRef<ChatMessage[] | null>(null);
 	messagesRef.current = messages;
 	sessionRef.current = session;
 	autoExportRef.current = autoExportIfEnabled;
 	closeSessionRef.current = agent.closeSession;
+	saveSessionMessagesRef.current = sessionHistory.saveSessionMessages;
 
 	// Cleanup on unmount only - auto-export and close session
 	useEffect(() => {
 		return () => {
 			logger.log("[ChatPanel] Cleanup: auto-export and close session");
+			// Flush trailing-chunk content the debounced save may not have
+			// persisted yet (view closed within the debounce window). Only when a
+			// real turn ran this session and there is unsaved content. (#320 review)
+			const latest = messagesRef.current;
+			const sid = sessionRef.current.sessionId;
+			if (
+				sentThisSessionRef.current &&
+				sid &&
+				latest.length > 0 &&
+				lastSavedMessagesRef.current !== latest
+			) {
+				saveSessionMessagesRef.current(sid, latest);
+			}
 			void (async () => {
 				await autoExportRef.current(
 					"closeChat",
-					messagesRef.current,
+					latest,
 					sessionRef.current,
 				);
 				await closeSessionRef.current();
@@ -776,6 +803,13 @@ export function ChatPanel({
 	// ============================================================
 	const prevIsSendingRef = useRef<boolean>(false);
 
+	// Re-loading/switching sessions disarms the trailing-chunk save & flush, so
+	// freshly loaded/replayed messages are never re-saved (which would bump
+	// updatedAt and corrupt "last used" ordering). (#320 review)
+	useEffect(() => {
+		sentThisSessionRef.current = false;
+	}, [session.sessionId]);
+
 	useEffect(() => {
 		const wasSending = prevIsSendingRef.current;
 		prevIsSendingRef.current = isSending;
@@ -787,6 +821,8 @@ export function ChatPanel({
 			session.sessionId &&
 			messages.length > 0
 		) {
+			sentThisSessionRef.current = true;
+			lastSavedMessagesRef.current = messages;
 			sessionHistory.saveSessionMessages(session.sessionId, messages);
 			logger.log(
 				`[ChatPanel] Session messages saved: ${session.sessionId}`,
@@ -807,6 +843,27 @@ export function ChatPanel({
 		settings.enableSystemNotifications,
 		activeAgentLabel,
 		logger,
+	]);
+
+	// Some agents (e.g. OpenCode) emit trailing message chunks *after* end_turn,
+	// so the turn-end save above runs before they arrive and the persisted copy
+	// is truncated. Re-save when messages change while idle, debounced so rapid
+	// trailing updates coalesce into a single write (avoids racing the file). (#320)
+	useEffect(() => {
+		const sessionId = session.sessionId;
+		if (isSending || !sessionId || messages.length === 0) return;
+		if (!sentThisSessionRef.current) return;
+		if (lastSavedMessagesRef.current === messages) return;
+		const timer = window.setTimeout(() => {
+			lastSavedMessagesRef.current = messages;
+			sessionHistory.saveSessionMessages(sessionId, messages);
+		}, TRAILING_SAVE_DEBOUNCE_MS);
+		return () => window.clearTimeout(timer);
+	}, [
+		isSending,
+		session.sessionId,
+		messages,
+		sessionHistory.saveSessionMessages,
 	]);
 
 	// ============================================================
