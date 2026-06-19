@@ -157,11 +157,15 @@ export function MessageList({
 		return isNearBottom;
 	}, []);
 
-	// Reset scroll state when messages are cleared (new chat)
+	// Reset scroll state and drop the per-message size cache when messages are
+	// cleared (new chat / restore / fork / restart all funnel through an empty
+	// array first). Prevents stale msgId→height entries from accumulating
+	// across sessions in this long-lived view. (#321)
 	useEffect(() => {
 		if (messages.length === 0) {
 			setIsAtBottom(true);
 			isAtBottomRef.current = true;
+			sizeCacheRef.current.clear();
 		}
 	}, [messages.length]);
 
