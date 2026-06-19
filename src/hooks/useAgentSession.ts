@@ -531,7 +531,10 @@ export function useAgentSession(
 								[s.agentId]: value,
 							},
 						});
-					} else {
+					} else if (
+						configId !== "__proto__" &&
+						configId !== "constructor"
+					) {
 						const allOptions =
 							currentSettings.lastUsedConfigOptions;
 						const agentOptions = allOptions[s.agentId] ?? {};

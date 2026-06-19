@@ -255,7 +255,12 @@ export function nestedStrRecord(
 	const o = obj(raw);
 	if (!o) return result;
 	for (const [key, value] of Object.entries(o)) {
-		if (typeof key === "string" && key.length > 0) {
+		if (
+			typeof key === "string" &&
+			key.length > 0 &&
+			key !== "__proto__" &&
+			key !== "constructor"
+		) {
 			result[key] = strRecord(value);
 		}
 	}
