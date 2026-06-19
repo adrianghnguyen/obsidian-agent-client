@@ -180,14 +180,6 @@ export class AcpClient {
 			baseEnv = getEnhancedWindowsEnv(baseEnv);
 		}
 
-		// In WSL mode, forward the configured env vars (API keys, custom agent
-		// env) into WSL via WSLENV. Windows env vars are otherwise not visible to
-		// the Linux agent process, so without this the plugin's API key field has
-		// no effect in WSL mode (the user would have to put keys in ~/.profile).
-		if (Platform.isWin && this.plugin.settings.windowsWslMode) {
-			baseEnv = buildWslEnv(baseEnv, Object.keys(config.env || {}));
-		}
-
 		// Add Node.js directory to PATH only when nodePath is an explicit absolute path.
 		// When nodePath is empty or a bare command name, the login shell handles it.
 		const nodeDir = resolveNodeDirectory(this.plugin.settings.nodePath);
@@ -210,6 +202,20 @@ export class AcpClient {
 					config.apiKey.secretId,
 				) ?? "";
 			baseEnv[config.apiKey.envVarName] = secretValue;
+		}
+
+		// In WSL mode, forward the configured env var NAMES into WSL via WSLENV
+		// (Windows env vars are otherwise invisible to the Linux agent process,
+		// so the plugin's API key field would have no effect in WSL). Built-in
+		// agents resolve the API key into baseEnv above — not into config.env —
+		// so its var name must be added explicitly, or the key would never cross
+		// into WSL. Must run AFTER the secret is injected into baseEnv. (#312)
+		if (Platform.isWin && this.plugin.settings.windowsWslMode) {
+			const wslEnvNames = Object.keys(config.env || {});
+			if (config.apiKey?.envVarName) {
+				wslEnvNames.push(config.apiKey.envVarName);
+			}
+			baseEnv = buildWslEnv(baseEnv, wslEnvNames);
 		}
 
 		this.logger.log(
