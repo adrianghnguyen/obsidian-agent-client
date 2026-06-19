@@ -21,6 +21,7 @@ import {
 	convertWindowsPathToWsl,
 	getEnhancedWindowsEnv,
 	prepareShellCommand,
+	buildWslEnv,
 } from "../utils/platform";
 import { resolveNodeDirectory } from "../utils/paths";
 import {
@@ -201,6 +202,20 @@ export class AcpClient {
 					config.apiKey.secretId,
 				) ?? "";
 			baseEnv[config.apiKey.envVarName] = secretValue;
+		}
+
+		// In WSL mode, forward the configured env var NAMES into WSL via WSLENV
+		// (Windows env vars are otherwise invisible to the Linux agent process,
+		// so the plugin's API key field would have no effect in WSL). Built-in
+		// agents resolve the API key into baseEnv above — not into config.env —
+		// so its var name must be added explicitly, or the key would never cross
+		// into WSL. Must run AFTER the secret is injected into baseEnv. (#312)
+		if (Platform.isWin && this.plugin.settings.windowsWslMode) {
+			const wslEnvNames = Object.keys(config.env || {});
+			if (config.apiKey?.envVarName) {
+				wslEnvNames.push(config.apiKey.envVarName);
+			}
+			baseEnv = buildWslEnv(baseEnv, wslEnvNames);
 		}
 
 		this.logger.log(
