@@ -9,6 +9,13 @@ import { setIcon } from "obsidian";
 import { MessageBubble } from "./MessageBubble";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+// How long (ms) after a tab is re-shown we refuse to shrink measured item
+// sizes. Right after re-show the items briefly re-measure small while their
+// markdown re-lays-out; recording those shrinks collapses the virtualizer's
+// total size, which clamps scrollTop to 0 and loses the position. Riding out
+// this window keeps total stable so the scroll position is preserved. (#321)
+const SHOW_SETTLE_MS = 500;
+
 /**
  * Props for MessageList component
  */
@@ -66,6 +73,16 @@ export function MessageList({
 	const [isAtBottom, setIsAtBottom] = useState(true);
 	const isAtBottomRef = useRef(true);
 	const prevIsSendingRef = useRef(false);
+	// Last measured height per message id. Used to keep the virtualizer's total
+	// size stable while the tab is hidden (display:none) so scrollTop isn't
+	// clamped to 0 and the position survives a tab switch. (#321)
+	const sizeCacheRef = useRef<Map<string, number>>(new Map());
+	// Whether the view was last seen hidden (display:none), and the end of the
+	// post-show "settle" window during which we refuse to shrink the size cache
+	// (see SHOW_SETTLE_MS). Together these suppress the transient total-size
+	// collapse that would otherwise clamp scrollTop to 0 on re-show. (#321)
+	const wasHiddenRef = useRef(false);
+	const settleUntilRef = useRef(0);
 
 	// ============================================================
 	// Virtualizer
@@ -75,6 +92,40 @@ export function MessageList({
 		getScrollElement: () => containerRef.current,
 		estimateSize: () => 80,
 		overscan: 5,
+		getItemKey: (index) => messages[index]?.id ?? String(index),
+		measureElement: (element) => {
+			const el = element as HTMLElement;
+			const id = el.getAttribute("data-msg-id");
+			const cached = id ? sizeCacheRef.current.get(id) : undefined;
+			// Hidden (display:none): the item is detached from layout
+			// (offsetParent === null) and would measure 0. Remember we were
+			// hidden and return the last known size so the total size doesn't
+			// collapse on the hidden side. (#321)
+			if (el.offsetParent === null) {
+				wasHiddenRef.current = true;
+				return cached || 80;
+			}
+			// First measure after re-show: open the settle window. Opening it
+			// here (rather than from a separate observer) makes this very call
+			// guarded too, regardless of observer firing order. (#321)
+			if (wasHiddenRef.current) {
+				wasHiddenRef.current = false;
+				settleUntilRef.current = performance.now() + SHOW_SETTLE_MS;
+			}
+			const measured = el.getBoundingClientRect().height;
+			// Inside the settle window, never shrink: return the larger of the
+			// fresh and cached heights and don't record it, so getTotalSize()
+			// stays stable and scrollTop isn't clamped to 0 on re-show. Genuine
+			// shrinks are accepted again once the window expires. (#321)
+			if (
+				cached !== undefined &&
+				performance.now() < settleUntilRef.current
+			) {
+				return Math.max(measured, cached);
+			}
+			if (id && measured > 0) sizeCacheRef.current.set(id, measured);
+			return measured || cached || 80;
+		},
 	});
 
 	// Suppress scroll position correction when user has scrolled up.
@@ -203,6 +254,7 @@ export function MessageList({
 							key={message.id}
 							ref={virtualizer.measureElement}
 							data-index={virtualItem.index}
+							data-msg-id={message.id}
 							className="agent-client-virtual-item"
 							style={{
 								position: "absolute",
