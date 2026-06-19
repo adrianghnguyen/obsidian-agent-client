@@ -49,6 +49,8 @@ export interface SendMessageOptions {
 	images?: ImagePromptContent[];
 	/** Attached file references (resource links) */
 	resourceLinks?: ResourceLinkPromptContent[];
+	/** Whether this is the first message in the session */
+	isFirstMessage?: boolean;
 }
 
 export interface UseAgentMessagesReturn {
@@ -181,10 +183,41 @@ export function useAgentMessages(
 		ignoreUpdatesRef.current = ignore;
 	}, []);
 
-	/** Discard any pending RAF updates and reset the streaming flag. */
+	/**
+	 * Cancel-time cleanup. Discards in-flight streaming updates so they don't
+	 * bleed into the next reply (#200), but still applies any queued permission
+	 * lifecycle updates (cancel/response) so the permission banner clears
+	 * instead of staying stuck (#326).
+	 */
 	const clearPendingUpdates = useCallback((): void => {
+		const queued = pendingUpdatesRef.current;
 		pendingUpdatesRef.current = [];
 		flushScheduledRef.current = false;
+
+		// Streaming deltas are dropped; only terminal permission updates
+		// (cancelled or answered) are applied so `findActivePermission` stops
+		// returning the request. Active/pending permission updates are not
+		// replayed, so a cancel can never re-surface an active banner.
+		const permissionUpdates = queued.filter(
+			(u) =>
+				(u.type === "tool_call" || u.type === "tool_call_update") &&
+				(u.permissionRequest?.isCancelled === true ||
+					u.permissionRequest?.selectedOptionId !== undefined),
+		);
+		if (permissionUpdates.length > 0) {
+			setMessages((prev) => {
+				let result = prev;
+				for (const update of permissionUpdates) {
+					result = applySingleUpdate(
+						result,
+						update,
+						toolCallIndexRef.current,
+					);
+				}
+				return result;
+			});
+		}
+
 		setIsSending(false);
 	}, []);
 
@@ -275,6 +308,14 @@ export function useAgentMessages(
 					maxNoteLength: settings.displaySettings.maxNoteLength,
 					maxSelectionLength:
 						settings.displaySettings.maxSelectionLength,
+					isFirstMessage: options.isFirstMessage,
+					promptInjection: settings.promptInjection.enabled
+						? {
+								latex: settings.promptInjection.latex,
+								wikiLinks: settings.promptInjection.wikiLinks,
+								tables: settings.promptInjection.tables,
+							}
+						: undefined,
 				},
 				vaultAccess,
 				vaultAccess, // IMentionService (same object)
