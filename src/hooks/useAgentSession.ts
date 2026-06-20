@@ -11,7 +11,6 @@ const { useState, useCallback, useRef } = React;
 import type {
 	ChatSession,
 	SessionModeState,
-	SessionModelState,
 	SessionUpdate,
 	SessionConfigOption,
 } from "../types/session";
@@ -60,13 +59,11 @@ export interface UseAgentSessionReturn {
 	updateSessionFromLoad: (
 		sessionId: string,
 		modes?: SessionModeState,
-		models?: SessionModelState,
 		configOptions?: SessionConfigOption[],
 	) => Promise<void>;
 
 	// Config
 	setMode: (modeId: string) => Promise<void>;
-	setModel: (modelId: string) => Promise<void>;
 	setConfigOption: (configId: string, value: string) => Promise<void>;
 
 	/** Handle session-level updates (commands, mode, config, usage, error) */
@@ -184,7 +181,6 @@ export function useAgentSession(
 				authMethods: [],
 				availableCommands: undefined,
 				modes: undefined,
-				models: undefined,
 				configOptions: undefined,
 				usage: undefined,
 				promptCapabilities: prev.promptCapabilities,
@@ -225,14 +221,13 @@ export function useAgentSession(
 				const sessionResult =
 					await agentClient.newSession(effectiveCwd);
 
-				// Pre-compute restored modes/models/configOptions BEFORE
+				// Pre-compute restored modes/configOptions BEFORE
 				// marking state as "ready" to avoid a UI race: without this,
 				// the dropdowns briefly show the agent's default values and
 				// a message sent during the window hits the agent in the
 				// wrong mode. With this, the first render after session
 				// creation already shows the user's saved selection.
 				let finalModes = sessionResult.modes;
-				let finalModels = sessionResult.models;
 				let finalConfigOptions = sessionResult.configOptions;
 
 				if (sessionResult.configOptions && sessionResult.sessionId) {
@@ -262,11 +257,9 @@ export function useAgentSession(
 					const restored = await restoreLegacyConfig(
 						agentClient,
 						sessionResult,
-						settings.lastUsedModels[agentId],
 						settings.lastUsedModes[agentId],
 					);
 					finalModes = restored.modes;
-					finalModels = restored.models;
 				}
 
 				setSession((prev) => ({
@@ -275,7 +268,6 @@ export function useAgentSession(
 					state: "ready",
 					authMethods: initResult?.authMethods ?? [],
 					modes: finalModes,
-					models: finalModels,
 					configOptions: finalConfigOptions,
 					promptCapabilities: initResult
 						? initResult.promptCapabilities
@@ -356,7 +348,6 @@ export function useAgentSession(
 		async (
 			sessionId: string,
 			modes?: SessionModeState,
-			models?: SessionModelState,
 			configOptions?: SessionConfigOption[],
 		) => {
 			// Pre-compute restored config BEFORE marking ready to avoid a UI
@@ -368,7 +359,6 @@ export function useAgentSession(
 			const agentId = s.agentId;
 
 			let finalModes = modes;
-			let finalModels = models;
 			let finalConfigOptions = configOptions;
 
 			if (configOptions && sessionId) {
@@ -397,12 +387,10 @@ export function useAgentSession(
 			} else if (sessionId && modes) {
 				const restored = await restoreLegacyConfig(
 					agentClient,
-					{ sessionId, modes, models, configOptions: undefined },
-					settings.lastUsedModels[agentId],
+					{ sessionId, modes, configOptions: undefined },
 					settings.lastUsedModes[agentId],
 				);
 				finalModes = restored.modes;
-				finalModels = restored.models;
 			}
 
 			setSession((prev) => ({
@@ -410,7 +398,6 @@ export function useAgentSession(
 				sessionId,
 				state: "ready",
 				modes: finalModes ?? prev.modes,
-				models: finalModels ?? prev.models,
 				configOptions: finalConfigOptions ?? prev.configOptions,
 				lastActivityAt: new Date(),
 			}));
@@ -423,44 +410,33 @@ export function useAgentSession(
 	// ============================================================
 
 	const setLegacyConfigValue = useCallback(
-		async (kind: "mode" | "model", value: string) => {
+		async (value: string) => {
 			const s = sessionRef.current;
 			if (!s.sessionId) {
-				getLogger().debug(`Cannot set ${kind}: no active session`);
+				getLogger().debug("Cannot set mode: no active session");
 				return;
 			}
 
-			const previousValue =
-				kind === "mode"
-					? s.modes?.currentModeId
-					: s.models?.currentModelId;
+			const previousValue = s.modes?.currentModeId;
 
-			setSession((prev) => applyLegacyValue(prev, kind, value));
+			setSession((prev) => applyLegacyValue(prev, value));
 
 			try {
-				if (kind === "mode") {
-					await agentClient.setSessionMode(s.sessionId, value);
-				} else {
-					await agentClient.setSessionModel(s.sessionId, value);
-				}
+				await agentClient.setSessionMode(s.sessionId, value);
 
 				if (s.agentId) {
-					const persistKey =
-						kind === "mode" ? "lastUsedModes" : "lastUsedModels";
 					const currentSettings = settingsAccess.getSnapshot();
 					void settingsAccess.updateSettings({
-						[persistKey]: {
-							...currentSettings[persistKey],
+						lastUsedModes: {
+							...currentSettings.lastUsedModes,
 							[s.agentId]: value,
 						},
 					});
 				}
 			} catch (error) {
-				getLogger().error(`Failed to set ${kind}:`, error);
+				getLogger().error("Failed to set mode:", error);
 				if (previousValue) {
-					setSession((prev) =>
-						applyLegacyValue(prev, kind, previousValue),
-					);
+					setSession((prev) => applyLegacyValue(prev, previousValue));
 				}
 			}
 		},
@@ -468,12 +444,7 @@ export function useAgentSession(
 	);
 
 	const setMode = useCallback(
-		(modeId: string) => setLegacyConfigValue("mode", modeId),
-		[setLegacyConfigValue],
-	);
-
-	const setModel = useCallback(
-		(modelId: string) => setLegacyConfigValue("model", modelId),
+		(modeId: string) => setLegacyConfigValue(modeId),
 		[setLegacyConfigValue],
 	);
 
@@ -494,7 +465,7 @@ export function useAgentSession(
 				return {
 					...prev,
 					configOptions: prev.configOptions.map((opt) =>
-						opt.id === configId
+						opt.id === configId && opt.type === "select"
 							? { ...opt, currentValue: value }
 							: opt,
 					),
@@ -577,7 +548,6 @@ export function useAgentSession(
 		getAvailableAgents,
 		updateSessionFromLoad,
 		setMode,
-		setModel,
 		setConfigOption,
 		handleSessionUpdate,
 	};

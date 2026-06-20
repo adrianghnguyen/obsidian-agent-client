@@ -37,7 +37,6 @@ import {
 	flattenConfigSelectOptions,
 	type SlashCommand,
 	type SessionModeState,
-	type SessionModelState,
 	type SessionConfigOption,
 } from "../types/session";
 import { checkAgentUpdate } from "../services/update-checker";
@@ -213,23 +212,16 @@ export function ChatPanel({
 		(
 			sessionId: string,
 			modes?: SessionModeState,
-			models?: SessionModelState,
 			configOptions?: SessionConfigOption[],
 		) => {
 			logger.log(
 				`[ChatPanel] Session loaded/resumed/forked: ${sessionId}`,
 				{
 					modes,
-					models,
 					configOptions,
 				},
 			);
-			void agent.updateSessionFromLoad(
-				sessionId,
-				modes,
-				models,
-				configOptions,
-			);
+			void agent.updateSessionFromLoad(sessionId, modes, configOptions);
 		},
 		[logger, agent.updateSessionFromLoad],
 	);
@@ -312,7 +304,6 @@ export function ChatPanel({
 		handleSwitchAgent,
 		handleRestartAgent,
 		handleSetMode,
-		handleSetModel,
 		handleSetConfigOption,
 		handleClearError,
 		handleClearAgentUpdate,
@@ -639,14 +630,14 @@ export function ChatPanel({
 		// Floating: create a shim with listener tracking
 		return {
 			app: plugin.app,
-			registerDomEvent: ((
+			registerDomEvent: (
 				target: Window | Document | HTMLElement,
 				type: string,
 				callback: EventListenerOrEventListenerObject,
 			) => {
 				target.addEventListener(type, callback);
 				registeredListenersRef.current.push({ target, type, callback });
-			}),
+			},
 		};
 	}, [viewHostProp, plugin.app]);
 
@@ -673,16 +664,20 @@ export function ChatPanel({
 		void agent.createSession(config?.agent || initialAgentId);
 	}, [agent.createSession, config?.agent, initialAgentId]);
 
-	// Apply configured model when session is ready
+	// Apply configured model (a select config option with category "model")
+	// when session is ready.
 	useEffect(() => {
 		if (!config?.model || !isSessionReady) return;
 
-		// Prefer configOptions if available
 		if (session.configOptions) {
 			const modelOption = session.configOptions.find(
 				(o) => o.category === "model",
 			);
-			if (modelOption && modelOption.currentValue !== config.model) {
+			if (
+				modelOption &&
+				modelOption.type === "select" &&
+				modelOption.currentValue !== config.model
+			) {
 				const valueExists = flattenConfigSelectOptions(
 					modelOption.options,
 				).some((o) => o.value === config.model);
@@ -694,29 +689,12 @@ export function ChatPanel({
 					void agent.setConfigOption(modelOption.id, config.model);
 				}
 			}
-			return;
-		}
-
-		// Fallback to legacy models
-		if (session.models) {
-			const modelExists = session.models.availableModels.some(
-				(m) => m.modelId === config.model,
-			);
-			if (modelExists && session.models.currentModelId !== config.model) {
-				logger.log(
-					"[ChatPanel] Applying configured model:",
-					config.model,
-				);
-				void agent.setModel(config.model);
-			}
 		}
 	}, [
 		config?.model,
 		isSessionReady,
 		session.configOptions,
-		session.models,
 		agent.setConfigOption,
-		agent.setModel,
 		logger,
 	]);
 
@@ -829,7 +807,10 @@ export function ChatPanel({
 			);
 
 			// System notification on response completion
-			if (settings.enableSystemNotifications && !activeDocument.hasFocus()) {
+			if (
+				settings.enableSystemNotifications &&
+				!activeDocument.hasFocus()
+			) {
 				new Notification("Agent Client", {
 					body: `${activeAgentLabel} has completed the response.`,
 				});
@@ -1117,7 +1098,8 @@ export function ChatPanel({
 				if (state === "error") return "error";
 				if (state === "disconnected") return "disconnected";
 				if (hasActivePermissionRef.current) return "permission";
-				if (isSendingRef.current || sessionHistoryLoadingRef.current) return "busy";
+				if (isSendingRef.current || sessionHistoryLoadingRef.current)
+					return "busy";
 				if (state === "ready") return "ready";
 				return "busy";
 			},
@@ -1262,8 +1244,6 @@ export function ChatPanel({
 			onRestoredMessageConsumed={handleRestoredMessageConsumed}
 			modes={session.modes}
 			onModeChange={(modeId) => void handleSetMode(modeId)}
-			models={session.models}
-			onModelChange={(modelId) => void handleSetModel(modelId)}
 			configOptions={session.configOptions}
 			onConfigOptionChange={(configId, value) =>
 				void handleSetConfigOption(configId, value)

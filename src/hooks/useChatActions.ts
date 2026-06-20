@@ -44,7 +44,6 @@ export interface UseChatActionsReturn {
 
 	// Config actions
 	handleSetMode: (modeId: string) => Promise<void>;
-	handleSetModel: (modelId: string) => Promise<void>;
 	handleSetConfigOption: (configId: string, value: string) => Promise<void>;
 
 	// UI state actions
@@ -343,13 +342,6 @@ export function useChatActions(
 		[agent.setMode],
 	);
 
-	const handleSetModel = useCallback(
-		async (modelId: string) => {
-			await agent.setModel(modelId);
-		},
-		[agent.setModel],
-	);
-
 	const handleSetConfigOption = useCallback(
 		async (configId: string, value: string) => {
 			await agent.setConfigOption(configId, value);
@@ -385,7 +377,6 @@ export function useChatActions(
 		handleSwitchAgent,
 		handleRestartAgent,
 		handleSetMode,
-		handleSetModel,
 		handleSetConfigOption,
 		handleClearError,
 		handleClearAgentUpdate,

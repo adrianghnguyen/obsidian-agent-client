@@ -75,6 +75,11 @@ export interface TerminalOutputResult {
  */
 export class AcpClient {
 	// Connection & process
+	// NOTE: ClientSideConnection is deprecated in ACP 0.28 in favor of the
+	// client() builder, but that uses a scoped connectWith(...) callback rather
+	// than a persistent connection object. Migrating AcpClient's lifecycle to it
+	// is a separate architectural change (tracked as a follow-up).
+	// eslint-disable-next-line @typescript-eslint/no-deprecated
 	private connection: acp.ClientSideConnection | null = null;
 	private agentProcess: ChildProcess | null = null;
 	private currentConfig: AgentConfig | null = null;
@@ -379,6 +384,7 @@ export class AcpClient {
 		);
 
 		const stream = acp.ndJsonStream(input, output);
+		// eslint-disable-next-line @typescript-eslint/no-deprecated -- see note on `connection` field (ClientSideConnection migration is a follow-up)
 		this.connection = new acp.ClientSideConnection(
 			() => this.handler,
 			stream,
@@ -687,31 +693,6 @@ export class AcpClient {
 	}
 
 	/**
-	 * DEPRECATED: Use setSessionConfigOption instead.
-	 */
-	async setSessionModel(sessionId: string, modelId: string): Promise<void> {
-		const connection = this.requireConnection();
-
-		this.logger.log(
-			`[AcpClient] Setting session model to: ${modelId} for session: ${sessionId}`,
-		);
-
-		try {
-			await connection.unstable_setSessionModel({
-				sessionId,
-				modelId,
-			});
-			this.logger.log(`[AcpClient] Session model set to: ${modelId}`);
-		} catch (error) {
-			this.logger.error(
-				"[AcpClient] Failed to set session model:",
-				error,
-			);
-			throw error;
-		}
-	}
-
-	/**
 	 * Set a session configuration option.
 	 *
 	 * Sends a config option change to the agent. The response contains the
@@ -789,6 +770,7 @@ export class AcpClient {
 	 * Assert that the ACP connection is initialized and return it.
 	 * @throws Error if connection is not available
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-deprecated -- see note on `connection` field (ClientSideConnection migration is a follow-up)
 	private requireConnection(): acp.ClientSideConnection {
 		if (!this.connection) {
 			throw new Error(
@@ -848,7 +830,7 @@ export class AcpClient {
 
 			const filterCwd = cwd ? this.toSessionCwd(cwd) : undefined;
 
-			const response = await connection.unstable_listSessions({
+			const response = await connection.listSessions({
 				cwd: filterCwd ?? null,
 				cursor: cursor ?? null,
 			});
@@ -931,7 +913,7 @@ export class AcpClient {
 		try {
 			this.logger.log(`[AcpClient] Resuming session: ${sessionId}...`);
 
-			const response = await connection.unstable_resumeSession({
+			const response = await connection.resumeSession({
 				sessionId,
 				cwd: this.toSessionCwd(cwd),
 				mcpServers: [],
