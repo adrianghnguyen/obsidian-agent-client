@@ -184,7 +184,6 @@ export function createInitialSession(
 		authMethods: [],
 		availableCommands: undefined,
 		modes: undefined,
-		models: undefined,
 		createdAt: new Date(),
 		lastActivityAt: new Date(),
 		workingDirectory,
