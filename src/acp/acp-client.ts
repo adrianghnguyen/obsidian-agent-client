@@ -75,12 +75,7 @@ export interface TerminalOutputResult {
  */
 export class AcpClient {
 	// Connection & process
-	// NOTE: ClientSideConnection is deprecated in ACP 0.28 in favor of the
-	// client() builder, but that uses a scoped connectWith(...) callback rather
-	// than a persistent connection object. Migrating AcpClient's lifecycle to it
-	// is a separate architectural change (tracked as a follow-up).
-	// eslint-disable-next-line @typescript-eslint/no-deprecated
-	private connection: acp.ClientSideConnection | null = null;
+	private connection: acp.ClientConnection | null = null;
 	private agentProcess: ChildProcess | null = null;
 	private currentConfig: AgentConfig | null = null;
 	private isInitializedFlag = false;
@@ -384,16 +379,44 @@ export class AcpClient {
 		);
 
 		const stream = acp.ndJsonStream(input, output);
-		// eslint-disable-next-line @typescript-eslint/no-deprecated -- see note on `connection` field (ClientSideConnection migration is a follow-up)
-		this.connection = new acp.ClientSideConnection(
-			() => this.handler,
-			stream,
-		);
+		// Build the client app by registering handlers by ACP method name, then
+		// hold the persistent connection. This is the same builder the deprecated
+		// ClientSideConnection constructed internally (legacyClientApp), inlined.
+		const app = acp
+			.client({ name: "obsidian-agent-client" })
+			.onNotification("session/update", (ctx) =>
+				this.handler.sessionUpdate(ctx.params),
+			)
+			.onRequest("session/request_permission", (ctx) =>
+				this.handler.requestPermission(ctx.params),
+			)
+			.onRequest("fs/read_text_file", (ctx) =>
+				this.handler.readTextFile(ctx.params),
+			)
+			.onRequest("fs/write_text_file", (ctx) =>
+				this.handler.writeTextFile(ctx.params),
+			)
+			.onRequest("terminal/create", (ctx) =>
+				this.handler.createTerminal(ctx.params),
+			)
+			.onRequest("terminal/output", (ctx) =>
+				this.handler.terminalOutput(ctx.params),
+			)
+			.onRequest("terminal/wait_for_exit", (ctx) =>
+				this.handler.waitForTerminalExit(ctx.params),
+			)
+			.onRequest("terminal/kill", (ctx) =>
+				this.handler.killTerminal(ctx.params),
+			)
+			.onRequest("terminal/release", (ctx) =>
+				this.handler.releaseTerminal(ctx.params),
+			);
+		this.connection = app.connect(stream);
 
 		try {
 			this.logger.log("[AcpClient] Starting ACP initialization...");
 
-			const initResult = await this.connection.initialize({
+			const initResult = await this.connection.agent.request("initialize", {
 				protocolVersion: acp.PROTOCOL_VERSION,
 				clientCapabilities: {
 					fs: {
@@ -466,7 +489,7 @@ export class AcpClient {
 		try {
 			this.logger.log("[AcpClient] Creating new session...");
 
-			const response = await connection.newSession({
+			const response = await connection.agent.request("session/new", {
 				cwd: this.toSessionCwd(workingDirectory),
 				mcpServers: [],
 			});
@@ -493,7 +516,7 @@ export class AcpClient {
 		const connection = this.requireConnection();
 
 		try {
-			await connection.authenticate({ methodId });
+			await connection.agent.request("authenticate", { methodId });
 			this.logger.log("[AcpClient] ✅ authenticate ok:", methodId);
 			return true;
 		} catch (error: unknown) {
@@ -524,7 +547,7 @@ export class AcpClient {
 				`[AcpClient] Sending prompt with ${content.length} content blocks`,
 			);
 
-			const promptResult = await connection.prompt({
+			const promptResult = await connection.agent.request("session/prompt", {
 				sessionId: sessionId,
 				prompt: acpContent,
 			});
@@ -579,7 +602,7 @@ export class AcpClient {
 			this.logger.log(
 				"[AcpClient] Sending session/cancel notification...",
 			);
-			await this.connection.cancel({ sessionId });
+			await this.connection.agent.notify("session/cancel", { sessionId });
 			this.logger.log(
 				"[AcpClient] Cancellation request sent successfully",
 			);
@@ -681,7 +704,7 @@ export class AcpClient {
 		);
 
 		try {
-			await connection.setSessionMode({
+			await connection.agent.request("session/set_mode", {
 				sessionId,
 				modeId,
 			});
@@ -711,11 +734,14 @@ export class AcpClient {
 		);
 
 		try {
-			const response = await connection.setSessionConfigOption({
-				sessionId,
-				configId,
-				value,
-			});
+			const response = await connection.agent.request(
+				"session/set_config_option",
+				{
+					sessionId,
+					configId,
+					value,
+				},
+			);
 			this.logger.log(
 				`[AcpClient] Config option set. Updated options:`,
 				response.configOptions,
@@ -770,8 +796,7 @@ export class AcpClient {
 	 * Assert that the ACP connection is initialized and return it.
 	 * @throws Error if connection is not available
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-deprecated -- see note on `connection` field (ClientSideConnection migration is a follow-up)
-	private requireConnection(): acp.ClientSideConnection {
+	private requireConnection(): acp.ClientConnection {
 		if (!this.connection) {
 			throw new Error(
 				"Connection not initialized. Call initialize() first.",
@@ -830,7 +855,7 @@ export class AcpClient {
 
 			const filterCwd = cwd ? this.toSessionCwd(cwd) : undefined;
 
-			const response = await connection.listSessions({
+			const response = await connection.agent.request("session/list", {
 				cwd: filterCwd ?? null,
 				cursor: cursor ?? null,
 			});
@@ -873,7 +898,7 @@ export class AcpClient {
 		try {
 			this.logger.log(`[AcpClient] Loading session: ${sessionId}...`);
 
-			const response = await connection.loadSession({
+			const response = await connection.agent.request("session/load", {
 				sessionId,
 				cwd: this.toSessionCwd(cwd),
 				mcpServers: [],
@@ -913,7 +938,7 @@ export class AcpClient {
 		try {
 			this.logger.log(`[AcpClient] Resuming session: ${sessionId}...`);
 
-			const response = await connection.resumeSession({
+			const response = await connection.agent.request("session/resume", {
 				sessionId,
 				cwd: this.toSessionCwd(cwd),
 				mcpServers: [],
@@ -947,7 +972,7 @@ export class AcpClient {
 		try {
 			this.logger.log(`[AcpClient] Forking session: ${sessionId}...`);
 
-			const response = await connection.unstable_forkSession({
+			const response = await connection.agent.request("session/fork", {
 				sessionId,
 				cwd: this.toSessionCwd(cwd),
 				mcpServers: [],
