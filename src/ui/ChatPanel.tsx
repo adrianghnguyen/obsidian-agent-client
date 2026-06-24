@@ -9,11 +9,13 @@ import {
 	type MenuItem,
 } from "obsidian";
 
-import type { AttachedFile, ChatInputState } from "../types/chat";
+import type { AttachedFile, ChatInputState, ChatMessage } from "../types/chat";
 import { isSameDirectory } from "../utils/platform";
+import { computeSessionTitle } from "../services/session-helpers";
 import { useHistoryModal } from "../hooks/useHistoryModal";
 import { useChatActions } from "../hooks/useChatActions";
 import { ChangeDirectoryModal } from "./ChangeDirectoryModal";
+import { addRenameSessionMenuItem } from "./EditTitleModal";
 
 // Service imports
 import { getLogger } from "../utils/logger";
@@ -35,10 +37,10 @@ import {
 	flattenConfigSelectOptions,
 	type SlashCommand,
 	type SessionModeState,
-	type SessionModelState,
 	type SessionConfigOption,
 } from "../types/session";
 import { checkAgentUpdate } from "../services/update-checker";
+import type { SessionStatus } from "../services/view-registry";
 import { buildGeminiDeprecationNotice } from "../services/session-helpers";
 
 /** Stable empty array for useSuggestions when no commands available */
@@ -61,6 +63,9 @@ import type { IChatViewHost } from "./view-host";
  */
 export interface ChatPanelCallbacks {
 	getDisplayName: () => string;
+	getSessionStatus: () => SessionStatus;
+	getSessionTitle: () => string;
+	getSessionId: () => string | null;
 	getInputState: () => ChatInputState | null;
 	setInputState: (state: ChatInputState) => void;
 	canSend: () => boolean;
@@ -81,6 +86,11 @@ export interface ChatPanelProps {
 	onRegisterCallbacks?: (callbacks: ChatPanelCallbacks) => void;
 	/** Called when agent ID changes (sidebar only — persists in Obsidian state) */
 	onAgentIdChanged?: (agentId: string) => void;
+	/**
+	 * Called when the derived session title may have changed (sidebar only —
+	 * triggers Obsidian to re-read getDisplayText() and update the tab header).
+	 */
+	onSessionTitleChanged?: () => void;
 	// Floating-specific
 	onMinimize?: () => void;
 	onClose?: () => void;
@@ -109,6 +119,9 @@ interface AppWithSettings {
 // ChatPanel Component
 // ============================================================================
 
+/** Debounce (ms) for re-saving when trailing chunks arrive after a turn ends (#320). */
+const TRAILING_SAVE_DEBOUNCE_MS = 800;
+
 /**
  * Core chat panel component that encapsulates all chat logic.
  *
@@ -125,6 +138,7 @@ export function ChatPanel({
 	config,
 	onRegisterCallbacks,
 	onAgentIdChanged,
+	onSessionTitleChanged,
 	onMinimize,
 	onClose,
 	onOpenNewWindow,
@@ -190,6 +204,7 @@ export function ChatPanel({
 		vaultService,
 		plugin,
 		session.availableCommands || EMPTY_COMMANDS,
+		settings.autoMentionActiveNote,
 	);
 
 	// Session history hook with callback for session load
@@ -197,23 +212,16 @@ export function ChatPanel({
 		(
 			sessionId: string,
 			modes?: SessionModeState,
-			models?: SessionModelState,
 			configOptions?: SessionConfigOption[],
 		) => {
 			logger.log(
 				`[ChatPanel] Session loaded/resumed/forked: ${sessionId}`,
 				{
 					modes,
-					models,
 					configOptions,
 				},
 			);
-			void agent.updateSessionFromLoad(
-				sessionId,
-				modes,
-				models,
-				configOptions,
-			);
+			void agent.updateSessionFromLoad(sessionId, modes, configOptions);
 		},
 		[logger, agent.updateSessionFromLoad],
 	);
@@ -296,7 +304,6 @@ export function ChatPanel({
 		handleSwitchAgent,
 		handleRestartAgent,
 		handleSetMode,
-		handleSetModel,
 		handleSetConfigOption,
 		handleClearError,
 		handleClearAgentUpdate,
@@ -423,6 +430,16 @@ export function ChatPanel({
 			menu.addSeparator();
 
 			// -- Actions section --
+			addRenameSessionMenuItem(
+				menu,
+				plugin,
+				session.sessionId,
+				plugin.settingsService
+					.getSavedSessions()
+					.find((s) => s.sessionId === session.sessionId)?.title ??
+					"New session",
+			);
+
 			menu.addItem((item: MenuItem) => {
 				item.setTitle("Open new view")
 					.setIcon("copy-plus")
@@ -453,6 +470,14 @@ export function ChatPanel({
 							},
 						);
 						modal.open();
+					});
+			});
+
+			menu.addItem((item: MenuItem) => {
+				item.setTitle("Open session manager")
+					.setIcon("layout-list")
+					.onClick(() => {
+						void plugin.activateSessionManager();
 					});
 			});
 
@@ -510,6 +535,16 @@ export function ChatPanel({
 
 			menu.addSeparator();
 
+			addRenameSessionMenuItem(
+				menu,
+				plugin,
+				session.sessionId,
+				plugin.settingsService
+					.getSavedSessions()
+					.find((s) => s.sessionId === session.sessionId)?.title ??
+					"New session",
+			);
+
 			if (onOpenNewWindow) {
 				menu.addItem((item: MenuItem) => {
 					item.setTitle("Open new floating chat")
@@ -540,6 +575,14 @@ export function ChatPanel({
 							},
 						);
 						modal.open();
+					});
+			});
+
+			menu.addItem((item: MenuItem) => {
+				item.setTitle("Open session manager")
+					.setIcon("layout-list")
+					.onClick(() => {
+						void plugin.activateSessionManager();
 					});
 			});
 
@@ -587,14 +630,14 @@ export function ChatPanel({
 		// Floating: create a shim with listener tracking
 		return {
 			app: plugin.app,
-			registerDomEvent: ((
+			registerDomEvent: (
 				target: Window | Document | HTMLElement,
 				type: string,
 				callback: EventListenerOrEventListenerObject,
 			) => {
 				target.addEventListener(type, callback);
 				registeredListenersRef.current.push({ target, type, callback });
-			}),
+			},
 		};
 	}, [viewHostProp, plugin.app]);
 
@@ -621,16 +664,20 @@ export function ChatPanel({
 		void agent.createSession(config?.agent || initialAgentId);
 	}, [agent.createSession, config?.agent, initialAgentId]);
 
-	// Apply configured model when session is ready
+	// Apply configured model (a select config option with category "model")
+	// when session is ready.
 	useEffect(() => {
 		if (!config?.model || !isSessionReady) return;
 
-		// Prefer configOptions if available
 		if (session.configOptions) {
 			const modelOption = session.configOptions.find(
 				(o) => o.category === "model",
 			);
-			if (modelOption && modelOption.currentValue !== config.model) {
+			if (
+				modelOption &&
+				modelOption.type === "select" &&
+				modelOption.currentValue !== config.model
+			) {
 				const valueExists = flattenConfigSelectOptions(
 					modelOption.options,
 				).some((o) => o.value === config.model);
@@ -642,29 +689,12 @@ export function ChatPanel({
 					void agent.setConfigOption(modelOption.id, config.model);
 				}
 			}
-			return;
-		}
-
-		// Fallback to legacy models
-		if (session.models) {
-			const modelExists = session.models.availableModels.some(
-				(m) => m.modelId === config.model,
-			);
-			if (modelExists && session.models.currentModelId !== config.model) {
-				logger.log(
-					"[ChatPanel] Applying configured model:",
-					config.model,
-				);
-				void agent.setModel(config.model);
-			}
 		}
 	}, [
 		config?.model,
 		isSessionReady,
 		session.configOptions,
-		session.models,
 		agent.setConfigOption,
-		agent.setModel,
 		logger,
 	]);
 
@@ -673,19 +703,43 @@ export function ChatPanel({
 	const sessionRef = useRef(session);
 	const autoExportRef = useRef(autoExportIfEnabled);
 	const closeSessionRef = useRef(agent.closeSession);
+	const saveSessionMessagesRef = useRef(sessionHistory.saveSessionMessages);
+	// True once the user has actually run a turn in THIS session. The
+	// trailing-chunk re-save and close-time flush are armed only after a real
+	// turn, so messages that were merely loaded/replayed are never re-saved
+	// (which would bump updatedAt and corrupt "last used" ordering). (#320 review)
+	const sentThisSessionRef = useRef(false);
+	// Reference identity of the messages array last persisted to disk. Used to
+	// de-duplicate the turn-end save, the trailing-chunk re-save, and the
+	// close-time flush.
+	const lastSavedMessagesRef = useRef<ChatMessage[] | null>(null);
 	messagesRef.current = messages;
 	sessionRef.current = session;
 	autoExportRef.current = autoExportIfEnabled;
 	closeSessionRef.current = agent.closeSession;
+	saveSessionMessagesRef.current = sessionHistory.saveSessionMessages;
 
 	// Cleanup on unmount only - auto-export and close session
 	useEffect(() => {
 		return () => {
 			logger.log("[ChatPanel] Cleanup: auto-export and close session");
+			// Flush trailing-chunk content the debounced save may not have
+			// persisted yet (view closed within the debounce window). Only when a
+			// real turn ran this session and there is unsaved content. (#320 review)
+			const latest = messagesRef.current;
+			const sid = sessionRef.current.sessionId;
+			if (
+				sentThisSessionRef.current &&
+				sid &&
+				latest.length > 0 &&
+				lastSavedMessagesRef.current !== latest
+			) {
+				saveSessionMessagesRef.current(sid, latest);
+			}
 			void (async () => {
 				await autoExportRef.current(
 					"closeChat",
-					messagesRef.current,
+					latest,
 					sessionRef.current,
 				);
 				await closeSessionRef.current();
@@ -727,6 +781,13 @@ export function ChatPanel({
 	// ============================================================
 	const prevIsSendingRef = useRef<boolean>(false);
 
+	// Re-loading/switching sessions disarms the trailing-chunk save & flush, so
+	// freshly loaded/replayed messages are never re-saved (which would bump
+	// updatedAt and corrupt "last used" ordering). (#320 review)
+	useEffect(() => {
+		sentThisSessionRef.current = false;
+	}, [session.sessionId]);
+
 	useEffect(() => {
 		const wasSending = prevIsSendingRef.current;
 		prevIsSendingRef.current = isSending;
@@ -738,13 +799,18 @@ export function ChatPanel({
 			session.sessionId &&
 			messages.length > 0
 		) {
+			sentThisSessionRef.current = true;
+			lastSavedMessagesRef.current = messages;
 			sessionHistory.saveSessionMessages(session.sessionId, messages);
 			logger.log(
 				`[ChatPanel] Session messages saved: ${session.sessionId}`,
 			);
 
 			// System notification on response completion
-			if (settings.enableSystemNotifications && !activeDocument.hasFocus()) {
+			if (
+				settings.enableSystemNotifications &&
+				!activeDocument.hasFocus()
+			) {
 				new Notification("Agent Client", {
 					body: `${activeAgentLabel} has completed the response.`,
 				});
@@ -759,6 +825,64 @@ export function ChatPanel({
 		activeAgentLabel,
 		logger,
 	]);
+
+	// Some agents (e.g. OpenCode) emit trailing message chunks *after* end_turn,
+	// so the turn-end save above runs before they arrive and the persisted copy
+	// is truncated. Re-save when messages change while idle, debounced so rapid
+	// trailing updates coalesce into a single write (avoids racing the file). (#320)
+	useEffect(() => {
+		const sessionId = session.sessionId;
+		if (isSending || !sessionId || messages.length === 0) return;
+		if (!sentThisSessionRef.current) return;
+		if (lastSavedMessagesRef.current === messages) return;
+		const timer = window.setTimeout(() => {
+			lastSavedMessagesRef.current = messages;
+			sessionHistory.saveSessionMessages(sessionId, messages);
+		}, TRAILING_SAVE_DEBOUNCE_MS);
+		return () => window.clearTimeout(timer);
+	}, [
+		isSending,
+		session.sessionId,
+		messages,
+		sessionHistory.saveSessionMessages,
+	]);
+
+	// ============================================================
+	// Effects - Notify ViewRegistry of State Changes
+	// ============================================================
+	// `hasMessages` flips false → true on first message and then stays stable
+	// for the rest of the conversation. The Session Manager's title and
+	// status only depend on this boolean transition, not on per-chunk growth,
+	// so we avoid notifying on every streamed token.
+	const hasMessages = messages.length > 0;
+	useEffect(() => {
+		plugin.viewRegistry.notifyChange();
+	}, [
+		plugin.viewRegistry,
+		session.state,
+		session.sessionId,
+		isSending,
+		agent.hasActivePermission,
+		sessionHistory.loading,
+		hasMessages,
+	]);
+
+	// ============================================================
+	// Effects - Notify Sidebar Container of Session Title Changes
+	// ============================================================
+	const sessionTitle = useMemo(
+		() =>
+			computeSessionTitle(
+				session.sessionId,
+				settings.savedSessions ?? [],
+				messages,
+			),
+		[session.sessionId, settings.savedSessions, messages],
+	);
+	// Fires on initial mount + every sessionTitle change so the tab reflects the current title.
+	useEffect(() => {
+		onSessionTitleChanged?.();
+	}, [onSessionTitleChanged, sessionTitle]);
 
 	// ============================================================
 	// Effects - System Notification on Permission Request
@@ -951,18 +1075,41 @@ export function ChatPanel({
 	const attachedFilesRef = useRef(attachedFiles);
 	const isSessionReadyRef = useRef(isSessionReady);
 	const isSendingRef = useRef(isSending);
+	const sessionStateRef = useRef(session.state);
+	const sessionIdRef = useRef(session.sessionId);
+	const hasActivePermissionRef = useRef(agent.hasActivePermission);
 	const sessionHistoryLoadingRef = useRef(sessionHistory.loading);
 	const handleSendMessageRef = useRef(handleSendMessage);
 	inputValueRef.current = inputValue;
 	attachedFilesRef.current = attachedFiles;
 	isSessionReadyRef.current = isSessionReady;
 	isSendingRef.current = isSending;
+	sessionStateRef.current = session.state;
+	sessionIdRef.current = session.sessionId;
+	hasActivePermissionRef.current = agent.hasActivePermission;
 	sessionHistoryLoadingRef.current = sessionHistory.loading;
 	handleSendMessageRef.current = handleSendMessage;
 
 	useEffect(() => {
 		onRegisterCallbacks?.({
 			getDisplayName: () => activeAgentLabel,
+			getSessionStatus: () => {
+				const state = sessionStateRef.current;
+				if (state === "error") return "error";
+				if (state === "disconnected") return "disconnected";
+				if (hasActivePermissionRef.current) return "permission";
+				if (isSendingRef.current || sessionHistoryLoadingRef.current)
+					return "busy";
+				if (state === "ready") return "ready";
+				return "busy";
+			},
+			getSessionTitle: () =>
+				computeSessionTitle(
+					sessionIdRef.current,
+					plugin.settingsService.getSnapshot().savedSessions ?? [],
+					messagesRef.current,
+				),
+			getSessionId: () => sessionIdRef.current,
 			getInputState: () => ({
 				text: inputValueRef.current,
 				files: attachedFilesRef.current,
@@ -1097,8 +1244,6 @@ export function ChatPanel({
 			onRestoredMessageConsumed={handleRestoredMessageConsumed}
 			modes={session.modes}
 			onModeChange={(modeId) => void handleSetMode(modeId)}
-			models={session.models}
-			onModelChange={(modelId) => void handleSetModel(modelId)}
 			configOptions={session.configOptions}
 			onConfigOptionChange={(configId, value) =>
 				void handleSetConfigOption(configId, value)

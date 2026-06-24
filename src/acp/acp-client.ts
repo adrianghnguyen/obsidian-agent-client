@@ -21,6 +21,7 @@ import {
 	convertWindowsPathToWsl,
 	getEnhancedWindowsEnv,
 	prepareShellCommand,
+	buildWslEnv,
 } from "../utils/platform";
 import { resolveNodeDirectory } from "../utils/paths";
 import {
@@ -42,6 +43,19 @@ export interface AgentConfig {
 	args: string[];
 	env?: Record<string, string>;
 	workingDirectory: string;
+	/**
+	 * Optional API key injection intent.
+	 * When present, AcpClient.initialize() resolves the secret value from
+	 * Obsidian's secret storage and injects it into the spawn environment
+	 * as `envVarName`. Custom agents typically don't set this (they use
+	 * env vars directly).
+	 */
+	apiKey?: {
+		/** Secret storage ID to look up at spawn time */
+		secretId: string;
+		/** Environment variable name to inject the resolved value into */
+		envVarName: string;
+	};
 }
 
 /**
@@ -61,7 +75,7 @@ export interface TerminalOutputResult {
  */
 export class AcpClient {
 	// Connection & process
-	private connection: acp.ClientSideConnection | null = null;
+	private connection: acp.ClientConnection | null = null;
 	private agentProcess: ChildProcess | null = null;
 	private currentConfig: AgentConfig | null = null;
 	private isInitializedFlag = false;
@@ -110,7 +124,7 @@ export class AcpClient {
 	async initialize(config: AgentConfig): Promise<InitializeResult> {
 		this.logger.log(
 			"[AcpClient] Starting initialization with config:",
-			config,
+			this.getSafeConfigForLog(config),
 		);
 		this.logger.log(
 			`[AcpClient] Current state - process: ${!!this.agentProcess}, PID: ${this.agentProcess?.pid}`,
@@ -178,6 +192,30 @@ export class AcpClient {
 				"[AcpClient] Node.js directory added to PATH:",
 				nodeDir,
 			);
+		}
+
+		// Resolve API key secret just before spawn so the latest value is used.
+		// Custom agents don't set config.apiKey and inject keys via env directly.
+		if (config.apiKey) {
+			const secretValue =
+				this.plugin.app.secretStorage.getSecret(
+					config.apiKey.secretId,
+				) ?? "";
+			baseEnv[config.apiKey.envVarName] = secretValue;
+		}
+
+		// In WSL mode, forward the configured env var NAMES into WSL via WSLENV
+		// (Windows env vars are otherwise invisible to the Linux agent process,
+		// so the plugin's API key field would have no effect in WSL). Built-in
+		// agents resolve the API key into baseEnv above — not into config.env —
+		// so its var name must be added explicitly, or the key would never cross
+		// into WSL. Must run AFTER the secret is injected into baseEnv. (#312)
+		if (Platform.isWin && this.plugin.settings.windowsWslMode) {
+			const wslEnvNames = Object.keys(config.env || {});
+			if (config.apiKey?.envVarName) {
+				wslEnvNames.push(config.apiKey.envVarName);
+			}
+			baseEnv = buildWslEnv(baseEnv, wslEnvNames);
 		}
 
 		this.logger.log(
@@ -341,15 +379,44 @@ export class AcpClient {
 		);
 
 		const stream = acp.ndJsonStream(input, output);
-		this.connection = new acp.ClientSideConnection(
-			() => this.handler,
-			stream,
-		);
+		// Build the client app by registering handlers by ACP method name, then
+		// hold the persistent connection. This is the same builder the deprecated
+		// ClientSideConnection constructed internally (legacyClientApp), inlined.
+		const app = acp
+			.client({ name: "obsidian-agent-client" })
+			.onNotification("session/update", (ctx) =>
+				this.handler.sessionUpdate(ctx.params),
+			)
+			.onRequest("session/request_permission", (ctx) =>
+				this.handler.requestPermission(ctx.params),
+			)
+			.onRequest("fs/read_text_file", (ctx) =>
+				this.handler.readTextFile(ctx.params),
+			)
+			.onRequest("fs/write_text_file", (ctx) =>
+				this.handler.writeTextFile(ctx.params),
+			)
+			.onRequest("terminal/create", (ctx) =>
+				this.handler.createTerminal(ctx.params),
+			)
+			.onRequest("terminal/output", (ctx) =>
+				this.handler.terminalOutput(ctx.params),
+			)
+			.onRequest("terminal/wait_for_exit", (ctx) =>
+				this.handler.waitForTerminalExit(ctx.params),
+			)
+			.onRequest("terminal/kill", (ctx) =>
+				this.handler.killTerminal(ctx.params),
+			)
+			.onRequest("terminal/release", (ctx) =>
+				this.handler.releaseTerminal(ctx.params),
+			);
+		this.connection = app.connect(stream);
 
 		try {
 			this.logger.log("[AcpClient] Starting ACP initialization...");
 
-			const initResult = await this.connection.initialize({
+			const initResult = await this.connection.agent.request("initialize", {
 				protocolVersion: acp.PROTOCOL_VERSION,
 				clientCapabilities: {
 					fs: {
@@ -384,6 +451,35 @@ export class AcpClient {
 		}
 	}
 
+	private getSafeConfigForLog(config: AgentConfig): {
+		id: string;
+		displayName: string;
+		command: string;
+		args: string[];
+		envKeys: string[];
+		workingDirectory: string;
+		apiKeyEnvVar?: string;
+	} {
+		return {
+			id: config.id,
+			displayName: config.displayName,
+			command: config.command,
+			args: [...config.args],
+			envKeys: Object.keys(config.env || {}),
+			workingDirectory: config.workingDirectory,
+			// Log env var name only — never the secret ID or value
+			apiKeyEnvVar: config.apiKey?.envVarName,
+		};
+	}
+
+	/**
+	 * Update the auto-allow permission setting on a live client.
+	 * Called by the plugin when the setting changes at runtime.
+	 */
+	updateAutoAllow(autoAllow: boolean): void {
+		this.permissionManager.setAutoAllow(autoAllow);
+	}
+
 	/**
 	 * Create a new chat session with the agent.
 	 */
@@ -393,7 +489,7 @@ export class AcpClient {
 		try {
 			this.logger.log("[AcpClient] Creating new session...");
 
-			const response = await connection.newSession({
+			const response = await connection.agent.request("session/new", {
 				cwd: this.toSessionCwd(workingDirectory),
 				mcpServers: [],
 			});
@@ -420,7 +516,7 @@ export class AcpClient {
 		const connection = this.requireConnection();
 
 		try {
-			await connection.authenticate({ methodId });
+			await connection.agent.request("authenticate", { methodId });
 			this.logger.log("[AcpClient] ✅ authenticate ok:", methodId);
 			return true;
 		} catch (error: unknown) {
@@ -451,7 +547,7 @@ export class AcpClient {
 				`[AcpClient] Sending prompt with ${content.length} content blocks`,
 			);
 
-			const promptResult = await connection.prompt({
+			const promptResult = await connection.agent.request("session/prompt", {
 				sessionId: sessionId,
 				prompt: acpContent,
 			});
@@ -506,7 +602,7 @@ export class AcpClient {
 			this.logger.log(
 				"[AcpClient] Sending session/cancel notification...",
 			);
-			await this.connection.cancel({ sessionId });
+			await this.connection.agent.notify("session/cancel", { sessionId });
 			this.logger.log(
 				"[AcpClient] Cancellation request sent successfully",
 			);
@@ -608,38 +704,13 @@ export class AcpClient {
 		);
 
 		try {
-			await connection.setSessionMode({
+			await connection.agent.request("session/set_mode", {
 				sessionId,
 				modeId,
 			});
 			this.logger.log(`[AcpClient] Session mode set to: ${modeId}`);
 		} catch (error) {
 			this.logger.error("[AcpClient] Failed to set session mode:", error);
-			throw error;
-		}
-	}
-
-	/**
-	 * DEPRECATED: Use setSessionConfigOption instead.
-	 */
-	async setSessionModel(sessionId: string, modelId: string): Promise<void> {
-		const connection = this.requireConnection();
-
-		this.logger.log(
-			`[AcpClient] Setting session model to: ${modelId} for session: ${sessionId}`,
-		);
-
-		try {
-			await connection.unstable_setSessionModel({
-				sessionId,
-				modelId,
-			});
-			this.logger.log(`[AcpClient] Session model set to: ${modelId}`);
-		} catch (error) {
-			this.logger.error(
-				"[AcpClient] Failed to set session model:",
-				error,
-			);
 			throw error;
 		}
 	}
@@ -663,11 +734,14 @@ export class AcpClient {
 		);
 
 		try {
-			const response = await connection.setSessionConfigOption({
-				sessionId,
-				configId,
-				value,
-			});
+			const response = await connection.agent.request(
+				"session/set_config_option",
+				{
+					sessionId,
+					configId,
+					value,
+				},
+			);
 			this.logger.log(
 				`[AcpClient] Config option set. Updated options:`,
 				response.configOptions,
@@ -722,7 +796,7 @@ export class AcpClient {
 	 * Assert that the ACP connection is initialized and return it.
 	 * @throws Error if connection is not available
 	 */
-	private requireConnection(): acp.ClientSideConnection {
+	private requireConnection(): acp.ClientConnection {
 		if (!this.connection) {
 			throw new Error(
 				"Connection not initialized. Call initialize() first.",
@@ -781,7 +855,7 @@ export class AcpClient {
 
 			const filterCwd = cwd ? this.toSessionCwd(cwd) : undefined;
 
-			const response = await connection.unstable_listSessions({
+			const response = await connection.agent.request("session/list", {
 				cwd: filterCwd ?? null,
 				cursor: cursor ?? null,
 			});
@@ -824,7 +898,7 @@ export class AcpClient {
 		try {
 			this.logger.log(`[AcpClient] Loading session: ${sessionId}...`);
 
-			const response = await connection.loadSession({
+			const response = await connection.agent.request("session/load", {
 				sessionId,
 				cwd: this.toSessionCwd(cwd),
 				mcpServers: [],
@@ -864,7 +938,7 @@ export class AcpClient {
 		try {
 			this.logger.log(`[AcpClient] Resuming session: ${sessionId}...`);
 
-			const response = await connection.unstable_resumeSession({
+			const response = await connection.agent.request("session/resume", {
 				sessionId,
 				cwd: this.toSessionCwd(cwd),
 				mcpServers: [],
@@ -898,7 +972,7 @@ export class AcpClient {
 		try {
 			this.logger.log(`[AcpClient] Forking session: ${sessionId}...`);
 
-			const response = await connection.unstable_forkSession({
+			const response = await connection.agent.request("session/fork", {
 				sessionId,
 				cwd: this.toSessionCwd(cwd),
 				mcpServers: [],

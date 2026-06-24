@@ -42,14 +42,14 @@ The agent executable cannot be found at the specified path.
 The agent requires authentication before processing requests.
 
 **For Claude Code:**
-- **API key**: Set in **Settings → Agent Client → Claude Code (ACP) → API key**
+- **API key**: Open **Settings → Agent Client → Built-in agents → Claude Code → API key**, click **Link...**, and link or create a secret. See [Claude Code Setup](/agent-setup/claude-code#authentication).
 - **Account login**: Run `claude` in Terminal first and complete the login flow
 
 **For Codex:**
-- Set your OpenAI API key in **Settings → Agent Client → Codex → API key**
+- Open **Settings → Agent Client → Built-in agents → Codex → API key**, click **Link...**, and link or create a secret. See [Codex Setup](/agent-setup/codex#authentication).
 
 **For Gemini CLI:**
-- Set your Google API key in **Settings → Agent Client → Gemini CLI → API key**
+- Open **Settings → Agent Client → Built-in agents → Gemini CLI → API key**, click **Link...**, and link or create a secret. See [Gemini CLI Setup](/agent-setup/gemini-cli#authentication).
 - Or run `gemini` in Terminal first to authenticate with your Google account
 
 ### "No Authentication Methods" error
@@ -142,6 +142,11 @@ If you sync your vault (e.g., via Nextcloud, Syncthing, or iCloud) across machin
 **Settings:**
 - Enable **Settings → Agent Client → Windows Subsystem for Linux → Enable WSL mode**
 - Optionally specify your distribution in **WSL distribution**
+
+**Using a Node version manager (nvm/fnm) inside WSL:**
+- These tools usually add `node` to `PATH` only in **interactive** shells (e.g. from `~/.bashrc`), so the agent — launched non-interactively — may not see your nvm-managed `node` and can fall back to an old system `node` (or none).
+- Fix: set **Node.js path** to the absolute path of your nvm `node` directory, e.g. `/home/<user>/.nvm/versions/node/<version>/bin`. The plugin then injects it into `PATH` for the agent.
+- API keys: in WSL mode you can enter them directly in the agent's API key field — the plugin forwards them into WSL automatically (no need to put them in `~/.profile`).
 
 ### Agent works in Terminal but not in Obsidian
 

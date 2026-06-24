@@ -44,7 +44,6 @@ export interface UseChatActionsReturn {
 
 	// Config actions
 	handleSetMode: (modeId: string) => Promise<void>;
-	handleSetModel: (modelId: string) => Promise<void>;
 	handleSetConfigOption: (configId: string, value: string) => Promise<void>;
 
 	// UI state actions
@@ -178,15 +177,14 @@ export function useChatActions(
 			}
 
 			await agent.sendMessage(content, {
-				activeNote: settings.autoMentionActiveNote
-					? suggestions.mentions.activeNote
-					: null,
+				activeNote: suggestions.mentions.activeNote,
 				vaultBasePath: vaultPath,
 				isAutoMentionDisabled:
 					suggestions.mentions.isAutoMentionDisabled,
 				images: images.length > 0 ? images : undefined,
 				resourceLinks:
 					resourceLinks.length > 0 ? resourceLinks : undefined,
+				isFirstMessage,
 			});
 
 			// Save session metadata locally on first message
@@ -207,7 +205,6 @@ export function useChatActions(
 			session.sessionId,
 			sessionHistory.saveSessionLocally,
 			logger,
-			settings.autoMentionActiveNote,
 			suggestions.mentions.activeNote,
 			suggestions.mentions.isAutoMentionDisabled,
 			shouldConvertToWsl,
@@ -345,13 +342,6 @@ export function useChatActions(
 		[agent.setMode],
 	);
 
-	const handleSetModel = useCallback(
-		async (modelId: string) => {
-			await agent.setModel(modelId);
-		},
-		[agent.setModel],
-	);
-
 	const handleSetConfigOption = useCallback(
 		async (configId: string, value: string) => {
 			await agent.setConfigOption(configId, value);
@@ -387,7 +377,6 @@ export function useChatActions(
 		handleSwitchAgent,
 		handleRestartAgent,
 		handleSetMode,
-		handleSetModel,
 		handleSetConfigOption,
 		handleClearError,
 		handleClearAgentUpdate,
