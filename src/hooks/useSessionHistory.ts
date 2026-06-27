@@ -7,7 +7,6 @@ import type {
 	SavedSessionInfo,
 	ChatSession,
 	SessionModeState,
-	SessionModelState,
 	SessionConfigOption,
 	AgentCapabilities,
 } from "../types/session";
@@ -57,13 +56,11 @@ export interface SessionLoadCallback {
 	/**
 	 * @param sessionId - ID of the session (new session ID for fork)
 	 * @param modes - Available modes from the session
-	 * @param models - Available models from the session
 	 * @param configOptions - Config options from the session
 	 */
 	(
 		sessionId: string,
 		modes?: SessionModeState,
-		models?: SessionModelState,
 		configOptions?: SessionConfigOption[],
 	): void;
 }
@@ -328,9 +325,7 @@ export function useSessionHistory(
 					merged.every((s, i) => s.title === prev[i].title);
 				return unchanged ? prev : merged;
 			});
-			setLocalSessionIds(
-				new Set(localSessions.map((s) => s.sessionId)),
-			);
+			setLocalSessionIds(new Set(localSessions.map((s) => s.sessionId)));
 		});
 	}, [settingsAccess, session.agentId]);
 
@@ -543,7 +538,7 @@ export function useSessionHistory(
 			try {
 				// IMPORTANT: Update session.sessionId BEFORE calling restore
 				// so that session/update notifications are not ignored
-				onSessionLoad(sessionId, undefined, undefined, undefined);
+				onSessionLoad(sessionId, undefined, undefined);
 
 				if (capabilities.canLoad) {
 					// Check local messages first to decide whether to use them or agent replay
@@ -562,7 +557,6 @@ export function useSessionHistory(
 							onSessionLoad(
 								result.sessionId,
 								result.modes,
-								result.models,
 								result.configOptions,
 							);
 							onMessagesRestore(localMessages);
@@ -578,7 +572,6 @@ export function useSessionHistory(
 						onSessionLoad(
 							result.sessionId,
 							result.modes,
-							result.models,
 							result.configOptions,
 						);
 					}
@@ -591,7 +584,6 @@ export function useSessionHistory(
 					onSessionLoad(
 						result.sessionId,
 						result.modes,
-						result.models,
 						result.configOptions,
 					);
 
@@ -642,7 +634,6 @@ export function useSessionHistory(
 				onSessionLoad(
 					result.sessionId,
 					result.modes,
-					result.models,
 					result.configOptions,
 				);
 
@@ -752,11 +743,10 @@ export function useSessionHistory(
 			);
 
 			try {
-				await settingsAccess.updateSessionTitle(
-					sessionId,
-					newTitle,
-					{ agentId: session.agentId, cwd: sessionCwd },
-				);
+				await settingsAccess.updateSessionTitle(sessionId, newTitle, {
+					agentId: session.agentId,
+					cwd: sessionCwd,
+				});
 				invalidateCache();
 			} catch (err) {
 				// Rollback

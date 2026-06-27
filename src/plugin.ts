@@ -39,6 +39,7 @@ import {
 	enumVal,
 	obj,
 	strRecord,
+	nestedStrRecord,
 	xyPoint,
 } from "./services/settings-normalizer";
 import {
@@ -139,6 +140,8 @@ export interface AgentClientPluginSettings {
 	lastUsedModels: Record<string, string>;
 	// Last used mode per agent (agentId → modeId)
 	lastUsedModes: Record<string, string>;
+	// Last used non-model/mode config options per agent (agentId → {optionId → value})
+	lastUsedConfigOptions: Record<string, Record<string, string>>;
 	// Floating chat settings
 	enableFloatingChat: boolean;
 	floatingButtonImage: string;
@@ -211,6 +214,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	savedSessions: [],
 	lastUsedModels: {},
 	lastUsedModes: {},
+	lastUsedConfigOptions: {},
 	enableFloatingChat: false,
 	floatingButtonImage: "",
 	floatingWindowSize: { width: 400, height: 500 },
@@ -402,6 +406,19 @@ export default class AgentClientPlugin extends Plugin {
 					});
 				}
 				this._acpClients.clear();
+			}),
+		);
+
+		// Keep the focused chat view in sync when the active leaf changes
+		// (e.g. clicking a chat tab in the tab bar). ChatPanel's DOM
+		// focus/click listeners only fire on interaction inside the view, so a
+		// tab-bar switch would otherwise leave the Session Manager highlight on
+		// the previous view until the user clicks into the new one.
+		this.registerEvent(
+			this.app.workspace.on("active-leaf-change", (leaf) => {
+				if (leaf?.view instanceof ChatView) {
+					this.setLastActiveChatViewId(leaf.view.viewId);
+				}
 			}),
 		);
 	}
@@ -1298,6 +1315,7 @@ export default class AgentClientPlugin extends Plugin {
 				: D.savedSessions,
 			lastUsedModels: strRecord(raw.lastUsedModels),
 			lastUsedModes: strRecord(raw.lastUsedModes),
+			lastUsedConfigOptions: nestedStrRecord(raw.lastUsedConfigOptions),
 			// Migration: enableFloatingChat ← showFloatingButton (old name)
 			enableFloatingChat: bool(
 				raw.enableFloatingChat,

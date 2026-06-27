@@ -8,7 +8,6 @@ import type { NoteMetadata } from "../services/vault-service";
 import type {
 	SlashCommand,
 	SessionModeState,
-	SessionModelState,
 	SessionUsage,
 	SessionConfigOption,
 } from "../types/session";
@@ -212,10 +211,6 @@ export interface InputAreaProps {
 	modes?: SessionModeState;
 	/** Callback when mode is changed */
 	onModeChange?: (modeId: string) => void;
-	/** Session model state (available models and current model) - experimental */
-	models?: SessionModelState;
-	/** Callback when model is changed */
-	onModelChange?: (modelId: string) => void;
 	/** Session config options (supersedes modes/models when present) */
 	configOptions?: SessionConfigOption[];
 	/** Callback when a config option is changed */
@@ -279,8 +274,6 @@ export function InputArea({
 	onRestoredMessageConsumed,
 	modes,
 	onModeChange,
-	models,
-	onModelChange,
 	configOptions,
 	onConfigOptionChange,
 	usage,
@@ -310,7 +303,8 @@ export function InputArea({
 
 	// Unofficial Obsidian API (see src/types/obsidian-internals.d.ts)
 	const obsidianSpellcheck =
-		(plugin.app.vault.getConfig("spellcheck") as boolean | undefined) ?? true;
+		(plugin.app.vault.getConfig("spellcheck") as boolean | undefined) ??
+		true;
 
 	// Local state (hint and command are still local - not needed for broadcast)
 	const [hintText, setHintText] = useState<string | null>(null);
@@ -1095,8 +1089,6 @@ export function InputArea({
 					onSendOrStop={() => void handleSendOrStop()}
 					modes={modes}
 					onModeChange={onModeChange}
-					models={models}
-					onModelChange={onModelChange}
 					configOptions={configOptions}
 					onConfigOptionChange={onConfigOptionChange}
 					usage={usage}

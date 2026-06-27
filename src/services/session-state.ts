@@ -24,15 +24,10 @@ import type { AcpClient } from "../acp/acp-client";
  */
 export function applyLegacyValue(
 	prev: ChatSession,
-	kind: "mode" | "model",
 	value: string,
 ): ChatSession {
-	if (kind === "mode") {
-		if (!prev.modes) return prev;
-		return { ...prev, modes: { ...prev.modes, currentModeId: value } };
-	}
-	if (!prev.models) return prev;
-	return { ...prev, models: { ...prev.models, currentModelId: value } };
+	if (!prev.modes) return prev;
+	return { ...prev, modes: { ...prev.modes, currentModeId: value } };
 }
 
 // ============================================================================
@@ -53,7 +48,7 @@ export async function tryRestoreConfigOption(
 	if (!savedValue) return configOptions;
 
 	const option = configOptions.find((o) => o.category === category);
-	if (!option) return configOptions;
+	if (!option || option.type !== "select") return configOptions;
 	if (savedValue === option.currentValue) return configOptions;
 	if (
 		!flattenConfigSelectOptions(option.options).some(
@@ -74,6 +69,45 @@ export async function tryRestoreConfigOption(
 }
 
 /**
+ * Restore saved config option values by option id (non-legacy config options;
+ * model/mode use the category-based path above + lastUsedModels/lastUsedModes).
+ * Applies each saved value that still maps to a currently-available choice;
+ * unknown ids and stale/unavailable values are skipped. Mirrors the validation
+ * in tryRestoreConfigOption but keyed by id instead of category.
+ */
+export async function restoreSavedConfigOptions(
+	agentClient: AcpClient,
+	sessionId: string,
+	configOptions: SessionConfigOption[],
+	savedById: Record<string, string> | undefined,
+): Promise<SessionConfigOption[]> {
+	if (!savedById) return configOptions;
+
+	let result = configOptions;
+	for (const [optionId, savedValue] of Object.entries(savedById)) {
+		const option = result.find((o) => o.id === optionId);
+		if (!option || option.type !== "select") continue;
+		if (savedValue === option.currentValue) continue;
+		if (
+			!flattenConfigSelectOptions(option.options).some(
+				(o) => o.value === savedValue,
+			)
+		)
+			continue;
+		try {
+			result = await agentClient.setSessionConfigOption(
+				sessionId,
+				optionId,
+				savedValue,
+			);
+		} catch {
+			// Keep current value on failure.
+		}
+	}
+	return result;
+}
+
+/**
  * Restore last used mode/model via legacy APIs.
  * Only called when configOptions is not available.
  *
@@ -88,34 +122,13 @@ export async function tryRestoreConfigOption(
 export async function restoreLegacyConfig(
 	agentClient: AcpClient,
 	sessionResult: SessionResult,
-	savedModelId: string | undefined,
 	savedModeId: string | undefined,
 ): Promise<{
 	modes: SessionResult["modes"];
-	models: SessionResult["models"];
 }> {
 	let modes = sessionResult.modes;
-	let models = sessionResult.models;
 
-	if (!sessionResult.sessionId) return { modes, models };
-
-	// Legacy model restore
-	if (models && savedModelId) {
-		if (
-			savedModelId !== models.currentModelId &&
-			models.availableModels.some((m) => m.modelId === savedModelId)
-		) {
-			try {
-				await agentClient.setSessionModel(
-					sessionResult.sessionId,
-					savedModelId,
-				);
-				models = { ...models, currentModelId: savedModelId };
-			} catch {
-				// Agent default is fine as fallback
-			}
-		}
-	}
+	if (!sessionResult.sessionId) return { modes };
 
 	// Legacy mode restore
 	if (modes && savedModeId) {
@@ -135,5 +148,5 @@ export async function restoreLegacyConfig(
 		}
 	}
 
-	return { modes, models };
+	return { modes };
 }
