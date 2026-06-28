@@ -1276,8 +1276,6 @@ export function ChatPanel({
 				} as React.CSSProperties)
 			: undefined;
 
-	const shouldShowAgentSelector = variant !== "embedded" || !config?.agent;
-
 	const headerElement =
 		variant === "sidebar" ? (
 			<ChatHeader
@@ -1289,17 +1287,34 @@ export function ChatPanel({
 				onShowMenu={handleShowSidebarMenu}
 				onOpenHistory={handleOpenHistory}
 			/>
-		) : (
+		) : variant === "floating" ? (
+			// Floating variant always shows the agent selector (no agent pinning).
 			<ChatHeader
 				variant="floating"
 				agentLabel={activeAgentLabel}
-				availableAgents={shouldShowAgentSelector ? availableAgents : []}
+				availableAgents={availableAgents}
 				currentAgentId={session.agentId}
 				isUpdateAvailable={isUpdateAvailable}
 				onAgentChange={(agentId) => void handleSwitchAgent(agentId)}
 				onShowMenu={handleShowFloatingMenu}
 				onMinimize={onMinimize}
 				onClose={onClose}
+			/>
+		) : (
+			// Embedded variant: hide the agent selector when the block pins an
+			// agent (config.agent) by passing undefined for the selector props.
+			<ChatHeader
+				variant="embedded"
+				agentLabel={activeAgentLabel}
+				isUpdateAvailable={isUpdateAvailable}
+				availableAgents={config?.agent ? undefined : availableAgents}
+				currentAgentId={session.agentId}
+				onAgentChange={
+					config?.agent
+						? undefined
+						: (agentId) => void handleSwitchAgent(agentId)
+				}
+				onShowMenu={handleShowFloatingMenu}
 			/>
 		);
 
