@@ -13,6 +13,12 @@ import { parseYaml } from "obsidian";
 
 export type AgentChatBlockConfig = {
 	type: "chat";
+	/**
+	 * Device-neutral stable block id (persist mapping key).
+	 * Hand-written ids are honored as-is; for persist blocks lacking one,
+	 * the plugin auto-injects a generated id into the fence once.
+	 */
+	id?: string;
 	agent?: string;
 	model?: string;
 	/** Max height of the messages area, e.g. "400px". */
@@ -45,7 +51,7 @@ export type AgentButtonBlockConfig = {
 export type AgentBlockConfig = AgentChatBlockConfig | AgentButtonBlockConfig;
 
 export type AgentBlockParseResult =
-	| { ok: true; config: AgentBlockConfig }
+	| { ok: true; config: AgentBlockConfig; warnings?: string[] }
 	| { ok: false; error: string };
 
 const VALID_TYPES = new Set<string>(["chat", "button"]);
@@ -77,7 +83,44 @@ function asString(value: unknown): string | undefined {
 }
 
 function asBoolean(value: unknown): boolean | undefined {
-	return typeof value === "boolean" ? value : undefined;
+	if (typeof value === "boolean") return value;
+	if (typeof value === "number") {
+		if (value === 1) return true;
+		if (value === 0) return false;
+		return undefined;
+	}
+	if (typeof value === "string") {
+		const v = value.trim().toLowerCase();
+		if (v === "true" || v === "yes" || v === "on" || v === "1") return true;
+		if (v === "false" || v === "no" || v === "off" || v === "0") {
+			return false;
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Parse an optional behavior flag (persist, autoSend).
+ *
+ * Absent value defaults to false silently. A present-but-unrecognized value
+ * does NOT fail the block: it defaults to false and pushes a non-fatal
+ * warning (surfaced subtly by renderAgentBlock).
+ */
+function parseOptionalBoolean(
+	value: unknown,
+	fieldName: string,
+	warnings: string[],
+): boolean {
+	if (value === undefined || value === null) return false;
+	const parsed = asBoolean(value);
+	if (parsed === undefined) {
+		warnings.push(
+			`Unrecognized "${fieldName}" value: ${JSON.stringify(value)}. ` +
+				`Expected a boolean (true/false). Defaulting to false.`,
+		);
+		return false;
+	}
+	return parsed;
 }
 
 function dedent(source: string): string {
@@ -96,9 +139,24 @@ function dedent(source: string): string {
 		.trim();
 }
 
-function normalizeCssLength(value: string | undefined): string | undefined {
+function normalizeCssLength(
+	value: string | undefined,
+	fieldName: string,
+	warnings: string[],
+): string | undefined {
 	if (!value) return undefined;
-	return value.replace(/^(-?\d+(?:\.\d+)?)\s+(px|em|rem|vh|vw|%)$/i, "$1$2");
+	// Strict: reject anything that is not a bare CSS length. Drop the
+	// leading "-?" so negative lengths (invalid for a height) are rejected
+	// too. Both "400px" and "400 px" normalize to "400px".
+	const match = value.match(/^(\d+(?:\.\d+)?)\s*(px|em|rem|vh|vw|%)$/i);
+	if (!match) {
+		warnings.push(
+			`Unrecognized "${fieldName}" value: ${JSON.stringify(value)}. ` +
+				`Expected a CSS length like "400px". Ignoring.`,
+		);
+		return undefined;
+	}
+	return `${match[1]}${match[2].toLowerCase()}`;
 }
 
 /**
@@ -109,6 +167,7 @@ function normalizeCssLength(value: string | undefined): string | undefined {
  */
 export function parseAgentBlock(source: string): AgentBlockParseResult {
 	const trimmed = dedent(source);
+	const warnings: string[] = [];
 
 	let raw: unknown;
 	if (trimmed.length === 0) {
@@ -156,14 +215,23 @@ export function parseAgentBlock(source: string): AgentBlockParseResult {
 
 		const config: AgentChatBlockConfig = {
 			type: "chat",
+			id: asString(obj.id),
 			agent: asString(obj.agent),
 			model: asString(obj.model),
-			height: normalizeCssLength(asString(obj.height)),
-			persist: asBoolean(obj.persist) ?? false,
+			height: normalizeCssLength(
+				asString(obj.height),
+				"height",
+				warnings,
+			),
+			persist: parseOptionalBoolean(obj.persist, "persist", warnings),
 			noteContext,
 			image: asString(obj.image),
 		};
-		return { ok: true, config };
+		return {
+			ok: true,
+			config,
+			warnings: warnings.length > 0 ? warnings : undefined,
+		};
 	}
 
 	const text = asString(obj.text);
@@ -197,7 +265,11 @@ export function parseAgentBlock(source: string): AgentBlockParseResult {
 		prompt,
 		agent: asString(obj.agent),
 		viewType: viewType ?? "right-pane",
-		autoSend: asBoolean(obj.autoSend) ?? false,
+		autoSend: parseOptionalBoolean(obj.autoSend, "autoSend", warnings),
 	};
-	return { ok: true, config };
+	return {
+		ok: true,
+		config,
+		warnings: warnings.length > 0 ? warnings : undefined,
+	};
 }

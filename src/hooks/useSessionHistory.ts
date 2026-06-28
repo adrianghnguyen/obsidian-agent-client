@@ -185,7 +185,7 @@ export interface UseSessionHistoryReturn {
 	saveSessionLocally: (
 		sessionId: string,
 		messageContent: string,
-		sourcePath?: string,
+		embedId?: string,
 	) => Promise<void>;
 
 	/**
@@ -773,7 +773,7 @@ export function useSessionHistory(
 		async (
 			sessionId: string,
 			messageContent: string,
-			sourcePath?: string,
+			embedId?: string,
 		) => {
 			if (!session.agentId) return;
 
@@ -784,7 +784,7 @@ export function useSessionHistory(
 				agentId: session.agentId,
 				cwd: agentCwd,
 				title,
-				sourcePath,
+				embedId,
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
 			});

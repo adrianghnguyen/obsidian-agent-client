@@ -77,7 +77,7 @@ export function useChatActions(
 	messages: ChatMessage[],
 	settings: AgentClientPluginSettings,
 	vaultPath: string,
-	persistentSourcePath?: string,
+	persistentEmbedId?: string,
 ): UseChatActionsReturn {
 	const logger = getLogger();
 
@@ -193,7 +193,7 @@ export function useChatActions(
 				await sessionHistory.saveSessionLocally(
 					session.sessionId,
 					content,
-					persistentSourcePath,
+					persistentEmbedId,
 				);
 				logger.log(
 					`[ChatPanel] Session saved locally: ${session.sessionId}`,
@@ -206,7 +206,7 @@ export function useChatActions(
 			messages.length,
 			session.sessionId,
 			sessionHistory.saveSessionLocally,
-			persistentSourcePath,
+			persistentEmbedId,
 			logger,
 			suggestions.mentions.activeNote,
 			suggestions.mentions.isAutoMentionDisabled,

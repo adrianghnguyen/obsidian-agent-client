@@ -557,8 +557,12 @@ export interface SavedSessionInfo {
 	cwd: string;
 	/** Human-readable session title (first 50 chars of first user message) */
 	title?: string;
-	/** Note path that owns a persistent embedded chat session. */
-	sourcePath?: string;
+	/**
+	 * Device-neutral id of the embedded block that owns this persistent
+	 * session. Restore + dedup key for embedded persist = (embedId, agentId,
+	 * cwd). Device-local mapping; never written into note content.
+	 */
+	embedId?: string;
 	/** ISO 8601 timestamp of session creation */
 	createdAt: string;
 	/** ISO 8601 timestamp of last activity */

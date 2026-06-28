@@ -90,10 +90,24 @@ export class SessionStorage {
 
 			const sessions = [...(state.savedSessions || [])];
 
-			// Find existing session by sessionId
-			const existingIndex = sessions.findIndex(
-				(s) => s.sessionId === sessionInfo.sessionId,
-			);
+			// Embedded persist sessions dedup by the device-neutral embedId
+			// within (agentId, cwd): a persist block owns at most one saved
+			// entry, so a new sessionId REPLACES the old one instead of
+			// accumulating. Non-embedded saves fall back to sessionId matching.
+			let existingIndex = -1;
+			if (sessionInfo.embedId) {
+				existingIndex = sessions.findIndex(
+					(s) =>
+						s.embedId === sessionInfo.embedId &&
+						s.agentId === sessionInfo.agentId &&
+						s.cwd === sessionInfo.cwd,
+				);
+			}
+			if (existingIndex < 0) {
+				existingIndex = sessions.findIndex(
+					(s) => s.sessionId === sessionInfo.sessionId,
+				);
+			}
 
 			if (existingIndex >= 0) {
 				sessions[existingIndex] = sessionInfo;

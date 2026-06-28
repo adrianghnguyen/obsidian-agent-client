@@ -5,6 +5,7 @@ import {
 	requestUrl,
 	MarkdownRenderChild,
 	type MarkdownPostProcessorContext,
+	TFile,
 } from "obsidian";
 import * as semver from "semver";
 import { ChatView, VIEW_TYPE_CHAT } from "./ui/ChatView";
@@ -54,6 +55,16 @@ import { initializeLogger, getLogger } from "./utils/logger";
 
 // Re-export for backward compatibility
 export type { AgentEnvVar, CustomAgentSettings };
+
+/**
+ * Generate a short, device-neutral block id for persist embedded chats.
+ * 8 hex chars derived from crypto.randomUUID — enough entropy for per-note
+ * blocks, short enough to hand-edit. Mirrors crypto.randomUUID usage already
+ * present across the codebase (e.g. ui/ChatView.tsx, services/message-state.ts).
+ */
+function generateEmbedId(): string {
+	return crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+}
 
 /**
  * Send message shortcut configuration.
@@ -237,6 +248,8 @@ export default class AgentClientPlugin extends Plugin {
 	private floatingChatCounter = 0;
 	/** Embedded chat instances mounted from markdown code blocks. */
 	private embeddedChats = new Map<string, EmbeddedChatRegistration>();
+	/** Guards against concurrent embed-id injection for the same block. */
+	private embedIdInjectionInFlight = new Set<string>();
 
 	async onload() {
 		await this.loadSettings();
@@ -798,15 +811,39 @@ export default class AgentClientPlugin extends Plugin {
 			return;
 		}
 
+		if (parsed.warnings && parsed.warnings.length > 0) {
+			const warnEl = el.createDiv({
+				cls: "agent-client-code-block-warning",
+			});
+			for (const warning of parsed.warnings) {
+				warnEl.createDiv({
+					cls: "agent-client-code-block-warning-item",
+					text: warning,
+				});
+			}
+		}
+
 		const sectionInfo = ctx.getSectionInfo(el);
 		const sourcePath = ctx.sourcePath || "";
 		const lineStart = sectionInfo?.lineStart ?? 0;
 		const blockId = `${sourcePath || "untitled"}:${lineStart}`;
 
 		if (parsed.config.type === "chat") {
+			// Persist blocks lacking an id get a stable id auto-injected into
+			// the fence, so the device-local persist mapping survives note
+			// rename/move. Requires real section bounds. Runs once: the
+			// re-render the edit triggers sees config.id and the guard inside
+			// ensureEmbedId short-circuits.
+			if (parsed.config.persist && !parsed.config.id && sectionInfo) {
+				void this.ensureEmbedId(
+					sourcePath,
+					sectionInfo.lineStart,
+					sectionInfo.lineEnd,
+				);
+			}
 			const root = mountCodeBlockChat(this, el, parsed.config, {
 				sourcePath,
-				blockId,
+				blockId: parsed.config.id ?? blockId,
 				lineStart,
 			});
 			child.onunload = () => root.unmount();
@@ -818,6 +855,69 @@ export default class AgentClientPlugin extends Plugin {
 			child.onunload = () => root.unmount();
 		}
 		ctx.addChild(child);
+	}
+
+	/**
+	 * Inject a generated stable id into a persist chat fence that lacks one.
+	 *
+	 * Device-neutral persist mapping keys on this id (not the note path), so
+	 * rename/move stays safe. Idempotent: an in-flight guard prevents
+	 * concurrent double-injection, and a content check skips fences that
+	 * already declare an id (covering the re-render the edit itself triggers).
+	 *
+	 * Uses app.vault.process (atomic read-modify-write) rather than
+	 * vault.modify, per the settled design.
+	 */
+	private async ensureEmbedId(
+		sourcePath: string,
+		lineStart: number,
+		lineEnd: number,
+	): Promise<void> {
+		if (!sourcePath) return;
+		const guardKey = `${sourcePath}:${lineStart}`;
+		if (this.embedIdInjectionInFlight.has(guardKey)) return;
+
+		const file = this.app.vault.getAbstractFileByPath(sourcePath);
+		if (!(file instanceof TFile)) return;
+
+		this.embedIdInjectionInFlight.add(guardKey);
+		try {
+			await this.app.vault.process(file, (content) => {
+				const lines = content.split("\n");
+				// Bounds + fence sanity: section info must still match the file.
+				if (
+					lineStart < 0 ||
+					lineEnd >= lines.length ||
+					lineStart >= lineEnd
+				) {
+					return content;
+				}
+				if (!/^\s*`{3,}/.test(lines[lineStart])) return content;
+
+				// Re-entry guard: skip if the fence body already declares an id
+				// as a YAML field. Exclude commented lines and inline matches.
+				const body = lines.slice(lineStart + 1, lineEnd);
+				const hasId = body.some((line) => {
+					const trimmed = line.trim();
+					return /^id:\s*/.test(trimmed) && !trimmed.startsWith("#");
+				});
+				if (hasId) return content;
+
+				const indent = lines[lineStart].match(/^\s*/)?.[0] ?? "";
+				lines.splice(
+					lineStart + 1,
+					0,
+					`${indent}id: ${generateEmbedId()}`,
+				);
+				return lines.join("\n");
+			});
+		} catch (error) {
+			getLogger().error(
+				`[AgentClient] Failed to inject embed id: ${error}`,
+			);
+		} finally {
+			this.embedIdInjectionInFlight.delete(guardKey);
+		}
 	}
 
 	/**
@@ -1221,7 +1321,7 @@ export default class AgentClientPlugin extends Plugin {
 				return {
 					enabled: bool(rp.enabled, D.promptInjection.enabled),
 					latex: bool(rp.latex, D.promptInjection.latex),
-				wikiLinks: bool(rp.wikiLinks, D.promptInjection.wikiLinks),
+					wikiLinks: bool(rp.wikiLinks, D.promptInjection.wikiLinks),
 					tables: bool(rp.tables, D.promptInjection.tables),
 				};
 			})(),

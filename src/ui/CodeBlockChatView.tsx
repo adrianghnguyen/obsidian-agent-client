@@ -93,6 +93,7 @@ function CodeBlockChatComponent({
 					viewId={viewId}
 					initialAgentId={config.agent}
 					config={{
+						id: config.id,
 						agent: config.agent,
 						model: config.model,
 						persist: config.persist,

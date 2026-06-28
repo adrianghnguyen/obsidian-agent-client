@@ -42,7 +42,9 @@ If your plugin does not need CSS, delete this file.
 	font: inherit;
 }
 
-.agent-client-session-manager .tree-item-self:hover .agent-client-session-item-more {
+.agent-client-session-manager
+	.tree-item-self:hover
+	.agent-client-session-item-more {
 	opacity: 1;
 }
 
@@ -110,8 +112,12 @@ If your plugin does not need CSS, delete this file.
 }
 
 @keyframes agent-client-spin {
-	from { transform: rotate(0deg); }
-	to { transform: rotate(360deg); }
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
 }
 
 /* ===== Settings Tab Documentation Link ===== */
@@ -505,7 +511,9 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Hide stale inner view-header title (updateHeader() doesn't refresh it); visibility:hidden preserves flex layout. */
-.workspace-leaf-content[data-type="agent-client-chat-view"] > .view-header .view-header-title-container {
+.workspace-leaf-content[data-type="agent-client-chat-view"]
+	> .view-header
+	.view-header-title-container {
 	visibility: hidden;
 }
 
@@ -2303,6 +2311,22 @@ If your plugin does not need CSS, delete this file.
 	word-break: break-word;
 	max-height: 200px;
 	overflow: auto;
+}
+
+.agent-client-code-block-warning {
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	padding: 6px 10px;
+	border-radius: 6px;
+	font-size: 0.85em;
+	margin: 4px 0;
+	font-family: var(--font-interface);
+}
+
+.agent-client-code-block-warning-item {
+	white-space: pre-wrap;
+	word-break: break-word;
 }
 
 .agent-client-code-block-host {

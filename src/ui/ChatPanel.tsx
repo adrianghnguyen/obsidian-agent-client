@@ -85,6 +85,7 @@ export interface ChatPanelProps {
 	workingDirectory?: string;
 	initialAgentId?: string;
 	config?: {
+		id?: string;
 		agent?: string;
 		model?: string;
 		persist?: boolean;
@@ -322,7 +323,7 @@ export function ChatPanel({
 		messages,
 		settings,
 		vaultPath,
-		config?.persist ? config.sourcePath : undefined,
+		config?.persist ? config.id : undefined,
 	);
 
 	const {
@@ -695,15 +696,16 @@ export function ChatPanel({
 
 	useEffect(() => {
 		if (variant !== "embedded") return;
-		if (!config?.persist || !config.sourcePath) return;
+		if (!config?.persist || !config.id) return;
 		if (!isSessionReady || !session.sessionId || !session.agentId) return;
 		if (!sessionHistory.canRestore) return;
 		if (persistRestoreAttemptedRef.current) return;
 		persistRestoreAttemptedRef.current = true;
 
+		// Restore by the device-neutral embedId (rename/move safe).
 		const savedSession = plugin.settingsService
 			.getSavedSessions(session.agentId, agentCwd)
-			.find((item) => item.sourcePath === config.sourcePath);
+			.find((item) => item.embedId === config.id);
 		if (!savedSession || savedSession.sessionId === session.sessionId) {
 			return;
 		}
@@ -712,7 +714,7 @@ export function ChatPanel({
 	}, [
 		variant,
 		config?.persist,
-		config?.sourcePath,
+		config?.id,
 		isSessionReady,
 		session.sessionId,
 		session.agentId,
