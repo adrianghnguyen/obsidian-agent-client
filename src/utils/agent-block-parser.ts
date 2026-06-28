@@ -152,51 +152,14 @@ function normalizeCssLength(
 	return `${match[1]}${match[2].toLowerCase()}`;
 }
 
-const PARSE_CACHE = new Map<string, AgentBlockParseResult>();
-// 256 covers the distinct blocks reasonably open during an editing session
-// (well above realistic counts) while capping memory at a few hundred KB.
-const MAX_PARSE_CACHE_SIZE = 256;
-
-/** Clear the parse cache (diagnostics / memory pressure). */
-export function clearParseBlockCache(): void {
-	PARSE_CACHE.clear();
-}
-
 /**
  * Parse the fence body. An empty body yields a default `chat` block.
  *
  * Returns a discriminated result. Callers should render an inline error
  * (createDiv/createSpan, never innerHTML) when ok is false.
- *
- * Results are cached by the dedented body, so identical re-processing returns
- * the same result object. Treat the returned result (its config and warnings)
- * as immutable and copy before mutating.
  */
 export function parseAgentBlock(source: string): AgentBlockParseResult {
 	const trimmed = dedent(source);
-
-	const cached = PARSE_CACHE.get(trimmed);
-	if (cached) {
-		// LRU touch: re-insert to mark most-recently-used.
-		PARSE_CACHE.delete(trimmed);
-		PARSE_CACHE.set(trimmed, cached);
-		return cached;
-	}
-
-	const result = parseDedentedBlock(trimmed);
-
-	if (PARSE_CACHE.size >= MAX_PARSE_CACHE_SIZE) {
-		// Evict the oldest entry (Map preserves insertion order).
-		for (const oldestKey of PARSE_CACHE.keys()) {
-			PARSE_CACHE.delete(oldestKey);
-			break;
-		}
-	}
-	PARSE_CACHE.set(trimmed, result);
-	return result;
-}
-
-function parseDedentedBlock(trimmed: string): AgentBlockParseResult {
 	const warnings: string[] = [];
 
 	let raw: unknown;

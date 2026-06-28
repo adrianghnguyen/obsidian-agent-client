@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
 	parseAgentBlock,
-	clearParseBlockCache,
 	type AgentChatBlockConfig,
 	type AgentButtonBlockConfig,
 } from "../src/utils/agent-block-parser";
@@ -327,27 +326,5 @@ describe("parseAgentBlock — structural errors", () => {
 				'Unknown type: "widget". Expected "chat" or "button".',
 			);
 		}
-	});
-});
-
-describe("parseAgentBlock — parse cache", () => {
-	it("returns a referentially identical result for the same source", () => {
-		const src = "agent: cache-probe\nmodel: cache-model";
-		const first = parseAgentBlock(src);
-		const second = parseAgentBlock(src);
-		expect(second).toBe(first);
-	});
-
-	it("exports a callable clearParseBlockCache that does not throw", () => {
-		expect(() => clearParseBlockCache()).not.toThrow();
-	});
-
-	it("returns an equivalent result after the cache is cleared", () => {
-		const src = "agent: cache-clear-probe";
-		const before = parseAgentBlock(src);
-		clearParseBlockCache();
-		const after = parseAgentBlock(src);
-		expect(after.ok).toBe(true);
-		expect(after).toEqual(before);
 	});
 });
