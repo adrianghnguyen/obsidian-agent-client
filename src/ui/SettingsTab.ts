@@ -202,7 +202,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.addOption("right-split", "Right pane (split)")
 					.addOption("editor-tab", "Editor area (tabs)")
 					.addOption("editor-split", "Editor area (split)")
-					.addOption("floating", "Floating chat")
 					.setValue(this.plugin.settings.chatViewLocation)
 					.onChange(async (value) => {
 						await this.plugin.settingsService.updateSettings({

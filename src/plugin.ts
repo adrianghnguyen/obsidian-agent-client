@@ -83,14 +83,12 @@ export type SendMessageShortcut = "enter" | "cmd-enter";
  * - 'right-split': Open in right pane with vertical split
  * - 'editor-tab': Open in editor area as tabs
  * - 'editor-split': Open in editor area with right split
- * - 'floating': Open as a floating chat window
  */
 export type ChatViewLocation =
 	| "right-tab"
 	| "right-split"
 	| "editor-tab"
-	| "editor-split"
-	| "floating";
+	| "editor-split";
 
 export interface AgentClientPluginSettings {
 	gemini: GeminiAgentSettings;
@@ -679,8 +677,6 @@ export default class AgentClientPlugin extends Plugin {
 		const location = this.settings.chatViewLocation;
 
 		switch (location) {
-			case "floating":
-				return null;
 			case "right-tab":
 				if (isAdditional) {
 					return this.createSidebarTab("right");
@@ -733,12 +729,6 @@ export default class AgentClientPlugin extends Plugin {
 	 * Always creates a new view (doesn't reuse existing).
 	 */
 	async openNewChatViewWithAgent(agentId: string): Promise<string | null> {
-		if (this.settings.chatViewLocation === "floating") {
-			const counterBefore = this.floatingChatCounter;
-			this.openNewFloatingChat(true);
-			return `floating-chat-${counterBefore}`;
-		}
-
 		const leaf = this.createNewChatLeaf(true);
 		if (!leaf) {
 			getLogger().warn("[AgentClient] Failed to create new leaf");
@@ -1480,13 +1470,7 @@ export default class AgentClientPlugin extends Plugin {
 			),
 			chatViewLocation: enumVal(
 				raw.chatViewLocation,
-				[
-					"right-tab",
-					"right-split",
-					"editor-tab",
-					"editor-split",
-					"floating",
-				],
+				["right-tab", "right-split", "editor-tab", "editor-split"],
 				D.chatViewLocation,
 			),
 			displaySettings: {
