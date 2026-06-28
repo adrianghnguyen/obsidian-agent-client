@@ -94,7 +94,7 @@ export interface ChatPanelProps {
 		persist?: boolean;
 		noteContext?: "hosting";
 		sourcePath?: string;
-		/** Stable block id (from G1's AgentChatBlockConfig.id; used as embedId). */
+		/** Stable block id (from AgentChatBlockConfig.id; used as embedId). */
 		id?: string;
 	};
 	onRegisterCallbacks?: (callbacks: ChatPanelCallbacks) => void;

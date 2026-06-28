@@ -108,7 +108,7 @@ describe("parseAgentBlock — chat height normalization", () => {
 	});
 });
 
-describe("parseAgentBlock — chat id (G1)", () => {
+describe("parseAgentBlock — chat id", () => {
 	it("preserves a hand-written id", () => {
 		const result = parseAgentBlock("id: my-block-id");
 		expect(result.ok).toBe(true);
