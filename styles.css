@@ -2392,7 +2392,6 @@ If your plugin does not need CSS, delete this file.
 .agent-client-embedded-chat-panel .agent-client-chat-input-container {
 	flex: 0 0 auto;
 	padding: 8px 10px 10px;
-	border-top: 1px solid var(--background-modifier-border);
 	background: var(--background-primary);
 }
 
