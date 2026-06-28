@@ -240,6 +240,20 @@ export default class AgentClientPlugin extends Plugin {
 
 	/** Map of viewId to AcpClient for multi-session support */
 	private _acpClients: Map<string, AcpClient> = new Map();
+	/**
+	 * Pending-prompt handlers keyed by viewId. A ChatPanel registers its
+	 * handler on mount; runPromptInChat delivers through it (deterministic
+	 * handshake that replaces a timed workspace broadcast).
+	 */
+	private _pendingPromptHandlers = new Map<
+		string,
+		(prompt: string, autoSend: boolean) => void
+	>();
+	/** Prompts queued before their target ChatPanel registered a handler. */
+	private _pendingPrompts = new Map<
+		string,
+		{ prompt: string; autoSend: boolean }
+	>();
 	/** Floating button container (independent from chat view instances) */
 	private floatingButton: FloatingButtonContainer | null = null;
 	/** Counter for generating unique floating chat instance IDs */
@@ -461,6 +475,10 @@ export default class AgentClientPlugin extends Plugin {
 			client.disconnect().catch(() => {});
 		}
 		this._acpClients.clear();
+
+		// Drop any undelivered pending-prompt handlers and queued prompts.
+		this._pendingPromptHandlers.clear();
+		this._pendingPrompts.clear();
 	}
 
 	/**
@@ -732,20 +750,31 @@ export default class AgentClientPlugin extends Plugin {
 		sourcePath: string,
 		lineStart: number,
 	): string | null {
-		let nearest: EmbeddedChatViewContainer | null = null;
-		let nearestDistance = Number.POSITIVE_INFINITY;
+		// Prefer the embedded chat closest at/above the target line (a button
+		// usually sits just below its chat). If none are at/above, fall back to
+		// the highest chat below. The secondary sort by lineStart keeps the
+		// "below" pick deterministic without relying on registry iteration
+		// order (which shifts when a block unregisters/re-registers on
+		// re-render).
+		let above: EmbeddedChatViewContainer | null = null;
+		let aboveDistance = Number.POSITIVE_INFINITY;
+		let below: EmbeddedChatViewContainer | null = null;
 
 		for (const container of this.viewRegistry.getByType("embedded")) {
 			if (!(container instanceof EmbeddedChatViewContainer)) continue;
 			if (container.sourcePath !== sourcePath) continue;
-			const distance = Math.abs(container.lineStart - lineStart);
-			if (distance < nearestDistance) {
-				nearest = container;
-				nearestDistance = distance;
+			const distance = lineStart - container.lineStart;
+			if (distance >= 0) {
+				if (distance < aboveDistance) {
+					above = container;
+					aboveDistance = distance;
+				}
+			} else if (!below || container.lineStart < below.lineStart) {
+				below = container;
 			}
 		}
 
-		return nearest?.viewId ?? null;
+		return (above ?? below)?.viewId ?? null;
 	}
 
 	/**
@@ -807,11 +836,25 @@ export default class AgentClientPlugin extends Plugin {
 			return;
 		}
 
-		if (parsed.warnings && parsed.warnings.length > 0) {
+		// Collect non-fatal warnings: parser warnings plus a mount-side check
+		// for an unknown agent id (#28). Copy the parser array rather than
+		// mutating it, since parse results may be shared once cached.
+		const warnings = parsed.warnings ? [...parsed.warnings] : [];
+		const requestedAgent = parsed.config.agent;
+		if (
+			requestedAgent &&
+			!this.getAvailableAgents().some((a) => a.id === requestedAgent)
+		) {
+			warnings.push(
+				`Unknown agent "${requestedAgent}", using the default agent instead.`,
+			);
+		}
+
+		if (warnings.length > 0) {
 			const warnEl = el.createDiv({
 				cls: "agent-client-code-block-warning",
 			});
-			for (const warning of parsed.warnings) {
+			for (const warning of warnings) {
 				warnEl.createDiv({
 					cls: "agent-client-code-block-warning-item",
 					text: warning,
@@ -920,9 +963,9 @@ export default class AgentClientPlugin extends Plugin {
 	 * Open a chat view and inject a prompt into it. Used by quick-action
 	 * buttons (embedded code blocks, command palette entries, etc.).
 	 *
-	 * Fires `agent-client:run-prompt` shortly after the open call so the
-	 * target ChatPanel (matched by viewId or "any") can populate its input
-	 * box, optionally auto-sending once the session is ready.
+	 * Delivers the prompt to the target ChatPanel via the pending-prompt
+	 * registry (see registerPendingPromptHandler): synchronous if the panel is
+	 * already mounted, otherwise queued and drained on its next mount.
 	 */
 	async runPromptInChat(options: {
 		agentId: string;
@@ -965,16 +1008,47 @@ export default class AgentClientPlugin extends Plugin {
 
 		if (!targetViewId) return;
 
-		// Defer slightly so the React root has mounted and registered its
-		// `agent-client:run-prompt` listener.
-		window.setTimeout(() => {
-			this.app.workspace.trigger(
-				"agent-client:run-prompt",
-				targetViewId,
-				prompt,
-				autoSend,
-			);
-		}, 100);
+		// Deterministic handshake: deliver now if the target ChatPanel has
+		// registered its handler, otherwise queue until it mounts. Replaces a
+		// 100ms setTimeout + workspace broadcast that could drop the prompt if
+		// the React root mounted late.
+		this.deliverPrompt(targetViewId, prompt, autoSend);
+	}
+
+	/**
+	 * Register a ChatPanel's pending-prompt handler (called on mount). If a
+	 * prompt was queued before the panel mounted (runPromptInChat ran first),
+	 * it is delivered synchronously here. Returns an unregister function.
+	 */
+	registerPendingPromptHandler(
+		viewId: string,
+		handler: (prompt: string, autoSend: boolean) => void,
+	): () => void {
+		this._pendingPromptHandlers.set(viewId, handler);
+		const queued = this._pendingPrompts.get(viewId);
+		if (queued) {
+			this._pendingPrompts.delete(viewId);
+			handler(queued.prompt, queued.autoSend);
+		}
+		return () => {
+			if (this._pendingPromptHandlers.get(viewId) === handler) {
+				this._pendingPromptHandlers.delete(viewId);
+			}
+		};
+	}
+
+	private deliverPrompt(
+		viewId: string,
+		prompt: string,
+		autoSend: boolean,
+	): void {
+		const handler = this._pendingPromptHandlers.get(viewId);
+		if (handler) {
+			handler(prompt, autoSend);
+		} else {
+			// Panel not mounted yet; drained by registerPendingPromptHandler.
+			this._pendingPrompts.set(viewId, { prompt, autoSend });
+		}
 	}
 
 	/**

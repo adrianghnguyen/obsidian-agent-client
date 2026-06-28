@@ -282,7 +282,7 @@ export function ChatPanel({
 	const [inputValue, setInputValue] = useState("");
 	const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
 
-	// Pending auto-send queued by `agent-client:run-prompt` (drained when ready)
+	// Pending auto-send queued by the pending-prompt handler (drained when ready)
 	const [pendingAutoSend, setPendingAutoSend] = useState<string | null>(null);
 	const persistRestoreAttemptedRef = useRef(false);
 
@@ -1098,27 +1098,6 @@ export function ChatPanel({
 				if (targetViewId && targetViewId !== viewId) return;
 				void handleExportChatRef.current();
 			}),
-
-			// Run prompt injected by quick-action button or code block.
-			// `targetViewId` filter: null/empty matches any view (used when the
-			// caller created the leaf via openNewChatViewWithAgent and cannot
-			// know the new viewId synchronously).
-			ws.on(
-				"agent-client:run-prompt",
-				(
-					targetViewId: string | null,
-					prompt: string,
-					autoSend?: boolean,
-				) => {
-					if (targetViewId && targetViewId !== viewId) return;
-					if (typeof prompt !== "string" || prompt.length === 0)
-						return;
-					setInputValue(prompt);
-					if (autoSend) {
-						setPendingAutoSend(prompt);
-					}
-				},
-			),
 		];
 
 		return () => {
@@ -1133,6 +1112,21 @@ export function ChatPanel({
 		variant,
 		suggestions.mentions.toggleAutoMention,
 	]);
+
+	// Deterministic prompt delivery: register a handler the plugin invokes
+	// directly (or that drains a queued prompt) instead of a timed workspace
+	// broadcast. setInputValue / setPendingAutoSend are stable useState
+	// setters, so [plugin, viewId] deps suffice.
+	useEffect(() => {
+		return plugin.registerPendingPromptHandler(
+			viewId,
+			(prompt, autoSend) => {
+				if (typeof prompt !== "string" || prompt.length === 0) return;
+				setInputValue(prompt);
+				if (autoSend) setPendingAutoSend(prompt);
+			},
+		);
+	}, [plugin, viewId]);
 
 	// ============================================================
 	// Effects - Drain pending auto-send when session becomes ready

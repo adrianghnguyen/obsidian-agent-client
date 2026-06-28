@@ -44,13 +44,15 @@ function AgentButtonBlockComponent({
 		});
 	}, [plugin, resolvedAgentId]);
 
+	const { prompt, autoSend, viewType } = config;
+
 	const handleClick = useCallback(async () => {
 		try {
 			await plugin.runPromptInChat({
 				agentId: resolvedAgentId,
-				prompt: config.prompt,
-				autoSend: config.autoSend ?? false,
-				viewType: config.viewType ?? "right-pane",
+				prompt,
+				autoSend: autoSend ?? false,
+				viewType: viewType ?? "right-pane",
 				sourcePath: mountCtx.sourcePath,
 				lineStart: mountCtx.lineStart,
 			});
@@ -58,7 +60,15 @@ function AgentButtonBlockComponent({
 			console.error("[Agent Client] runPromptInChat failed:", error);
 			new Notice("Failed to open chat with prompt.");
 		}
-	}, [plugin, resolvedAgentId, config]);
+	}, [
+		plugin,
+		resolvedAgentId,
+		prompt,
+		autoSend,
+		viewType,
+		mountCtx.sourcePath,
+		mountCtx.lineStart,
+	]);
 
 	return (
 		<div className="agent-client-button-block">
