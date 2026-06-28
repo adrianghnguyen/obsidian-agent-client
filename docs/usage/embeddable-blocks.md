@@ -47,7 +47,7 @@ A chat block (`type: chat`, or no `type` at all) mounts a fully interactive chat
 | `type` | `chat` | `chat` | Selects the chat block. Optional. |
 | `agent` | string | view default | Agent id to use (e.g. `claude-code-acp`). When omitted, the configured **Default agent** is used. |
 | `model` | string | agent default | Model id to select once the session is ready. Must be a model the agent exposes. |
-| `height` | CSS length | `520px` | Max height of the messages area. See [supported units](#height-units) below. |
+| `height` | CSS length | `520px` | Max height of the embedded chat (capped at `80vh`). See [supported units](#height-units) below. |
 | `id` | string | auto / none | Stable block id used as the persistence key. See [Persistence](#persistence). |
 | `persist` | boolean | `false` | Restore the latest saved session for this block on reload. |
 | `noteContext` | `hosting` | (active note) | Pin auto-mention to the note hosting the block instead of the currently active note. |
@@ -69,7 +69,7 @@ By default an embedded chat auto-mentions whichever note is currently active, ju
 
 ## Persistence
 
-By default an embedded chat starts a fresh session every time the note is re-rendered. Set `persist: true` to have the block reattach to its most recent saved session on reload.
+By default an embedded chat starts a fresh session each time the note is reopened. Set `persist: true` to have the block reattach to its most recent saved session on reload.
 
 ::: warning Device-local by design
 The mapping between a block and its saved session lives in **this device's plugin data**, not in the note. It is **never written into the note** and is **not synced** between devices. A session id is **never** stored in your Markdown.
