@@ -114,6 +114,15 @@ export const normalizeEnvVars = (value: unknown): AgentEnvVar[] => {
 	});
 };
 
+/**
+ * Normalize an avatar image string: undefined unless a non-empty string.
+ */
+export const normalizeAvatarImage = (value: unknown): string | undefined => {
+	if (typeof value !== "string") return undefined;
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+};
+
 // Rebuild a custom agent entry with defaults and cleaned values
 export const normalizeCustomAgent = (
 	agent: Record<string, unknown>,
@@ -128,12 +137,7 @@ export const normalizeCustomAgent = (
 		agent.displayName.trim().length > 0
 			? agent.displayName.trim()
 			: rawId;
-	const rawAvatar =
-		agent &&
-		typeof agent.avatarImage === "string" &&
-		agent.avatarImage.trim().length > 0
-			? agent.avatarImage.trim()
-			: undefined;
+	const rawAvatar = normalizeAvatarImage(agent?.avatarImage);
 	return {
 		id: rawId,
 		displayName: rawDisplayName,

@@ -6,10 +6,7 @@ import type AgentClientPlugin from "../plugin";
 import { ChatContextProvider } from "./ChatContext";
 import { ChatPanel, type ChatPanelCallbacks } from "./ChatPanel";
 import { VaultService } from "../services/vault-service";
-import {
-	getAgentAvatarImage,
-	resolveImageSrc,
-} from "../utils/resolve-image-src";
+import { resolveAvatarSrc } from "../services/image-resolver";
 import type { AgentChatBlockConfig } from "../utils/agent-block-parser";
 import type {
 	IChatViewContainer,
@@ -68,14 +65,12 @@ function CodeBlockChatComponent({
 	);
 
 	const avatarSrc = useMemo(() => {
-		return (
-			resolveImageSrc(plugin, config.image) ??
-			resolveImageSrc(
-				plugin,
-				getAgentAvatarImage(plugin, config.agent),
-			) ??
-			resolveImageSrc(plugin, plugin.settings.floatingButtonImage)
-		);
+		return resolveAvatarSrc({
+			plugin,
+			explicitImage: config.image,
+			agentId: config.agent,
+			includeFloatingButton: true,
+		});
 	}, [plugin, config.image, config.agent]);
 
 	const heightStyle = config.height
@@ -100,12 +95,14 @@ function CodeBlockChatComponent({
 					onRegisterCallbacks={onRegisterCallbacks}
 					initialAgentId={config.agent}
 					config={{
-						id: config.id,
 						agent: config.agent,
 						model: config.model,
+					}}
+					embeddedConfig={{
 						persist: config.persist,
 						noteContext: config.noteContext,
 						sourcePath: mountCtx.sourcePath,
+						id: config.id,
 					}}
 				/>
 			</ChatContextProvider>

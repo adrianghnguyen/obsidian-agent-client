@@ -85,12 +85,16 @@ export interface ChatPanelProps {
 	workingDirectory?: string;
 	initialAgentId?: string;
 	config?: {
-		id?: string;
 		agent?: string;
 		model?: string;
+	};
+	/** Embedded variant only (meaningful when variant === "embedded"). */
+	embeddedConfig?: {
 		persist?: boolean;
 		noteContext?: "hosting";
 		sourcePath?: string;
+		/** Stable block id (from G1's AgentChatBlockConfig.id; used as embedId). */
+		id?: string;
 	};
 	onRegisterCallbacks?: (callbacks: ChatPanelCallbacks) => void;
 	/** Called when agent ID changes (sidebar only — persists in Obsidian state) */
@@ -145,6 +149,7 @@ export function ChatPanel({
 	workingDirectory,
 	initialAgentId,
 	config,
+	embeddedConfig,
 	onRegisterCallbacks,
 	onAgentIdChanged,
 	onSessionTitleChanged,
@@ -210,10 +215,15 @@ export function ChatPanel({
 	} = agent;
 
 	const pinnedActiveNote = useMemo<NoteMetadata | null>(() => {
-		if (config?.noteContext !== "hosting" || !config.sourcePath) {
+		if (
+			embeddedConfig?.noteContext !== "hosting" ||
+			!embeddedConfig.sourcePath
+		) {
 			return null;
 		}
-		const file = plugin.app.vault.getAbstractFileByPath(config.sourcePath);
+		const file = plugin.app.vault.getAbstractFileByPath(
+			embeddedConfig.sourcePath,
+		);
 		if (!(file instanceof TFile)) return null;
 		return {
 			path: file.path,
@@ -222,7 +232,7 @@ export function ChatPanel({
 			created: file.stat.ctime,
 			modified: file.stat.mtime,
 		};
-	}, [plugin, config?.noteContext, config?.sourcePath]);
+	}, [plugin, embeddedConfig?.noteContext, embeddedConfig?.sourcePath]);
 
 	const suggestions = useSuggestions(
 		vaultService,
@@ -323,7 +333,7 @@ export function ChatPanel({
 		messages,
 		settings,
 		vaultPath,
-		config?.persist ? config.id : undefined,
+		embeddedConfig?.persist ? embeddedConfig.id : undefined,
 	);
 
 	const {
@@ -696,7 +706,7 @@ export function ChatPanel({
 
 	useEffect(() => {
 		if (variant !== "embedded") return;
-		if (!config?.persist || !config.id) return;
+		if (!embeddedConfig?.persist || !embeddedConfig.id) return;
 		if (!isSessionReady || !session.sessionId || !session.agentId) return;
 		if (!sessionHistory.canRestore) return;
 		if (persistRestoreAttemptedRef.current) return;
@@ -705,7 +715,7 @@ export function ChatPanel({
 		// Restore by the device-neutral embedId (rename/move safe).
 		const savedSession = plugin.settingsService
 			.getSavedSessions(session.agentId, agentCwd)
-			.find((item) => item.embedId === config.id);
+			.find((item) => item.embedId === embeddedConfig.id);
 		if (!savedSession || savedSession.sessionId === session.sessionId) {
 			return;
 		}
@@ -713,8 +723,8 @@ export function ChatPanel({
 		void sessionHistory.restoreSession(savedSession.sessionId, agentCwd);
 	}, [
 		variant,
-		config?.persist,
-		config?.id,
+		embeddedConfig?.persist,
+		embeddedConfig?.id,
 		isSessionReady,
 		session.sessionId,
 		session.agentId,

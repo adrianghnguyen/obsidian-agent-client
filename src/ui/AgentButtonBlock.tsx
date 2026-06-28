@@ -4,10 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { Notice } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
-import {
-	getAgentAvatarImage,
-	resolveImageSrc,
-} from "../utils/resolve-image-src";
+import { resolveAvatarSrc } from "../services/image-resolver";
 import type { AgentButtonBlockConfig } from "../utils/agent-block-parser";
 
 interface AgentButtonBlockProps {
@@ -40,10 +37,11 @@ function AgentButtonBlockComponent({
 	}, [plugin, config.agent]);
 
 	const avatarSrc = useMemo(() => {
-		return resolveImageSrc(
+		return resolveAvatarSrc({
 			plugin,
-			getAgentAvatarImage(plugin, resolvedAgentId),
-		);
+			agentId: resolvedAgentId,
+			includeFloatingButton: false,
+		});
 	}, [plugin, resolvedAgentId]);
 
 	const handleClick = useCallback(async () => {
