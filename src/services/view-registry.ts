@@ -26,7 +26,7 @@ import { getLogger } from "../utils/logger";
  * Type of chat view container.
  * Used for filtering and type-specific behavior.
  */
-export type ChatViewType = "sidebar" | "floating";
+export type ChatViewType = "sidebar" | "floating" | "embedded";
 
 /**
  * Simplified session status for display in session lists.

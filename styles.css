@@ -79,6 +79,15 @@ If your plugin does not need CSS, delete this file.
 	white-space: nowrap;
 }
 
+.agent-client-session-item-embedded-badge {
+	margin-left: var(--size-2-2);
+	padding: 0 var(--size-2-2);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	background-color: var(--background-modifier-border);
+}
+
 .agent-client-session-status-icon {
 	flex-shrink: 0;
 	display: flex;

@@ -9,7 +9,10 @@ import {
 } from "obsidian";
 import * as semver from "semver";
 import { ChatView, VIEW_TYPE_CHAT } from "./ui/ChatView";
-import { mountCodeBlockChat } from "./ui/CodeBlockChatView";
+import {
+	mountCodeBlockChat,
+	EmbeddedChatViewContainer,
+} from "./ui/CodeBlockChatView";
 import { mountAgentButtonBlock } from "./ui/AgentButtonBlock";
 import { parseAgentBlock } from "./utils/agent-block-parser";
 import {
@@ -87,12 +90,6 @@ export type ChatViewLocation =
 	| "editor-tab"
 	| "editor-split"
 	| "floating";
-
-export interface EmbeddedChatRegistration {
-	viewId: string;
-	sourcePath: string;
-	lineStart: number;
-}
 
 export interface AgentClientPluginSettings {
 	gemini: GeminiAgentSettings;
@@ -246,8 +243,6 @@ export default class AgentClientPlugin extends Plugin {
 	private floatingButton: FloatingButtonContainer | null = null;
 	/** Counter for generating unique floating chat instance IDs */
 	private floatingChatCounter = 0;
-	/** Embedded chat instances mounted from markdown code blocks. */
-	private embeddedChats = new Map<string, EmbeddedChatRegistration>();
 	/** Guards against concurrent embed-id injection for the same block. */
 	private embedIdInjectionInFlight = new Set<string>();
 
@@ -444,6 +439,15 @@ export default class AgentClientPlugin extends Plugin {
 		// Unmount all floating chat instances via registry
 		for (const container of this.viewRegistry.getByType("floating")) {
 			if (container instanceof FloatingViewContainer) {
+				container.unmount();
+			}
+		}
+
+		// Unmount all embedded chat instances via registry. Their host
+		// MarkdownRenderChild is owned by the workspace (not the plugin), so the
+		// React roots are not torn down by plugin unload unless we do it here.
+		for (const container of this.viewRegistry.getByType("embedded")) {
+			if (container instanceof EmbeddedChatViewContainer) {
 				container.unmount();
 			}
 		}
@@ -723,28 +727,19 @@ export default class AgentClientPlugin extends Plugin {
 		createFloatingChat(this, instanceId, initialExpanded, initialPosition);
 	}
 
-	registerEmbeddedChat(registration: EmbeddedChatRegistration): () => void {
-		this.embeddedChats.set(registration.viewId, registration);
-		return () => {
-			const current = this.embeddedChats.get(registration.viewId);
-			if (current === registration) {
-				this.embeddedChats.delete(registration.viewId);
-			}
-		};
-	}
-
 	findNearestEmbeddedChat(
 		sourcePath: string,
 		lineStart: number,
 	): string | null {
-		let nearest: EmbeddedChatRegistration | null = null;
+		let nearest: EmbeddedChatViewContainer | null = null;
 		let nearestDistance = Number.POSITIVE_INFINITY;
 
-		for (const registration of this.embeddedChats.values()) {
-			if (registration.sourcePath !== sourcePath) continue;
-			const distance = Math.abs(registration.lineStart - lineStart);
+		for (const container of this.viewRegistry.getByType("embedded")) {
+			if (!(container instanceof EmbeddedChatViewContainer)) continue;
+			if (container.sourcePath !== sourcePath) continue;
+			const distance = Math.abs(container.lineStart - lineStart);
 			if (distance < nearestDistance) {
-				nearest = registration;
+				nearest = container;
 				nearestDistance = distance;
 			}
 		}
@@ -841,12 +836,12 @@ export default class AgentClientPlugin extends Plugin {
 					sectionInfo.lineEnd,
 				);
 			}
-			const root = mountCodeBlockChat(this, el, parsed.config, {
+			const container = mountCodeBlockChat(this, el, parsed.config, {
 				sourcePath,
 				blockId: parsed.config.id ?? blockId,
 				lineStart,
 			});
-			child.onunload = () => root.unmount();
+			child.onunload = () => container.unmount();
 		} else {
 			const root = mountAgentButtonBlock(this, el, parsed.config, {
 				sourcePath,
