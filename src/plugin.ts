@@ -254,6 +254,12 @@ export default class AgentClientPlugin extends Plugin {
 		string,
 		{ prompt: string; autoSend: boolean }
 	>();
+	/**
+	 * Pending graceful AcpClient teardown timers, keyed by viewId. An embedded
+	 * block schedules teardown on unmount and cancels it on (re)mount, so
+	 * re-processing churn keeps one client while genuine removal reaps it.
+	 */
+	private _acpTeardownTimers = new Map<string, number>();
 	/** Floating button container (independent from chat view instances) */
 	private floatingButton: FloatingButtonContainer | null = null;
 	/** Counter for generating unique floating chat instance IDs */
@@ -479,6 +485,12 @@ export default class AgentClientPlugin extends Plugin {
 		// Drop any undelivered pending-prompt handlers and queued prompts.
 		this._pendingPromptHandlers.clear();
 		this._pendingPrompts.clear();
+
+		// Cancel any pending graceful AcpClient teardowns.
+		for (const timer of this._acpTeardownTimers.values()) {
+			window.clearTimeout(timer);
+		}
+		this._acpTeardownTimers.clear();
 	}
 
 	/**
@@ -523,6 +535,32 @@ export default class AgentClientPlugin extends Plugin {
 		}
 		// Note: lastActiveChatViewId is now managed by viewRegistry
 		// Clearing happens automatically when view is unregistered
+	}
+
+	/** Grace window before an embedded AcpClient is actually disconnected. */
+	private static readonly ACP_TEARDOWN_GRACE_MS = 250;
+
+	/** Cancel a pending graceful teardown for a viewId (called on (re)mount). */
+	acquireAcpClient(viewId: string): void {
+		const timer = this._acpTeardownTimers.get(viewId);
+		if (timer !== undefined) {
+			window.clearTimeout(timer);
+			this._acpTeardownTimers.delete(viewId);
+		}
+	}
+
+	/**
+	 * Schedule a graceful teardown of a viewId's AcpClient. A re-acquire within
+	 * the grace window cancels it, so a rapid unmount/remount (re-processing)
+	 * keeps one client; only genuine removal disconnects the agent process.
+	 */
+	releaseAcpClient(viewId: string): void {
+		if (this._acpTeardownTimers.has(viewId)) return;
+		const timer = window.setTimeout(() => {
+			this._acpTeardownTimers.delete(viewId);
+			void this.removeAcpClient(viewId);
+		}, AgentClientPlugin.ACP_TEARDOWN_GRACE_MS);
+		this._acpTeardownTimers.set(viewId, timer);
 	}
 
 	/**

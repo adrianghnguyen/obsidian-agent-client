@@ -46,8 +46,9 @@ function CodeBlockChatComponent({
 	// Cleanup VaultService when the component unmounts. Mirrors
 	// FloatingChatComponent: the AcpClient is intentionally NOT removed here so
 	// that a re-render of the same code block (same viewId) reuses the existing
-	// session. AcpClients are reaped at plugin unload via _acpClients
-	// disconnect/clear.
+	// session. The container schedules a graceful AcpClient teardown on unmount
+	// (cancelled by a remount within the grace window); any survivors are
+	// reaped at plugin unload via _acpClients disconnect/clear.
 	useEffect(() => {
 		return () => {
 			vaultService.destroy();
@@ -77,6 +78,23 @@ function CodeBlockChatComponent({
 		? ({ "--ac-embedded-max-height": config.height } as React.CSSProperties)
 		: undefined;
 
+	// Memoize the ChatPanel props so React.memo(ChatPanel) can bail out across
+	// re-renders. Shapes MUST match ChatPanelProps (config / embeddedConfig);
+	// image/height are consumed locally (avatarSrc / heightStyle), not passed.
+	const memoizedConfig = useMemo(
+		() => ({ agent: config.agent, model: config.model }),
+		[config.agent, config.model],
+	);
+	const memoizedEmbeddedConfig = useMemo(
+		() => ({
+			persist: config.persist,
+			noteContext: config.noteContext,
+			sourcePath: mountCtx.sourcePath,
+			id: config.id,
+		}),
+		[config.persist, config.noteContext, mountCtx.sourcePath, config.id],
+	);
+
 	return (
 		<div className="agent-client-code-block-chat" style={heightStyle}>
 			{avatarSrc && (
@@ -94,16 +112,8 @@ function CodeBlockChatComponent({
 					viewId={viewId}
 					onRegisterCallbacks={onRegisterCallbacks}
 					initialAgentId={config.agent}
-					config={{
-						agent: config.agent,
-						model: config.model,
-					}}
-					embeddedConfig={{
-						persist: config.persist,
-						noteContext: config.noteContext,
-						sourcePath: mountCtx.sourcePath,
-						id: config.id,
-					}}
+					config={memoizedConfig}
+					embeddedConfig={memoizedEmbeddedConfig}
 				/>
 			</ChatContextProvider>
 		</div>
@@ -146,6 +156,9 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 	}
 
 	mount(config: AgentChatBlockConfig, mountCtx: CodeBlockMountContext): void {
+		// Cancel any pending graceful teardown so re-processing churn reuses the
+		// existing AcpClient instead of racing its disconnect.
+		this.plugin.acquireAcpClient(this.viewId);
 		this.root = createRoot(this.containerEl);
 		this.root.render(
 			<CodeBlockChatComponent
@@ -167,6 +180,10 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 			this.root.unmount();
 			this.root = null;
 		}
+		// Schedule a graceful teardown of the AcpClient; a remount within the
+		// grace window cancels it (re-processing churn), so only genuine removal
+		// disconnects the agent process.
+		this.plugin.releaseAcpClient(this.viewId);
 	}
 
 	// ============================================================

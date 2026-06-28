@@ -75,7 +75,9 @@ export function useChatActions(
 	suggestions: UseSuggestionsReturn,
 	session: ChatSession,
 	messages: ChatMessage[],
-	settings: AgentClientPluginSettings,
+	// Only windowsWslMode is read reactively here; exportSettings are read
+	// live from plugin.settings. Narrow so ChatPanel can pass a settings slice.
+	settings: Pick<AgentClientPluginSettings, "windowsWslMode">,
 	vaultPath: string,
 	persistentEmbedId?: string,
 ): UseChatActionsReturn {

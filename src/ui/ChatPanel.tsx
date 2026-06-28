@@ -24,12 +24,13 @@ import { getLogger } from "../utils/logger";
 
 // Adapter imports
 import type { AcpClient } from "../acp/acp-client";
+import type { AgentClientPluginSettings } from "../plugin";
 
 // Context imports
 import { useChatContext } from "./ChatContext";
 
 // Hooks imports
-import { useSettings } from "../hooks/useSettings";
+import { useSettingsSelector } from "../hooks/useSettings";
 import { useSuggestions } from "../hooks/useSuggestions";
 import { useAgent } from "../hooks/useAgent";
 import { useSessionHistory } from "../hooks/useSessionHistory";
@@ -135,6 +136,39 @@ interface AppWithSettings {
 /** Debounce (ms) for re-saving when trailing chunks arrive after a turn ends (#320). */
 const TRAILING_SAVE_DEBOUNCE_MS = 800;
 
+// Settings slice actually consumed by ChatPanel. Subscribing to just these
+// fields (rather than the whole settings object) prevents a re-render on every
+// unrelated settings write for every mounted panel — multiple embedded blocks
+// especially (#20).
+function selectChatPanelSettings(s: AgentClientPluginSettings) {
+	return {
+		autoMentionActiveNote: s.autoMentionActiveNote,
+		debugMode: s.debugMode,
+		// Read by useChatActions (WSL path conversion); rarely changes.
+		windowsWslMode: s.windowsWslMode,
+		enableSystemNotifications: s.enableSystemNotifications,
+		savedSessions: s.savedSessions,
+		displaySettings: { fontSize: s.displaySettings.fontSize },
+	};
+}
+
+type ChatPanelSettings = ReturnType<typeof selectChatPanelSettings>;
+
+function chatPanelSettingsEqual(
+	a: ChatPanelSettings,
+	b: ChatPanelSettings,
+): boolean {
+	return (
+		a.autoMentionActiveNote === b.autoMentionActiveNote &&
+		a.debugMode === b.debugMode &&
+		a.windowsWslMode === b.windowsWslMode &&
+		a.enableSystemNotifications === b.enableSystemNotifications &&
+		// SessionStorage always writes a fresh array; reference compare suffices.
+		a.savedSessions === b.savedSessions &&
+		a.displaySettings.fontSize === b.displaySettings.fontSize
+	);
+}
+
 /**
  * Core chat panel component that encapsulates all chat logic.
  *
@@ -143,7 +177,7 @@ const TRAILING_SAVE_DEBOUNCE_MS = 800;
  * It is a 1:1 migration of useChatController into a React component,
  * with workspace event handlers moved from ChatComponent/FloatingChatComponent.
  */
-export function ChatPanel({
+export const ChatPanel = React.memo(function ChatPanel({
 	variant,
 	viewId,
 	workingDirectory,
@@ -196,7 +230,11 @@ export function ChatPanel({
 	// ============================================================
 	// Custom Hooks
 	// ============================================================
-	const settings = useSettings(plugin);
+	const settings = useSettingsSelector(
+		plugin,
+		selectChatPanelSettings,
+		chatPanelSettingsEqual,
+	);
 
 	const agent = useAgent(
 		acpClient,
@@ -1446,4 +1484,4 @@ export function ChatPanel({
 			{inputAreaElement}
 		</div>
 	);
-}
+});
