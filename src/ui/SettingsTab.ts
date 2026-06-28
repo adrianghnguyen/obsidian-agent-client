@@ -1027,11 +1027,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					});
 				text.inputEl.rows = 3;
 			});
-
-		this.renderAvatarSetting(sectionEl, gemini.avatarImage, async (v) => {
-			this.plugin.settings.gemini.avatarImage = v;
-			await this.plugin.saveSettings();
-		});
 	}
 
 	private renderClaudeSettings(sectionEl: HTMLElement) {
@@ -1127,11 +1122,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					});
 				text.inputEl.rows = 3;
 			});
-
-		this.renderAvatarSetting(sectionEl, claude.avatarImage, async (v) => {
-			this.plugin.settings.claude.avatarImage = v;
-			await this.plugin.saveSettings();
-		});
 	}
 
 	private renderCodexSettings(sectionEl: HTMLElement) {
@@ -1227,11 +1217,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					});
 				text.inputEl.rows = 3;
 			});
-
-		this.renderAvatarSetting(sectionEl, codex.avatarImage, async (v) => {
-			this.plugin.settings.codex.avatarImage = v;
-			await this.plugin.saveSettings();
-		});
 	}
 
 	private renderCustomAgents(containerEl: HTMLElement) {
@@ -1378,11 +1363,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					});
 				text.inputEl.rows = 3;
 			});
-
-		this.renderAvatarSetting(blockEl, agent.avatarImage, async (v) => {
-			this.plugin.settings.customAgents[index].avatarImage = v;
-			await this.plugin.saveSettings();
-		});
 	}
 
 	/**
@@ -1558,30 +1538,5 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		}
 
 		return normalizeEnvVars(envVars);
-	}
-
-	/**
-	 * Shared avatar field rendered at the bottom of every agent section.
-	 */
-	private renderAvatarSetting(
-		sectionEl: HTMLElement,
-		currentValue: string | undefined,
-		onChange: (value: string | undefined) => Promise<void>,
-	): void {
-		new Setting(sectionEl)
-			.setName("Avatar image")
-			.setDesc(
-				"URL or vault path to an image. Used by embedded `agent-client` chat blocks and quick-action buttons.",
-			)
-			.addText((text) => {
-				text.setPlaceholder("https://example.com/avatar.png")
-					.setValue(currentValue ?? "")
-					.onChange(async (value) => {
-						const trimmed = value.trim();
-						await onChange(
-							trimmed.length > 0 ? trimmed : undefined,
-						);
-					});
-			});
 	}
 }

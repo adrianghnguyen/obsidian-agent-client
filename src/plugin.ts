@@ -35,7 +35,6 @@ import {
 	sanitizeArgs,
 	normalizeEnvVars,
 	normalizeCustomAgent,
-	normalizeAvatarImage,
 	ensureUniqueCustomAgentIds,
 	parseChatFontSize,
 	str,
@@ -1349,7 +1348,6 @@ export default class AgentClientPlugin extends Plugin {
 					D.claude.command,
 				args: sanitizeArgs(rc.args),
 				env: normalizeEnvVars(rc.env),
-				avatarImage: normalizeAvatarImage(rc.avatarImage),
 			},
 			codex: {
 				id: D.codex.id,
@@ -1367,7 +1365,6 @@ export default class AgentClientPlugin extends Plugin {
 				command: str(rk.command, "") || D.codex.command,
 				args: sanitizeArgs(rk.args),
 				env: normalizeEnvVars(rk.env),
-				avatarImage: normalizeAvatarImage(rk.avatarImage),
 			},
 			gemini: {
 				id: D.gemini.id,
@@ -1392,7 +1389,6 @@ export default class AgentClientPlugin extends Plugin {
 						? sanitizeArgs(rg.args)
 						: D.gemini.args,
 				env: normalizeEnvVars(rg.env),
-				avatarImage: normalizeAvatarImage(rg.avatarImage),
 			},
 			customAgents,
 			defaultAgentId,

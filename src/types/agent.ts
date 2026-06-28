@@ -51,12 +51,6 @@ export interface BaseAgentSettings {
 
 	/** Environment variables for the agent process */
 	env: AgentEnvVar[];
-
-	/**
-	 * Per-agent avatar image used by embedded chat and quick-prompt buttons.
-	 * Accepts an http(s) URL, a data URL, or a vault-relative path.
-	 */
-	avatarImage?: string;
 }
 
 /**

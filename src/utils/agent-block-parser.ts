@@ -27,13 +27,6 @@ export type AgentChatBlockConfig = {
 	persist?: boolean;
 	/** Pin auto-mention context to the note hosting this block. */
 	noteContext?: "hosting";
-	/**
-	 * Per-block avatar override.
-	 * Accepts http(s) URL, data URL, or vault-relative path.
-	 * Falls back to the configured agent's avatarImage, then the
-	 * global floatingButtonImage.
-	 */
-	image?: string;
 };
 
 export type AgentButtonBlockConfig = {
@@ -262,7 +255,6 @@ function parseDedentedBlock(trimmed: string): AgentBlockParseResult {
 			),
 			persist: parseOptionalBoolean(obj.persist, "persist", warnings),
 			noteContext,
-			image: asString(obj.image),
 		};
 		return {
 			ok: true,

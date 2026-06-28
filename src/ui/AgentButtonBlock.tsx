@@ -4,7 +4,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { Notice } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
-import { resolveAvatarSrc } from "../services/image-resolver";
 import type { AgentButtonBlockConfig } from "../utils/agent-block-parser";
 
 interface AgentButtonBlockProps {
@@ -35,14 +34,6 @@ function AgentButtonBlockComponent({
 	const resolvedAgentId = useMemo(() => {
 		return resolveAgentId(plugin, config.agent);
 	}, [plugin, config.agent]);
-
-	const avatarSrc = useMemo(() => {
-		return resolveAvatarSrc({
-			plugin,
-			agentId: resolvedAgentId,
-			includeFloatingButton: false,
-		});
-	}, [plugin, resolvedAgentId]);
 
 	const { prompt, autoSend, viewType } = config;
 
@@ -77,13 +68,6 @@ function AgentButtonBlockComponent({
 				className="agent-client-button-block-button mod-cta"
 				onClick={() => void handleClick()}
 			>
-				{avatarSrc && (
-					<img
-						src={avatarSrc}
-						alt=""
-						className="agent-client-button-block-avatar"
-					/>
-				)}
 				<span className="agent-client-button-block-text">
 					{config.text}
 				</span>

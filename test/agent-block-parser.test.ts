@@ -19,7 +19,6 @@ describe("parseAgentBlock — chat blocks", () => {
 			expect(config.model).toBeUndefined();
 			expect(config.height).toBeUndefined();
 			expect(config.noteContext).toBeUndefined();
-			expect(config.image).toBeUndefined();
 			expect(result.warnings).toBeUndefined();
 		}
 	});
@@ -35,34 +34,13 @@ describe("parseAgentBlock — chat blocks", () => {
 		}
 	});
 
-	it("reads agent, model, and image through unchanged", () => {
-		const result = parseAgentBlock(
-			"agent: claude\nmodel: opus\nimage: assets/avatar.png",
-		);
+	it("reads agent and model through unchanged", () => {
+		const result = parseAgentBlock("agent: claude\nmodel: opus");
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			const config = result.config as AgentChatBlockConfig;
 			expect(config.agent).toBe("claude");
 			expect(config.model).toBe("opus");
-			expect(config.image).toBe("assets/avatar.png");
-		}
-	});
-
-	it("passes an https image URL through unchanged", () => {
-		const result = parseAgentBlock("image: https://example.com/a.png");
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			const config = result.config as AgentChatBlockConfig;
-			expect(config.image).toBe("https://example.com/a.png");
-		}
-	});
-
-	it("passes a vault-relative image path through unchanged", () => {
-		const result = parseAgentBlock("image: assets/sub/avatar.png");
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			const config = result.config as AgentChatBlockConfig;
-			expect(config.image).toBe("assets/sub/avatar.png");
 		}
 	});
 

@@ -6,7 +6,6 @@ import type AgentClientPlugin from "../plugin";
 import { ChatContextProvider } from "./ChatContext";
 import { ChatPanel, type ChatPanelCallbacks } from "./ChatPanel";
 import { VaultService } from "../services/vault-service";
-import { resolveAvatarSrc } from "../services/image-resolver";
 import type { AgentChatBlockConfig } from "../utils/agent-block-parser";
 import type {
 	IChatViewContainer,
@@ -65,22 +64,13 @@ function CodeBlockChatComponent({
 		[plugin, acpClient, vaultService],
 	);
 
-	const avatarSrc = useMemo(() => {
-		return resolveAvatarSrc({
-			plugin,
-			explicitImage: config.image,
-			agentId: config.agent,
-			includeFloatingButton: true,
-		});
-	}, [plugin, config.image, config.agent]);
-
 	const heightStyle = config.height
 		? ({ "--ac-embedded-max-height": config.height } as React.CSSProperties)
 		: undefined;
 
 	// Memoize the ChatPanel props so React.memo(ChatPanel) can bail out across
 	// re-renders. Shapes MUST match ChatPanelProps (config / embeddedConfig);
-	// image/height are consumed locally (avatarSrc / heightStyle), not passed.
+	// height is consumed locally (heightStyle), not passed.
 	const memoizedConfig = useMemo(
 		() => ({ agent: config.agent, model: config.model }),
 		[config.agent, config.model],
@@ -97,15 +87,6 @@ function CodeBlockChatComponent({
 
 	return (
 		<div className="agent-client-code-block-chat" style={heightStyle}>
-			{avatarSrc && (
-				<div className="agent-client-code-block-chat-avatar-row">
-					<img
-						src={avatarSrc}
-						alt=""
-						className="agent-client-code-block-chat-avatar"
-					/>
-				</div>
-			)}
 			<ChatContextProvider value={contextValue}>
 				<ChatPanel
 					variant="embedded"

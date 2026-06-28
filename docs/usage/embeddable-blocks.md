@@ -51,7 +51,6 @@ A chat block (`type: chat`, or no `type` at all) mounts a fully interactive chat
 | `id` | string | auto / none | Stable block id used as the persistence key. See [Persistence](#persistence). |
 | `persist` | boolean | `false` | Restore the latest saved session for this block on reload. |
 | `noteContext` | `hosting` | (active note) | Pin auto-mention to the note hosting the block instead of the currently active note. |
-| `image` | string | agent / global avatar | Per-block avatar. Accepts an `http(s)` URL, a `data:` URL, or a vault-relative path. Falls back to the agent's configured avatar, then the global floating-button image. |
 
 #### Height units {#height-units}
 
@@ -168,13 +167,12 @@ noteContext: hosting
 ```
 ````
 
-A chat with a hand-written stable id and a custom avatar:
+A chat with a hand-written stable id:
 
 ````md
 ```agent-client
 type: chat
 id: weekly-review
-image: avatars/reviewer.png
 persist: true
 ```
 ````
