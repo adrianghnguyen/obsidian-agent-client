@@ -148,6 +148,14 @@ function selectChatPanelSettings(s: AgentClientPluginSettings) {
 		windowsWslMode: s.windowsWslMode,
 		enableSystemNotifications: s.enableSystemNotifications,
 		savedSessions: s.savedSessions,
+		// Agent identity fields back activeAgentLabel + availableAgents (#341/#4).
+		// These change rarely (only via SettingsTab), so adding them to the slice
+		// does not erode the #20 narrow-subscription intent (no high-frequency
+		// fields here).
+		claude: s.claude,
+		codex: s.codex,
+		gemini: s.gemini,
+		customAgents: s.customAgents,
 		displaySettings: { fontSize: s.displaySettings.fontSize },
 	};
 }
@@ -165,6 +173,13 @@ function chatPanelSettingsEqual(
 		a.enableSystemNotifications === b.enableSystemNotifications &&
 		// SessionStorage always writes a fresh array; reference compare suffices.
 		a.savedSessions === b.savedSessions &&
+		// SettingsTab rebuilds each built-in agent ({ ...settings.claude, … })
+		// and flushSettings emits a fresh customAgents array on edit, so a
+		// reference compare detects agent changes (and only those).
+		a.claude === b.claude &&
+		a.codex === b.codex &&
+		a.gemini === b.gemini &&
+		a.customAgents === b.customAgents &&
 		a.displaySettings.fontSize === b.displaySettings.fontSize
 	);
 }
@@ -323,6 +338,17 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// Pending auto-send queued by the pending-prompt handler (drained when ready)
 	const [pendingAutoSend, setPendingAutoSend] = useState<string | null>(null);
 	const persistRestoreAttemptedRef = useRef(false);
+	// Tracks whether we've already re-spawned the agent to match a saved
+	// conversation before restoring it (prevents a restart loop).
+	const persistRestartedRef = useRef(false);
+	// Gate the mount-init session-creation effect: run on first mount, then
+	// re-run ONLY when the resolved agent identity actually changes (e.g. the
+	// sidebar's onAgentIdRestored late-applies a persisted agent). A bare
+	// run-once boolean would break that restoration path; keying on the agent
+	// still ignores agentCwd-driven agent.createSession reference churn, which
+	// is what caused the persist-restore re-spawn race.
+	const hasInitializedRef = useRef(false);
+	const lastInitAgentRef = useRef<string | undefined>(undefined);
 
 	// ============================================================
 	// Refs
@@ -357,7 +383,10 @@ export const ChatPanel = React.memo(function ChatPanel({
 
 	const availableAgents = useMemo(() => {
 		return plugin.getAvailableAgents();
-	}, [plugin]);
+		// Depend on the whole settings slice: its identity flips through the
+		// useSettingsSelector equality cache whenever a selected field changes,
+		// so the agent list refreshes on agent-settings edits.
+	}, [plugin, settings]);
 
 	// ============================================================
 	// Chat Actions
@@ -738,27 +767,67 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// ============================================================
 	// Initialize session on mount
 	useEffect(() => {
+		const resolvedAgent = config?.agent || initialAgentId;
+		if (
+			hasInitializedRef.current &&
+			lastInitAgentRef.current === resolvedAgent
+		) {
+			return;
+		}
+		hasInitializedRef.current = true;
+		lastInitAgentRef.current = resolvedAgent;
 		logger.log("[Debug] Starting connection setup via useSession...");
-		void agent.createSession(config?.agent || initialAgentId);
+		void agent.createSession(resolvedAgent);
 	}, [agent.createSession, config?.agent, initialAgentId]);
 
 	useEffect(() => {
 		if (variant !== "embedded") return;
 		if (!embeddedConfig?.persist || !embeddedConfig.id) return;
 		if (!isSessionReady || !session.sessionId || !session.agentId) return;
-		if (!sessionHistory.canRestore) return;
 		if (persistRestoreAttemptedRef.current) return;
-		persistRestoreAttemptedRef.current = true;
 
-		// Restore by the device-neutral embedId (rename/move safe).
-		const savedSession = plugin.settingsService
-			.getSavedSessions(session.agentId, agentCwd)
-			.find((item) => item.embedId === embeddedConfig.id);
+		// Resolve by the device-neutral embedId ALONE — not filtered by the
+		// current agent/cwd — so an unpinned block that switched agents, or one
+		// whose conversation lives under a custom "New chat in directory…" cwd,
+		// still finds its last session (#5, #11).
+		const savedSession = plugin.settingsService.getSavedSessionByEmbedId(
+			embeddedConfig.id,
+		);
 		if (!savedSession || savedSession.sessionId === session.sessionId) {
+			persistRestoreAttemptedRef.current = true;
 			return;
 		}
 
-		void sessionHistory.restoreSession(savedSession.sessionId, agentCwd);
+		// restoreSession loads against the CURRENT agent process and cannot
+		// switch agents (loadSession/resumeSession run on the live connection).
+		// If the saved conversation used a different agent, re-spawn under it
+		// first (adopting its cwd), then let this effect re-run to perform the
+		// load. setAgentCwd is safe here because the mount-init effect is
+		// guarded to run once (hasInitializedRef).
+		if (
+			savedSession.agentId !== session.agentId &&
+			!persistRestartedRef.current
+		) {
+			persistRestartedRef.current = true;
+			setAgentCwd(savedSession.cwd);
+			void agent.restartSession(savedSession.agentId, savedSession.cwd);
+			return;
+		}
+
+		if (!sessionHistory.canRestore) {
+			persistRestoreAttemptedRef.current = true;
+			return;
+		}
+
+		persistRestoreAttemptedRef.current = true;
+		// Align agentCwd with the restored conversation so the cwd banner and
+		// later first-message saves reflect its real directory (restoreSession
+		// itself does not touch agentCwd). Safe under the mount-init guard.
+		setAgentCwd(savedSession.cwd);
+		void sessionHistory.restoreSession(
+			savedSession.sessionId,
+			savedSession.cwd,
+		);
 	}, [
 		variant,
 		embeddedConfig?.persist,
@@ -769,7 +838,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 		sessionHistory.canRestore,
 		sessionHistory.restoreSession,
 		plugin.settingsService,
-		agentCwd,
+		agent.restartSession,
 	]);
 
 	// Apply configured model (a select config option with category "model")
@@ -1161,6 +1230,9 @@ export const ChatPanel = React.memo(function ChatPanel({
 			(prompt, autoSend) => {
 				if (typeof prompt !== "string" || prompt.length === 0) return;
 				setInputValue(prompt);
+				// Injected prompts are a fresh message — don't carry over any
+				// attachments already staged in this panel (#341/#6).
+				setAttachedFiles([]);
 				if (autoSend) setPendingAutoSend(prompt);
 			},
 		);

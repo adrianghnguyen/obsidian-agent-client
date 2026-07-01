@@ -2317,7 +2317,7 @@ If your plugin does not need CSS, delete this file.
 	font-size: 0.85em;
 	color: var(--text-on-accent, #fff);
 	white-space: pre-wrap;
-	word-break: break-word;
+	overflow-wrap: anywhere;
 	max-height: 200px;
 	overflow: auto;
 }
@@ -2335,7 +2335,7 @@ If your plugin does not need CSS, delete this file.
 
 .agent-client-code-block-warning-item {
 	white-space: pre-wrap;
-	word-break: break-word;
+	overflow-wrap: anywhere;
 }
 
 .agent-client-code-block-host {

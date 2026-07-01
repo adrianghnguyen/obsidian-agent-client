@@ -75,6 +75,18 @@ function asString(value: unknown): string | undefined {
 		: undefined;
 }
 
+/**
+ * True when a key is present (not undefined/null) yet asString() rejects it —
+ * e.g. `type: 0`, `viewType: 1`, `noteContext: false`. Such a value is an
+ * explicit invalid input, NOT an absent key, so it must surface the field's
+ * configured error/warning instead of silently falling back to a default.
+ */
+function isPresentInvalid(value: unknown): boolean {
+	return (
+		value !== undefined && value !== null && asString(value) === undefined
+	);
+}
+
 function asBoolean(value: unknown): boolean | undefined {
 	if (typeof value === "boolean") return value;
 	if (typeof value === "number") {
@@ -185,10 +197,10 @@ export function parseAgentBlock(source: string): AgentBlockParseResult {
 	const obj = raw as Record<string, unknown>;
 	const typeValue = asString(obj.type) ?? "chat";
 
-	if (!VALID_TYPES.has(typeValue)) {
+	if (!VALID_TYPES.has(typeValue) || isPresentInvalid(obj.type)) {
 		return {
 			ok: false,
-			error: `Unknown type: "${typeValue}". Expected "chat" or "button".`,
+			error: `Unknown type: ${JSON.stringify(obj.type)}. Expected "chat" or "button".`,
 		};
 	}
 
@@ -199,10 +211,13 @@ export function parseAgentBlock(source: string): AgentBlockParseResult {
 				? (rawNoteContext as AgentChatBlockConfig["noteContext"])
 				: undefined
 			: undefined;
-		if (rawNoteContext && !noteContext) {
+		if (
+			(rawNoteContext && !noteContext) ||
+			isPresentInvalid(obj.noteContext)
+		) {
 			return {
 				ok: false,
-				error: `Unknown noteContext: "${rawNoteContext}". Expected "hosting".`,
+				error: `Unknown noteContext: ${JSON.stringify(obj.noteContext)}. Expected "hosting".`,
 			};
 		}
 
@@ -212,7 +227,10 @@ export function parseAgentBlock(source: string): AgentBlockParseResult {
 			agent: asString(obj.agent),
 			model: asString(obj.model),
 			height: normalizeCssLength(
-				asString(obj.height),
+				asString(obj.height) ??
+					(isPresentInvalid(obj.height)
+						? String(obj.height)
+						: undefined),
 				"height",
 				warnings,
 			),
@@ -244,10 +262,10 @@ export function parseAgentBlock(source: string): AgentBlockParseResult {
 
 	const rawViewType = asString(obj.viewType);
 	const viewType = normalizeViewType(rawViewType);
-	if (rawViewType && !viewType) {
+	if ((rawViewType && !viewType) || isPresentInvalid(obj.viewType)) {
 		return {
 			ok: false,
-			error: `Unknown viewType: "${rawViewType}". Expected "right-pane", "floating", "editor-tab", or "embedded".`,
+			error: `Unknown viewType: ${JSON.stringify(obj.viewType)}. Expected "right-pane", "floating", "editor-tab", or "embedded".`,
 		};
 	}
 

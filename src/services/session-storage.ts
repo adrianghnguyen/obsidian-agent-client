@@ -91,17 +91,18 @@ export class SessionStorage {
 			const sessions = [...(state.savedSessions || [])];
 
 			// Embedded persist sessions dedup by the device-neutral embedId
-			// within (agentId, cwd): a persist block owns at most one saved
-			// entry, so a new sessionId REPLACES the old one instead of
-			// accumulating. Non-embedded saves fall back to sessionId matching.
+			// ALONE: a persist block owns exactly one saved entry regardless of
+			// which agent/cwd the conversation used, so a new sessionId REPLACES
+			// the old one instead of accumulating (and restore can resolve the
+			// row by embedId without an agent/cwd filter — #5/#11). Non-embedded
+			// saves fall back to sessionId matching.
+			let matchedByEmbedId = false;
 			let existingIndex = -1;
 			if (sessionInfo.embedId) {
 				existingIndex = sessions.findIndex(
-					(s) =>
-						s.embedId === sessionInfo.embedId &&
-						s.agentId === sessionInfo.agentId &&
-						s.cwd === sessionInfo.cwd,
+					(s) => s.embedId === sessionInfo.embedId,
 				);
+				matchedByEmbedId = existingIndex >= 0;
 			}
 			if (existingIndex < 0) {
 				existingIndex = sessions.findIndex(
@@ -110,7 +111,21 @@ export class SessionStorage {
 			}
 
 			if (existingIndex >= 0) {
+				const previousSessionId = sessions[existingIndex].sessionId;
 				sessions[existingIndex] = sessionInfo;
+				// When a persist block adopts a new sessionId (new conversation
+				// in the same block, or an agent/cwd switch), the previous
+				// transcript file is no longer referenced by any metadata row.
+				// Delete it so sessions/<old>.json files don't accumulate as
+				// orphans (#10). deleteSessionMessages does NOT take sessionLock,
+				// so awaiting it inside this lock callback cannot deadlock
+				// (mirrors deleteSession).
+				if (
+					matchedByEmbedId &&
+					previousSessionId !== sessionInfo.sessionId
+				) {
+					await this.deleteSessionMessages(previousSessionId);
+				}
 			} else {
 				sessions.unshift(sessionInfo);
 				if (sessions.length > MAX_SAVED_SESSIONS) {
@@ -148,6 +163,34 @@ export class SessionStorage {
 			(a, b) =>
 				new Date(b.updatedAt).getTime() -
 				new Date(a.updatedAt).getTime(),
+		);
+	}
+
+	/**
+	 * Get the saved session owned by an embedded persist block, identified by
+	 * its device-neutral embedId.
+	 *
+	 * Unlike getSavedSessions(agentId, cwd), this resolves a persist block's
+	 * conversation WITHOUT an agent/cwd filter, so an unpinned block that
+	 * switched agents — or whose conversation lives under a custom
+	 * "New chat in directory…" cwd — still finds its last session (#5, #11).
+	 *
+	 * Returns the most-recently-updated match. Going forward saveSession writes
+	 * at most one row per embedId; pre-existing rows from the old (embedId,
+	 * agentId, cwd) dedup may carry several — those are tolerated (not actively
+	 * collapsed) and the newest wins. Returns undefined if none.
+	 */
+	getSavedSessionByEmbedId(embedId: string): SavedSessionInfo | undefined {
+		const state = this.settingsAccess.getSnapshot();
+		const matches = (state.savedSessions || []).filter(
+			(s) => s.embedId === embedId,
+		);
+		if (matches.length === 0) return undefined;
+		return matches.reduce((newest, s) =>
+			new Date(s.updatedAt).getTime() >
+			new Date(newest.updatedAt).getTime()
+				? s
+				: newest,
 		);
 	}
 

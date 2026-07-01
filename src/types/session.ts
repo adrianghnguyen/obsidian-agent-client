@@ -559,8 +559,9 @@ export interface SavedSessionInfo {
 	title?: string;
 	/**
 	 * Device-neutral id of the embedded block that owns this persistent
-	 * session. Restore + dedup key for embedded persist = (embedId, agentId,
-	 * cwd). Device-local mapping; never written into note content.
+	 * session. Restore + dedup key for embedded persist = embedId ALONE: a
+	 * block owns exactly one saved row, regardless of the agent/cwd the
+	 * conversation used. Device-local mapping; never written into note content.
 	 */
 	embedId?: string;
 	/** ISO 8601 timestamp of session creation */

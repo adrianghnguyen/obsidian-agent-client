@@ -61,12 +61,12 @@ export type { AgentEnvVar, CustomAgentSettings };
 
 /**
  * Generate a short, device-neutral block id for persist embedded chats.
- * 8 hex chars derived from crypto.randomUUID — enough entropy for per-note
+ * 16 hex chars derived from crypto.randomUUID — enough entropy for per-note
  * blocks, short enough to hand-edit. Mirrors crypto.randomUUID usage already
  * present across the codebase (e.g. ui/ChatView.tsx, services/message-state.ts).
  */
 function generateEmbedId(): string {
-	return crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+	return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 }
 
 /**
@@ -249,7 +249,7 @@ export default class AgentClientPlugin extends Plugin {
 	/** Prompts queued before their target ChatPanel registered a handler. */
 	private _pendingPrompts = new Map<
 		string,
-		{ prompt: string; autoSend: boolean }
+		Array<{ prompt: string; autoSend: boolean }>
 	>();
 	/**
 	 * Pending graceful AcpClient teardown timers, keyed by viewId. An embedded
@@ -727,8 +727,14 @@ export default class AgentClientPlugin extends Plugin {
 	 * Open a new chat view with a specific agent.
 	 * Always creates a new view (doesn't reuse existing).
 	 */
-	async openNewChatViewWithAgent(agentId: string): Promise<string | null> {
-		const leaf = this.createNewChatLeaf(true);
+	async openNewChatViewWithAgent(
+		agentId: string,
+		locationOverride?: "right-pane",
+	): Promise<string | null> {
+		const leaf =
+			locationOverride === "right-pane"
+				? this.createSidebarTab("right")
+				: this.createNewChatLeaf(true);
 		if (!leaf) {
 			getLogger().warn("[AgentClient] Failed to create new leaf");
 			return null;
@@ -958,16 +964,32 @@ export default class AgentClientPlugin extends Plugin {
 				) {
 					return content;
 				}
-				if (!/^\s*`{3,}/.test(lines[lineStart])) return content;
+				// Fence sanity: the captured section may be stale (a user
+				// edit can move/replace the block before this async pass).
+				// Require the live fence to still be an agent-client/agent
+				// fence so an unrelated fence never gets an id spliced in.
+				if (
+					!/^\s*`{3,}\s*(agent-client|agent)(?:\s|$)/.test(
+						lines[lineStart],
+					)
+				) {
+					return content;
+				}
 
-				// Re-entry guard: skip if the fence body already declares an id
-				// as a YAML field. Exclude commented lines and inline matches.
+				// Re-validate the live body through the real parser (single
+				// source of truth). Inject only when it is still a persist
+				// chat block lacking an id — this also short-circuits the
+				// re-render the edit itself triggers.
 				const body = lines.slice(lineStart + 1, lineEnd);
-				const hasId = body.some((line) => {
-					const trimmed = line.trim();
-					return /^id:\s*/.test(trimmed) && !trimmed.startsWith("#");
-				});
-				if (hasId) return content;
+				const liveParsed = parseAgentBlock(body.join("\n"));
+				if (
+					!liveParsed.ok ||
+					liveParsed.config.type !== "chat" ||
+					!liveParsed.config.persist ||
+					liveParsed.config.id
+				) {
+					return content;
+				}
 
 				const indent = lines[lineStart].match(/^\s*/)?.[0] ?? "";
 				lines.splice(
@@ -1030,7 +1052,12 @@ export default class AgentClientPlugin extends Plugin {
 			const view = leaf.view as ChatView;
 			targetViewId = view?.viewId ?? null;
 		} else {
-			targetViewId = await this.openNewChatViewWithAgent(agentId);
+			// viewType === "right-pane": honor it literally, independent of the
+			// user's chatViewLocation default (floating/editor-tab handled above).
+			targetViewId = await this.openNewChatViewWithAgent(
+				agentId,
+				"right-pane",
+			);
 		}
 
 		if (!targetViewId) return;
@@ -1055,7 +1082,9 @@ export default class AgentClientPlugin extends Plugin {
 		const queued = this._pendingPrompts.get(viewId);
 		if (queued) {
 			this._pendingPrompts.delete(viewId);
-			handler(queued.prompt, queued.autoSend);
+			for (const item of queued) {
+				handler(item.prompt, item.autoSend);
+			}
 		}
 		return () => {
 			if (this._pendingPromptHandlers.get(viewId) === handler) {
@@ -1074,7 +1103,12 @@ export default class AgentClientPlugin extends Plugin {
 			handler(prompt, autoSend);
 		} else {
 			// Panel not mounted yet; drained by registerPendingPromptHandler.
-			this._pendingPrompts.set(viewId, { prompt, autoSend });
+			const queue = this._pendingPrompts.get(viewId);
+			if (queue) {
+				queue.push({ prompt, autoSend });
+			} else {
+				this._pendingPrompts.set(viewId, [{ prompt, autoSend }]);
+			}
 		}
 	}
 

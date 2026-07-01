@@ -286,6 +286,59 @@ describe("parseAgentBlock — normalizeViewType aliases", () => {
 	}
 });
 
+describe("parseAgentBlock — present-but-invalid values (#7)", () => {
+	it("rejects a present-but-non-string type (type: 0)", () => {
+		const result = parseAgentBlock("type: 0");
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error).toBe(
+				'Unknown type: 0. Expected "chat" or "button".',
+			);
+		}
+	});
+
+	it("rejects a present empty-string type", () => {
+		const result = parseAgentBlock('type: ""');
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error).toContain("Unknown type");
+		}
+	});
+
+	it("rejects a present-but-non-string noteContext (noteContext: false)", () => {
+		const result = parseAgentBlock("noteContext: false");
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error).toBe(
+				'Unknown noteContext: false. Expected "hosting".',
+			);
+		}
+	});
+
+	it("drops a numeric height (height: 400) with a warning", () => {
+		const result = parseAgentBlock("height: 400");
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			const config = result.config as AgentChatBlockConfig;
+			expect(config.height).toBeUndefined();
+			expect(result.warnings).toBeDefined();
+			expect(result.warnings?.[0]).toContain("height");
+		}
+	});
+
+	it("rejects a present-but-non-string viewType (viewType: 1)", () => {
+		const result = parseAgentBlock(
+			"type: button\ntext: Click me\nprompt: Do it\nviewType: 1",
+		);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error).toBe(
+				'Unknown viewType: 1. Expected "right-pane", "floating", "editor-tab", or "embedded".',
+			);
+		}
+	});
+});
+
 describe("parseAgentBlock — structural errors", () => {
 	it("reports malformed YAML with an Invalid YAML error", () => {
 		const result = parseAgentBlock("foo: : bar");
