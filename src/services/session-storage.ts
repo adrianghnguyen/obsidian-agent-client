@@ -152,10 +152,10 @@ export class SessionStorage {
 	 * switched agents — or whose conversation lives under a custom
 	 * "New chat in directory…" cwd — still finds its last session (#5, #11).
 	 *
-	 * Returns the most-recently-updated match. Going forward saveSession writes
-	 * at most one row per embedId; pre-existing rows from the old (embedId,
-	 * agentId, cwd) dedup may carry several — those are tolerated (not actively
-	 * collapsed) and the newest wins. Returns undefined if none.
+	 * Returns the most-recently-updated match, or undefined if none. saveSession
+	 * dedups by sessionId ONLY, so a single embedId legitimately accumulates one
+	 * row per conversation (the block's history stays recoverable); the newest
+	 * by updatedAt is treated as the block's current conversation.
 	 */
 	getSavedSessionByEmbedId(embedId: string): SavedSessionInfo | undefined {
 		const state = this.settingsAccess.getSnapshot();
