@@ -94,8 +94,8 @@ describe("SessionStorage — getSavedSessionByEmbedId (#5/#11)", () => {
 	});
 });
 
-describe("SessionStorage — embedId-only dedup + orphan transcript (#10)", () => {
-	it("replaces the single row and deletes the old transcript on a new sessionId", async () => {
+describe("SessionStorage — embedded persist sessions accumulate (no dedup/delete)", () => {
+	it("keeps a block's past conversations in history and never deletes a transcript", async () => {
 		const { storage, state, adapter, existing } = makeStorage();
 		state.savedSessions = [
 			makeSession({ sessionId: "s1", embedId: "blk1" }),
@@ -106,19 +106,23 @@ describe("SessionStorage — embedId-only dedup + orphan transcript (#10)", () =
 			makeSession({ sessionId: "s2", embedId: "blk1" }),
 		);
 
-		expect(state.savedSessions).toHaveLength(1);
-		expect(state.savedSessions[0].sessionId).toBe("s2");
-		expect(adapter.remove).toHaveBeenCalledWith(filePath("s1"));
+		// The new conversation accumulates; the old one stays recoverable.
+		expect(state.savedSessions).toHaveLength(2);
+		expect(state.savedSessions.map((s) => s.sessionId).sort()).toEqual([
+			"s1",
+			"s2",
+		]);
+		expect(adapter.remove).not.toHaveBeenCalled();
 	});
 
-	it("dedups by embedId alone — an agent/cwd switch replaces, not accumulates", async () => {
+	it("keeps the old-agent conversation when the block switches agents (restore uses newest)", async () => {
 		const { storage, state, adapter, existing } = makeStorage();
 		state.savedSessions = [
 			makeSession({
 				sessionId: "s1",
 				embedId: "blk1",
 				agentId: "claude",
-				cwd: "/vault",
+				updatedAt: "2026-01-01T00:00:00.000Z",
 			}),
 		];
 		existing.add(filePath("s1"));
@@ -128,20 +132,17 @@ describe("SessionStorage — embedId-only dedup + orphan transcript (#10)", () =
 				sessionId: "s2",
 				embedId: "blk1",
 				agentId: "codex",
-				cwd: "/other",
+				updatedAt: "2026-02-01T00:00:00.000Z",
 			}),
 		);
 
-		expect(state.savedSessions).toHaveLength(1);
-		expect(state.savedSessions[0]).toMatchObject({
-			sessionId: "s2",
-			agentId: "codex",
-			cwd: "/other",
-		});
-		expect(adapter.remove).toHaveBeenCalledWith(filePath("s1"));
+		expect(state.savedSessions).toHaveLength(2);
+		// Both remain in history; restore resolves the newest embedId match.
+		expect(storage.getSavedSessionByEmbedId("blk1")?.sessionId).toBe("s2");
+		expect(adapter.remove).not.toHaveBeenCalled();
 	});
 
-	it("does NOT delete when the embedId row keeps the same sessionId", async () => {
+	it("updates in place (no duplicate row) when the same session is re-saved", async () => {
 		const { storage, state, adapter } = makeStorage();
 		state.savedSessions = [
 			makeSession({ sessionId: "s1", embedId: "blk1", title: "old" }),

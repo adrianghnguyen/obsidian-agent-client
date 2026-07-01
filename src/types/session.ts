@@ -558,10 +558,11 @@ export interface SavedSessionInfo {
 	/** Human-readable session title (first 50 chars of first user message) */
 	title?: string;
 	/**
-	 * Device-neutral id of the embedded block that owns this persistent
-	 * session. Restore + dedup key for embedded persist = embedId ALONE: a
-	 * block owns exactly one saved row, regardless of the agent/cwd the
-	 * conversation used. Device-local mapping; never written into note content.
+	 * Device-neutral id of the embedded block this session belongs to. Used to
+	 * RESTORE the block's latest conversation: getSavedSessionByEmbedId returns
+	 * the newest embedId match. Sessions are NOT deduped or deleted by embedId —
+	 * a block's conversations accumulate in Session History like any other
+	 * session and stay recoverable. Device-local; never written into note content.
 	 */
 	embedId?: string;
 	/** ISO 8601 timestamp of session creation */

@@ -90,42 +90,19 @@ export class SessionStorage {
 
 			const sessions = [...(state.savedSessions || [])];
 
-			// Embedded persist sessions dedup by the device-neutral embedId
-			// ALONE: a persist block owns exactly one saved entry regardless of
-			// which agent/cwd the conversation used, so a new sessionId REPLACES
-			// the old one instead of accumulating (and restore can resolve the
-			// row by embedId without an agent/cwd filter — #5/#11). Non-embedded
-			// saves fall back to sessionId matching.
-			let matchedByEmbedId = false;
-			let existingIndex = -1;
-			if (sessionInfo.embedId) {
-				existingIndex = sessions.findIndex(
-					(s) => s.embedId === sessionInfo.embedId,
-				);
-				matchedByEmbedId = existingIndex >= 0;
-			}
-			if (existingIndex < 0) {
-				existingIndex = sessions.findIndex(
-					(s) => s.sessionId === sessionInfo.sessionId,
-				);
-			}
+			// Dedup by sessionId only: re-saving the same session updates it in
+			// place; a new session accumulates (bounded by MAX_SAVED_SESSIONS).
+			// Embedded persist sessions carry an embedId TAG but are NOT deduped
+			// or deleted by it — a block's conversations accumulate in Session
+			// History like any other session and stay recoverable. Restore
+			// resolves the block's latest via getSavedSessionByEmbedId (newest
+			// embedId match); nothing is replaced or removed here.
+			const existingIndex = sessions.findIndex(
+				(s) => s.sessionId === sessionInfo.sessionId,
+			);
 
 			if (existingIndex >= 0) {
-				const previousSessionId = sessions[existingIndex].sessionId;
 				sessions[existingIndex] = sessionInfo;
-				// When a persist block adopts a new sessionId (new conversation
-				// in the same block, or an agent/cwd switch), the previous
-				// transcript file is no longer referenced by any metadata row.
-				// Delete it so sessions/<old>.json files don't accumulate as
-				// orphans (#10). deleteSessionMessages does NOT take sessionLock,
-				// so awaiting it inside this lock callback cannot deadlock
-				// (mirrors deleteSession).
-				if (
-					matchedByEmbedId &&
-					previousSessionId !== sessionInfo.sessionId
-				) {
-					await this.deleteSessionMessages(previousSessionId);
-				}
 			} else {
 				sessions.unshift(sessionInfo);
 				if (sessions.length > MAX_SAVED_SESSIONS) {
