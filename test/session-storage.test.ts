@@ -158,6 +158,49 @@ describe("SessionStorage — embedded persist sessions accumulate (no dedup/dele
 	});
 });
 
+describe("SessionStorage — rename does not bump updatedAt (last-activity semantics)", () => {
+	it("changes the title but keeps updatedAt (rename is not activity)", async () => {
+		const { storage, state } = makeStorage();
+		state.savedSessions = [
+			makeSession({
+				sessionId: "s1",
+				title: "old",
+				updatedAt: "2026-01-01T00:00:00.000Z",
+			}),
+		];
+
+		await storage.updateSessionTitle("s1", "renamed");
+
+		expect(state.savedSessions[0].title).toBe("renamed");
+		expect(state.savedSessions[0].updatedAt).toBe(
+			"2026-01-01T00:00:00.000Z",
+		);
+	});
+
+	it("renaming an OLD embedId conversation does not hijack the block's restore", async () => {
+		const { storage, state } = makeStorage();
+		state.savedSessions = [
+			makeSession({
+				sessionId: "old-chat",
+				embedId: "blk1",
+				updatedAt: "2026-01-01T00:00:00.000Z",
+			}),
+			makeSession({
+				sessionId: "current-chat",
+				embedId: "blk1",
+				updatedAt: "2026-02-01T00:00:00.000Z",
+			}),
+		];
+
+		await storage.updateSessionTitle("old-chat", "renamed old chat");
+
+		// The block still resolves its actual current conversation.
+		expect(storage.getSavedSessionByEmbedId("blk1")?.sessionId).toBe(
+			"current-chat",
+		);
+	});
+});
+
 describe("SessionStorage — non-embedded saves keep sessionId fallback", () => {
 	it("dedups by sessionId and never deletes a transcript", async () => {
 		const { storage, state, adapter } = makeStorage();

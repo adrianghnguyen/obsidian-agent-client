@@ -206,10 +206,13 @@ export class SessionStorage {
 			if (idx >= 0) {
 				// Immutable update: replace the object instead of mutating it,
 				// matching saveSession's pattern and keeping state objects stable.
+				// updatedAt is deliberately NOT bumped: it means "last activity"
+				// (types/session.ts) and backs "last used" ordering (#320) plus
+				// getSavedSessionByEmbedId's newest-wins resolution — a rename is
+				// a metadata edit, not activity, and must not reorder either.
 				sessions[idx] = {
 					...sessions[idx],
 					title: newTitle,
-					updatedAt: new Date().toISOString(),
 				};
 			} else if (createIfMissing) {
 				sessions.unshift({
