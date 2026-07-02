@@ -68,6 +68,7 @@ export default defineConfig({
           { text: "Basic Usage", link: "/usage/" },
           { text: "Note Mentions", link: "/usage/mentions" },
           { text: "Sending Images and Files", link: "/usage/sending-images" },
+          { text: "Embeddable Blocks", link: "/usage/embeddable-blocks" },
           { text: "Slash Commands", link: "/usage/slash-commands" },
           { text: "Mode Selection", link: "/usage/mode-selection" },
           { text: "Model Selection", link: "/usage/model-selection" },

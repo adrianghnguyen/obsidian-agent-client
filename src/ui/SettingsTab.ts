@@ -1375,7 +1375,14 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	 */
 	private async flushSettings(): Promise<void> {
 		await this.plugin.settingsService.updateSettings({
-			customAgents: this.plugin.settings.customAgents,
+			// Emit a fresh array + fresh elements so the customAgents reference
+			// flips on every edit. SettingsTab mutates custom agents in place
+			// (e.g. customAgents[i].displayName = …); without this the reference
+			// is carried through updateSettings unchanged and slice subscribers
+			// (ChatPanel via useSettingsSelector) can't detect the change (#341/#4).
+			customAgents: this.plugin.settings.customAgents.map((a) => ({
+				...a,
+			})),
 			defaultAgentId: this.plugin.settings.defaultAgentId,
 		});
 	}

@@ -90,7 +90,13 @@ export class SessionStorage {
 
 			const sessions = [...(state.savedSessions || [])];
 
-			// Find existing session by sessionId
+			// Dedup by sessionId only: re-saving the same session updates it in
+			// place; a new session accumulates (bounded by MAX_SAVED_SESSIONS).
+			// Embedded persist sessions carry an embedId TAG but are NOT deduped
+			// or deleted by it — a block's conversations accumulate in Session
+			// History like any other session and stay recoverable. Restore
+			// resolves the block's latest via getSavedSessionByEmbedId (newest
+			// embedId match); nothing is replaced or removed here.
 			const existingIndex = sessions.findIndex(
 				(s) => s.sessionId === sessionInfo.sessionId,
 			);
@@ -138,6 +144,34 @@ export class SessionStorage {
 	}
 
 	/**
+	 * Get the saved session owned by an embedded persist block, identified by
+	 * its device-neutral embedId.
+	 *
+	 * Unlike getSavedSessions(agentId, cwd), this resolves a persist block's
+	 * conversation WITHOUT an agent/cwd filter, so an unpinned block that
+	 * switched agents — or whose conversation lives under a custom
+	 * "New chat in directory…" cwd — still finds its last session (#5, #11).
+	 *
+	 * Returns the most-recently-updated match, or undefined if none. saveSession
+	 * dedups by sessionId ONLY, so a single embedId legitimately accumulates one
+	 * row per conversation (the block's history stays recoverable); the newest
+	 * by updatedAt is treated as the block's current conversation.
+	 */
+	getSavedSessionByEmbedId(embedId: string): SavedSessionInfo | undefined {
+		const state = this.settingsAccess.getSnapshot();
+		const matches = (state.savedSessions || []).filter(
+			(s) => s.embedId === embedId,
+		);
+		if (matches.length === 0) return undefined;
+		return matches.reduce((newest, s) =>
+			new Date(s.updatedAt).getTime() >
+			new Date(newest.updatedAt).getTime()
+				? s
+				: newest,
+		);
+	}
+
+	/**
 	 * Delete a saved session by sessionId.
 	 * Also deletes the associated message history file.
 	 */
@@ -172,10 +206,13 @@ export class SessionStorage {
 			if (idx >= 0) {
 				// Immutable update: replace the object instead of mutating it,
 				// matching saveSession's pattern and keeping state objects stable.
+				// updatedAt is deliberately NOT bumped: it means "last activity"
+				// (types/session.ts) and backs "last used" ordering (#320) plus
+				// getSavedSessionByEmbedId's newest-wins resolution — a rename is
+				// a metadata edit, not activity, and must not reorder either.
 				sessions[idx] = {
 					...sessions[idx],
 					title: newTitle,
-					updatedAt: new Date().toISOString(),
 				};
 			} else if (createIfMissing) {
 				sessions.unshift({
