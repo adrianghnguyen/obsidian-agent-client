@@ -30,6 +30,16 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
+	/**
+	 * Re-renders the settings tab. Wraps the deprecated display() call so the
+	 * suppression lives in one place until Obsidian 1.13 leaves Catalyst beta
+	 * and the tab can migrate to getSettingDefinitions().
+	 */
+	private refreshDisplay(): void {
+		// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
+		this.display();
+	}
+
 	display(): void {
 		const { containerEl } = this;
 
@@ -342,8 +352,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								autoCollapseDiffs: value,
 							},
 						});
-						// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
-						this.display();
+						this.refreshDisplay();
 					}),
 			);
 
@@ -492,8 +501,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.promptInjection.enabled = value;
 						await this.plugin.saveSettings();
-						// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
-						this.display();
+						this.refreshDisplay();
 					}),
 			);
 
@@ -565,8 +573,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							await this.plugin.settingsService.updateSettings({
 								windowsWslMode: value,
 							});
-							// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
-							this.display(); // Refresh to show/hide distribution setting
+							this.refreshDisplay(); // Refresh to show/hide distribution setting
 						}),
 				);
 
@@ -687,8 +694,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								includeImages: value,
 							},
 						});
-						// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
-						this.display();
+						this.refreshDisplay();
 					}),
 			);
 
@@ -720,8 +726,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 										| "base64",
 								},
 							});
-							// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
-							this.display();
+							this.refreshDisplay();
 						}),
 				);
 
@@ -1252,8 +1257,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					});
 					this.plugin.ensureDefaultAgentId();
 					await this.flushSettings();
-					// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
-					this.display();
+					this.refreshDisplay();
 				});
 		});
 	}
@@ -1302,8 +1306,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					this.plugin.settings.customAgents.splice(index, 1);
 					this.plugin.ensureDefaultAgentId();
 					await this.flushSettings();
-					// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
-					this.display();
+					this.refreshDisplay();
 				});
 		});
 
@@ -1495,8 +1498,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							: await resolveCommandPath(commandName);
 						if (found) {
 							await onResolved(found);
-							// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
-							this.display();
+							this.refreshDisplay();
 						} else {
 							btn.setButtonText("Not found");
 							window.setTimeout(() => {
