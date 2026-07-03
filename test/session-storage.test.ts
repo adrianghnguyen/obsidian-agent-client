@@ -217,3 +217,93 @@ describe("SessionStorage — non-embedded saves keep sessionId fallback", () => 
 		expect(adapter.remove).not.toHaveBeenCalled();
 	});
 });
+
+describe("SessionStorage — cap eviction is LRU by updatedAt, not insertion order", () => {
+	const CAP = 50;
+	const iso = (minute: number) =>
+		new Date(Date.UTC(2026, 0, 1, 0, minute)).toISOString();
+
+	/**
+	 * Seed a full list whose array position is INVERSE to recency of use:
+	 * index 0 (newest inserted) has the OLDEST updatedAt, the tail (oldest
+	 * inserted) has the NEWEST. A positional pop() would evict the tail —
+	 * the most recently used entry.
+	 */
+	const seedInverse = (count: number) =>
+		Array.from({ length: count }, (_, i) =>
+			makeSession({ sessionId: `s${i}`, updatedAt: iso(i) }),
+		);
+
+	it("evicts the entry with the oldest updatedAt when the cap is exceeded", async () => {
+		const { storage, state, adapter } = makeStorage();
+		state.savedSessions = seedInverse(CAP);
+
+		await storage.saveSession(
+			makeSession({ sessionId: "brand-new", updatedAt: iso(1000) }),
+		);
+
+		expect(state.savedSessions).toHaveLength(CAP);
+		// s0 sits at the array head (newest inserted) but is the least
+		// recently used — it must be the one to go.
+		expect(state.savedSessions.some((s) => s.sessionId === "s0")).toBe(
+			false,
+		);
+		expect(
+			state.savedSessions.some((s) => s.sessionId === "brand-new"),
+		).toBe(true);
+		// Eviction removes the index entry only — never a transcript file.
+		expect(adapter.remove).not.toHaveBeenCalled();
+	});
+
+	it("keeps an oldest-inserted entry that is still in recent use (DATA-2)", async () => {
+		const { storage, state } = makeStorage();
+		state.savedSessions = seedInverse(CAP);
+
+		await storage.saveSession(
+			makeSession({ sessionId: "brand-new", updatedAt: iso(1000) }),
+		);
+
+		// The tail entry (oldest inserted, newest updatedAt) survives; the old
+		// positional pop() would have dropped exactly this one.
+		expect(
+			state.savedSessions.some((s) => s.sessionId === `s${CAP - 1}`),
+		).toBe(true);
+	});
+
+	it("trims multiple entries in LRU order when the list is already over the cap", async () => {
+		const { storage, state } = makeStorage();
+		// e.g. data.json hand-edited or written by a future version.
+		state.savedSessions = seedInverse(CAP + 2);
+
+		await storage.saveSession(
+			makeSession({ sessionId: "brand-new", updatedAt: iso(1000) }),
+		);
+
+		expect(state.savedSessions).toHaveLength(CAP);
+		for (const evicted of ["s0", "s1", "s2"]) {
+			expect(
+				state.savedSessions.some((s) => s.sessionId === evicted),
+			).toBe(false);
+		}
+	});
+
+	it("enforces the cap on updateSessionTitle's createIfMissing path too", async () => {
+		const { storage, state } = makeStorage();
+		state.savedSessions = seedInverse(CAP);
+
+		await storage.updateSessionTitle("brand-new", "created by rename", {
+			agentId: "claude",
+			cwd: "/vault",
+		});
+
+		expect(state.savedSessions).toHaveLength(CAP);
+		expect(
+			state.savedSessions.some((s) => s.sessionId === "brand-new"),
+		).toBe(true);
+		// The created entry's updatedAt is "now" (far newer than the seeds),
+		// so the least recently used seed is the one evicted.
+		expect(state.savedSessions.some((s) => s.sessionId === "s0")).toBe(
+			false,
+		);
+	});
+});

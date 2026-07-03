@@ -51,6 +51,31 @@ interface SessionStorageSettingsAccess {
 /** Maximum number of saved sessions to keep */
 const MAX_SAVED_SESSIONS = 50;
 
+/**
+ * Evict the least-recently-used entries (oldest updatedAt) until the list
+ * fits the cap. Reads and the UI order by updatedAt, so eviction must use the
+ * same axis — a positional pop() would drop an old-inserted entry that is
+ * still in active use. Eviction removes only the index entry: the transcript
+ * file under sessions/ is intentionally kept as an archive.
+ */
+function evictLeastRecentlyUsed(
+	sessions: SavedSessionInfo[],
+	cap: number,
+): void {
+	while (sessions.length > cap) {
+		let oldest = 0;
+		for (let i = 1; i < sessions.length; i++) {
+			if (
+				new Date(sessions[i].updatedAt).getTime() <
+				new Date(sessions[oldest].updatedAt).getTime()
+			) {
+				oldest = i;
+			}
+		}
+		sessions.splice(oldest, 1);
+	}
+}
+
 export class SessionStorage {
 	private plugin: AgentClientPlugin;
 	private settingsAccess: SessionStorageSettingsAccess;
@@ -105,9 +130,7 @@ export class SessionStorage {
 				sessions[existingIndex] = sessionInfo;
 			} else {
 				sessions.unshift(sessionInfo);
-				if (sessions.length > MAX_SAVED_SESSIONS) {
-					sessions.pop();
-				}
+				evictLeastRecentlyUsed(sessions, MAX_SAVED_SESSIONS);
 			}
 
 			await this.settingsAccess.updateSettings({
@@ -223,6 +246,7 @@ export class SessionStorage {
 					createdAt: new Date().toISOString(),
 					updatedAt: new Date().toISOString(),
 				});
+				evictLeastRecentlyUsed(sessions, MAX_SAVED_SESSIONS);
 			} else {
 				return;
 			}
