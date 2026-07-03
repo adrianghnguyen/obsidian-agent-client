@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { SessionStorage } from "../src/services/session-storage";
 import type { SavedSessionInfo } from "../src/types/session";
+import type { ChatMessage } from "../src/types/chat";
 
 // SessionStorage only needs a tiny slice of the plugin (vault adapter +
 // configDir) and a {getSnapshot, updateSettings} settings access. We stub both
@@ -31,12 +32,22 @@ function makeSession(
 
 function makeStorage() {
 	const state: StorageState = { savedSessions: [], windowsWslMode: false };
-	const existing = new Set<string>();
+	// Map-backed in-memory FS: path → file content.
+	const files = new Map<string, string>();
 	const adapter = {
-		exists: vi.fn(async (p: string) => existing.has(p)),
+		exists: vi.fn(async (p: string) => files.has(p)),
 		remove: vi.fn(async (p: string) => {
-			existing.delete(p);
+			files.delete(p);
 		}),
+		read: vi.fn(async (p: string) => {
+			const content = files.get(p);
+			if (content === undefined) throw new Error(`ENOENT: ${p}`);
+			return content;
+		}),
+		write: vi.fn(async (p: string, content: string) => {
+			files.set(p, content);
+		}),
+		mkdir: vi.fn(async () => {}),
 	};
 	const plugin = {
 		app: { vault: { configDir: CONFIG_DIR, adapter } },
@@ -53,7 +64,7 @@ function makeStorage() {
 			typeof SessionStorage
 		>[1],
 	);
-	return { storage, state, adapter, existing };
+	return { storage, state, adapter, files };
 }
 
 describe("SessionStorage — getSavedSessionByEmbedId (#5/#11)", () => {
@@ -96,11 +107,11 @@ describe("SessionStorage — getSavedSessionByEmbedId (#5/#11)", () => {
 
 describe("SessionStorage — embedded persist sessions accumulate (no dedup/delete)", () => {
 	it("keeps a block's past conversations in history and never deletes a transcript", async () => {
-		const { storage, state, adapter, existing } = makeStorage();
+		const { storage, state, adapter, files } = makeStorage();
 		state.savedSessions = [
 			makeSession({ sessionId: "s1", embedId: "blk1" }),
 		];
-		existing.add(filePath("s1"));
+		files.set(filePath("s1"), "{}");
 
 		await storage.saveSession(
 			makeSession({ sessionId: "s2", embedId: "blk1" }),
@@ -116,7 +127,7 @@ describe("SessionStorage — embedded persist sessions accumulate (no dedup/dele
 	});
 
 	it("keeps the old-agent conversation when the block switches agents (restore uses newest)", async () => {
-		const { storage, state, adapter, existing } = makeStorage();
+		const { storage, state, adapter, files } = makeStorage();
 		state.savedSessions = [
 			makeSession({
 				sessionId: "s1",
@@ -125,7 +136,7 @@ describe("SessionStorage — embedded persist sessions accumulate (no dedup/dele
 				updatedAt: "2026-01-01T00:00:00.000Z",
 			}),
 		];
-		existing.add(filePath("s1"));
+		files.set(filePath("s1"), "{}");
 
 		await storage.saveSession(
 			makeSession({
@@ -305,5 +316,171 @@ describe("SessionStorage — cap eviction is LRU by updatedAt, not insertion ord
 		expect(state.savedSessions.some((s) => s.sessionId === "s0")).toBe(
 			false,
 		);
+	});
+});
+
+describe("SessionStorage — transcript metadata snapshot (self-contained archive)", () => {
+	const makeMessage = (text: string): ChatMessage => ({
+		id: "m1",
+		role: "user",
+		content: [{ type: "text", text }],
+		timestamp: new Date("2026-03-01T00:00:00.000Z"),
+	});
+	const parseFile = (files: Map<string, string>, sessionId: string) =>
+		JSON.parse(files.get(filePath(sessionId)) as string) as Record<
+			string,
+			unknown
+		>;
+
+	it("snapshots the index entry (cwd/title/embedId/timestamps) into the file", async () => {
+		const { storage, state, files } = makeStorage();
+		state.savedSessions = [
+			makeSession({
+				sessionId: "s1",
+				embedId: "blk1",
+				title: "My chat",
+				cwd: "/custom/dir",
+				createdAt: "2026-01-01T00:00:00.000Z",
+				updatedAt: "2026-02-01T00:00:00.000Z",
+			}),
+		];
+
+		await storage.saveSessionMessages("s1", "claude", [makeMessage("hi")]);
+
+		const data = parseFile(files, "s1");
+		expect(data.cwd).toBe("/custom/dir");
+		expect(data.title).toBe("My chat");
+		expect(data.embedId).toBe("blk1");
+		expect(data.createdAt).toBe("2026-01-01T00:00:00.000Z");
+		expect(data.updatedAt).toBe("2026-02-01T00:00:00.000Z");
+	});
+
+	it("omits absent optional fields instead of writing null", async () => {
+		const { storage, state, files } = makeStorage();
+		// No title, no embedId on the index entry.
+		state.savedSessions = [makeSession({ sessionId: "s1" })];
+
+		await storage.saveSessionMessages("s1", "claude", [makeMessage("hi")]);
+
+		const data = parseFile(files, "s1");
+		expect("title" in data).toBe(false);
+		expect("embedId" in data).toBe(false);
+		expect(data.cwd).toBe("/vault");
+	});
+
+	it("carries the previous snapshot over when the index entry is gone", async () => {
+		const { storage, state, files } = makeStorage();
+		files.set(
+			filePath("s1"),
+			JSON.stringify({
+				version: 1,
+				sessionId: "s1",
+				agentId: "claude",
+				cwd: "/old/dir",
+				title: "Evicted chat",
+				embedId: "blk1",
+				createdAt: "2026-01-01T00:00:00.000Z",
+				updatedAt: "2026-02-01T00:00:00.000Z",
+				messages: [],
+				savedAt: "2026-02-01T00:00:00.000Z",
+			}),
+		);
+		state.savedSessions = []; // index entry evicted while session open
+
+		await storage.saveSessionMessages("s1", "claude", [
+			makeMessage("more"),
+		]);
+
+		const data = parseFile(files, "s1");
+		expect(data.cwd).toBe("/old/dir");
+		expect(data.title).toBe("Evicted chat");
+		expect(data.embedId).toBe("blk1");
+		// ...while the messages are the fresh in-memory ones.
+		expect(data.messages as unknown[]).toHaveLength(1);
+	});
+
+	it("still loads messages from a pre-feature file without a snapshot", async () => {
+		const { storage, files } = makeStorage();
+		files.set(
+			filePath("legacy"),
+			JSON.stringify({
+				version: 1,
+				sessionId: "legacy",
+				agentId: "claude",
+				messages: [
+					{
+						id: "m1",
+						role: "user",
+						content: [{ type: "text", text: "old" }],
+						timestamp: "2026-01-01T00:00:00.000Z",
+					},
+				],
+				savedAt: "2026-01-01T00:00:00.000Z",
+			}),
+		);
+
+		const messages = await storage.loadSessionMessages("legacy");
+		expect(messages).toHaveLength(1);
+		expect(messages?.[0].timestamp).toBeInstanceOf(Date);
+	});
+});
+
+describe("SessionStorage — rename syncs the transcript's title snapshot", () => {
+	it("patches the title in the file and leaves everything else intact", async () => {
+		const { storage, state, files } = makeStorage();
+		state.savedSessions = [
+			makeSession({ sessionId: "s1", title: "old title" }),
+		];
+		files.set(
+			filePath("s1"),
+			JSON.stringify({
+				version: 1,
+				sessionId: "s1",
+				agentId: "claude",
+				cwd: "/vault",
+				title: "old title",
+				messages: [
+					{
+						id: "m1",
+						role: "user",
+						content: [{ type: "text", text: "hello" }],
+						timestamp: "2026-01-01T00:00:00.000Z",
+					},
+				],
+				savedAt: "2026-01-01T00:00:00.000Z",
+			}),
+		);
+
+		await storage.updateSessionTitle("s1", "renamed");
+
+		const data = JSON.parse(files.get(filePath("s1")) as string) as Record<
+			string,
+			unknown
+		>;
+		expect(data.title).toBe("renamed");
+		expect(data.messages as unknown[]).toHaveLength(1);
+		expect(data.cwd).toBe("/vault");
+		expect(data.savedAt).toBe("2026-01-01T00:00:00.000Z");
+	});
+
+	it("is a no-op when no transcript file exists", async () => {
+		const { storage, state, files } = makeStorage();
+		state.savedSessions = [makeSession({ sessionId: "s1", title: "old" })];
+
+		await storage.updateSessionTitle("s1", "renamed");
+
+		expect(state.savedSessions[0].title).toBe("renamed");
+		expect(files.has(filePath("s1"))).toBe(false);
+	});
+
+	it("silently skips a corrupt file while the rename itself succeeds", async () => {
+		const { storage, state, files } = makeStorage();
+		state.savedSessions = [makeSession({ sessionId: "s1", title: "old" })];
+		files.set(filePath("s1"), "not json");
+
+		await storage.updateSessionTitle("s1", "renamed");
+
+		expect(state.savedSessions[0].title).toBe("renamed");
+		expect(files.get(filePath("s1"))).toBe("not json");
 	});
 });
