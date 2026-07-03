@@ -85,13 +85,17 @@ const SessionItem = React.memo(function SessionItem({
 				{ label: "Rename" },
 			);
 
-			menu.addItem((item) => {
-				item.setTitle("Close")
-					.setIcon("x")
-					.onClick(() => {
-						plugin.closeView(view.viewId);
-					});
-			});
+			// Embedded chats are owned by their host note's code block and
+			// cannot be closed from the session list; omit the Close action.
+			if (view.viewType !== "embedded") {
+				menu.addItem((item) => {
+					item.setTitle("Close")
+						.setIcon("x")
+						.onClick(() => {
+							plugin.closeView(view.viewId);
+						});
+				});
+			}
 
 			menu.showAtPosition(position);
 		},
@@ -124,8 +128,23 @@ const SessionItem = React.memo(function SessionItem({
 			>
 				<SessionStatusIcon status={status} />
 				<div className="tree-item-inner agent-client-session-item-text">
-					<div className="agent-client-session-item-title">{title}</div>
-					<div className="agent-client-session-item-agent">{agentName}</div>
+					<div
+						className="agent-client-session-item-title"
+						aria-label={title}
+					>
+						{title}
+					</div>
+					<div
+						className="agent-client-session-item-agent"
+						aria-label={agentName}
+					>
+						{agentName}
+						{view.viewType === "embedded" && (
+							<span className="agent-client-session-item-embedded-badge">
+								embedded
+							</span>
+						)}
+					</div>
 				</div>
 				<button
 					ref={moreRef}
@@ -139,11 +158,7 @@ const SessionItem = React.memo(function SessionItem({
 	);
 });
 
-function SessionManagerComponent({
-	plugin,
-}: {
-	plugin: AgentClientPlugin;
-}) {
+function SessionManagerComponent({ plugin }: { plugin: AgentClientPlugin }) {
 	const { views, focusedId } = useSyncExternalStore(
 		plugin.viewRegistry.subscribe,
 		plugin.viewRegistry.getSnapshot,
@@ -208,9 +223,7 @@ export class SessionManagerView extends ItemView {
 		const container = this.containerEl.children[1];
 		container.empty();
 		this.root = createRoot(container);
-		this.root.render(
-			<SessionManagerComponent plugin={this.plugin} />,
-		);
+		this.root.render(<SessionManagerComponent plugin={this.plugin} />);
 		return Promise.resolve();
 	}
 

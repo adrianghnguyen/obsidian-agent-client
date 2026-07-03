@@ -86,6 +86,12 @@ export interface ISettingsAccess {
 	getSavedSessions(agentId?: string, cwd?: string): SavedSessionInfo[];
 
 	/**
+	 * Get the saved session owned by an embedded persist block by its embedId.
+	 * Resolves without an agent/cwd filter (returns the newest match).
+	 */
+	getSavedSessionByEmbedId(embedId: string): SavedSessionInfo | undefined;
+
+	/**
 	 * Delete a saved session by sessionId.
 	 *
 	 * @param sessionId - ID of session to delete
@@ -270,6 +276,10 @@ export class SettingsService implements ISettingsAccess {
 
 	getSavedSessions(agentId?: string, cwd?: string): SavedSessionInfo[] {
 		return this.sessionStorage.getSavedSessions(agentId, cwd);
+	}
+
+	getSavedSessionByEmbedId(embedId: string): SavedSessionInfo | undefined {
+		return this.sessionStorage.getSavedSessionByEmbedId(embedId);
 	}
 
 	async deleteSession(sessionId: string): Promise<void> {
