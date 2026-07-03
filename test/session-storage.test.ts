@@ -483,4 +483,63 @@ describe("SessionStorage — rename syncs the transcript's title snapshot", () =
 		expect(state.savedSessions[0].title).toBe("renamed");
 		expect(files.get(filePath("s1"))).toBe("not json");
 	});
+
+	it("a rename racing a turn-end save cannot clobber the newer messages", async () => {
+		const { storage, state, files, adapter } = makeStorage();
+		state.savedSessions = [
+			makeSession({ sessionId: "s1", title: "old title" }),
+		];
+		files.set(
+			filePath("s1"),
+			JSON.stringify({
+				version: 1,
+				sessionId: "s1",
+				agentId: "claude",
+				title: "old title",
+				messages: [],
+				savedAt: "2026-01-01T00:00:00.000Z",
+			}),
+		);
+
+		// Gate the rename's file write (the first write in this test) so the
+		// turn-end save is issued while the rename is mid-flight — the exact
+		// interleaving that used to let the rename's stale full-file rewrite
+		// land last and erase the newer messages.
+		let openGate!: () => void;
+		const gate = new Promise<void>((resolve) => (openGate = resolve));
+		let gated = false;
+		adapter.write.mockImplementation(async (p: string, content: string) => {
+			if (!gated) {
+				gated = true;
+				await gate;
+			}
+			files.set(p, content);
+		});
+
+		const rename = storage.updateSessionTitle("s1", "renamed");
+		// Let the rename reach its (gated) file write.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const save = storage.saveSessionMessages("s1", "claude", [
+			{
+				id: "m1",
+				role: "user",
+				content: [{ type: "text", text: "newest" }],
+				timestamp: new Date("2026-03-01T00:00:00.000Z"),
+			},
+		]);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		openGate();
+		await Promise.all([rename, save]);
+
+		// The save serializes behind the rename on the session lock, so the
+		// final file carries BOTH the new title and the newer messages.
+		const data = JSON.parse(files.get(filePath("s1")) as string) as Record<
+			string,
+			unknown
+		>;
+		expect(data.title).toBe("renamed");
+		expect(data.messages as unknown[]).toHaveLength(1);
+	});
 });

@@ -326,53 +326,64 @@ export class SessionStorage {
 
 	/**
 	 * Save message history for a session.
+	 *
+	 * Runs inside sessionLock: the transcript file has TWO writers (this
+	 * turn-end save and updateSessionTitle's title sync, both full-file
+	 * rewrites), so writes must serialize or a rename racing a turn end could
+	 * overwrite newer messages with the older array it read. As a bonus, the
+	 * snapshot below is taken after any queued rename, so it sees the fresh
+	 * title.
 	 */
 	async saveSessionMessages(
 		sessionId: string,
 		agentId: string,
 		messages: ChatMessage[],
 	): Promise<void> {
-		await this.ensureSessionsDir();
+		this.sessionLock = this.sessionLock.then(async () => {
+			await this.ensureSessionsDir();
 
-		// Self-contained archive: snapshot the index entry into the file so an
-		// evicted session keeps its handle (cwd/title/embedId/timestamps) for
-		// future search/restore. If the entry is already gone (evicted while
-		// the session stayed open), carry the previous snapshot over from the
-		// existing file instead of dropping it on rewrite.
-		const entry = (
-			this.settingsAccess.getSnapshot().savedSessions || []
-		).find((s) => s.sessionId === sessionId);
-		const meta = entry
-			? {
-					cwd: entry.cwd,
-					title: entry.title,
-					embedId: entry.embedId,
-					createdAt: entry.createdAt,
-					updatedAt: entry.updatedAt,
-				}
-			: await this.readExistingMeta(sessionId);
+			// Self-contained archive: snapshot the index entry into the file
+			// so an evicted session keeps its handle (cwd/title/embedId/
+			// timestamps) for future search/restore. If the entry is already
+			// gone (evicted while the session stayed open), carry the previous
+			// snapshot over from the existing file instead of dropping it on
+			// rewrite.
+			const entry = (
+				this.settingsAccess.getSnapshot().savedSessions || []
+			).find((s) => s.sessionId === sessionId);
+			const meta = entry
+				? {
+						cwd: entry.cwd,
+						title: entry.title,
+						embedId: entry.embedId,
+						createdAt: entry.createdAt,
+						updatedAt: entry.updatedAt,
+					}
+				: await this.readExistingMeta(sessionId);
 
-		const serialized = messages.map((msg) => ({
-			...msg,
-			timestamp: msg.timestamp.toISOString(),
-		}));
+			const serialized = messages.map((msg) => ({
+				...msg,
+				timestamp: msg.timestamp.toISOString(),
+			}));
 
-		const data = {
-			version: 1,
-			sessionId,
-			agentId,
-			// undefined values are dropped by JSON.stringify, so absent fields
-			// (e.g. no title yet) never appear as null in the file.
-			...meta,
-			messages: serialized,
-			savedAt: new Date().toISOString(),
-		};
+			const data = {
+				version: 1,
+				sessionId,
+				agentId,
+				// undefined values are dropped by JSON.stringify, so absent
+				// fields (e.g. no title yet) never appear as null in the file.
+				...meta,
+				messages: serialized,
+				savedAt: new Date().toISOString(),
+			};
 
-		const filePath = this.getSessionFilePath(sessionId);
-		await this.plugin.app.vault.adapter.write(
-			filePath,
-			JSON.stringify(data, null, 2),
-		);
+			const filePath = this.getSessionFilePath(sessionId);
+			await this.plugin.app.vault.adapter.write(
+				filePath,
+				JSON.stringify(data, null, 2),
+			);
+		});
+		await this.sessionLock;
 	}
 
 	/**
