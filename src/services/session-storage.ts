@@ -26,6 +26,19 @@ interface SessionMessagesFile {
 	version: number;
 	sessionId: string;
 	agentId: string;
+	/**
+	 * Snapshot of the session's index entry (data.json row) as of the last
+	 * save. Makes the transcript self-contained: a session evicted from the
+	 * capped index keeps its handle — where to reopen it (cwd), its display
+	 * name (title), its owning embed block (embedId) — for future
+	 * search/restore. Absent in files written before this feature. The index
+	 * entry stays authoritative while it exists; this is a copy.
+	 */
+	cwd?: string;
+	title?: string;
+	embedId?: string;
+	createdAt?: string;
+	updatedAt?: string;
 	messages: Array<{
 		id: string;
 		role: "user" | "assistant";
@@ -254,6 +267,11 @@ export class SessionStorage {
 			await this.settingsAccess.updateSettings({
 				savedSessions: sessions,
 			});
+
+			// Keep the transcript's title snapshot in sync (best-effort;
+			// covers the rename-then-never-continue case where no turn-end
+			// save would refresh it).
+			await this.syncTranscriptTitle(sessionId, newTitle);
 		});
 		await this.sessionLock;
 	}
@@ -308,32 +326,64 @@ export class SessionStorage {
 
 	/**
 	 * Save message history for a session.
+	 *
+	 * Runs inside sessionLock: the transcript file has TWO writers (this
+	 * turn-end save and updateSessionTitle's title sync, both full-file
+	 * rewrites), so writes must serialize or a rename racing a turn end could
+	 * overwrite newer messages with the older array it read. As a bonus, the
+	 * snapshot below is taken after any queued rename, so it sees the fresh
+	 * title.
 	 */
 	async saveSessionMessages(
 		sessionId: string,
 		agentId: string,
 		messages: ChatMessage[],
 	): Promise<void> {
-		await this.ensureSessionsDir();
+		this.sessionLock = this.sessionLock.then(async () => {
+			await this.ensureSessionsDir();
 
-		const serialized = messages.map((msg) => ({
-			...msg,
-			timestamp: msg.timestamp.toISOString(),
-		}));
+			// Self-contained archive: snapshot the index entry into the file
+			// so an evicted session keeps its handle (cwd/title/embedId/
+			// timestamps) for future search/restore. If the entry is already
+			// gone (evicted while the session stayed open), carry the previous
+			// snapshot over from the existing file instead of dropping it on
+			// rewrite.
+			const entry = (
+				this.settingsAccess.getSnapshot().savedSessions || []
+			).find((s) => s.sessionId === sessionId);
+			const meta = entry
+				? {
+						cwd: entry.cwd,
+						title: entry.title,
+						embedId: entry.embedId,
+						createdAt: entry.createdAt,
+						updatedAt: entry.updatedAt,
+					}
+				: await this.readExistingMeta(sessionId);
 
-		const data = {
-			version: 1,
-			sessionId,
-			agentId,
-			messages: serialized,
-			savedAt: new Date().toISOString(),
-		};
+			const serialized = messages.map((msg) => ({
+				...msg,
+				timestamp: msg.timestamp.toISOString(),
+			}));
 
-		const filePath = this.getSessionFilePath(sessionId);
-		await this.plugin.app.vault.adapter.write(
-			filePath,
-			JSON.stringify(data, null, 2),
-		);
+			const data = {
+				version: 1,
+				sessionId,
+				agentId,
+				// undefined values are dropped by JSON.stringify, so absent
+				// fields (e.g. no title yet) never appear as null in the file.
+				...meta,
+				messages: serialized,
+				savedAt: new Date().toISOString(),
+			};
+
+			const filePath = this.getSessionFilePath(sessionId);
+			await this.plugin.app.vault.adapter.write(
+				filePath,
+				JSON.stringify(data, null, 2),
+			);
+		});
+		await this.sessionLock;
 	}
 
 	/**
@@ -380,6 +430,69 @@ export class SessionStorage {
 				`[SessionStorage] Failed to load session messages: ${error}`,
 			);
 			return null;
+		}
+	}
+
+	/**
+	 * Carry-over: read the metadata snapshot from an existing transcript file.
+	 * Used when the index entry was evicted while the session stayed open, so
+	 * a rewrite does not drop the previously saved handle.
+	 */
+	private async readExistingMeta(
+		sessionId: string,
+	): Promise<
+		Partial<
+			Pick<
+				SessionMessagesFile,
+				"cwd" | "title" | "embedId" | "createdAt" | "updatedAt"
+			>
+		>
+	> {
+		const filePath = this.getSessionFilePath(sessionId);
+		const adapter = this.plugin.app.vault.adapter;
+		try {
+			if (!(await adapter.exists(filePath))) return {};
+			const data = JSON.parse(
+				await adapter.read(filePath),
+			) as SessionMessagesFile;
+			if (!data || typeof data !== "object") return {};
+			return {
+				cwd: data.cwd,
+				title: data.title,
+				embedId: data.embedId,
+				createdAt: data.createdAt,
+				updatedAt: data.updatedAt,
+			};
+		} catch {
+			return {};
+		}
+	}
+
+	/**
+	 * Best-effort: patch the title snapshot inside an existing transcript file
+	 * so a rename stays visible in the archive even if the session is never
+	 * continued (no turn-end save would refresh it). The index entry is
+	 * authoritative while it exists; failures are silently ignored and the
+	 * snapshot self-heals on the next turn-end save.
+	 */
+	private async syncTranscriptTitle(
+		sessionId: string,
+		newTitle: string,
+	): Promise<void> {
+		const filePath = this.getSessionFilePath(sessionId);
+		const adapter = this.plugin.app.vault.adapter;
+		try {
+			if (!(await adapter.exists(filePath))) return;
+			const data = JSON.parse(
+				await adapter.read(filePath),
+			) as SessionMessagesFile;
+			if (!data || typeof data !== "object") return;
+			data.title = newTitle;
+			await adapter.write(filePath, JSON.stringify(data, null, 2));
+		} catch (error) {
+			getLogger().debug(
+				`[SessionStorage] Failed to sync transcript title: ${error}`,
+			);
 		}
 	}
 
