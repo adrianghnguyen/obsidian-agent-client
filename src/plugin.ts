@@ -49,7 +49,14 @@ import {
 	xyPoint,
 } from "./services/settings-normalizer";
 import { PRESET_AGENTS } from "./services/preset-agents";
-import { getAvailableAgentsFromSettings } from "./services/session-helpers";
+import {
+	getAvailableAgentsFromSettings,
+	getAllAgentsFromSettings,
+	findAgentSettings,
+	isAgentEnabled,
+	firstEnabledAgentId,
+	repairNoEnabledAgents,
+} from "./services/session-helpers";
 import {
 	AgentEnvVar,
 	PresetAgentUserSettings,
@@ -858,17 +865,32 @@ export default class AgentClientPlugin extends Plugin {
 		}
 
 		// Collect non-fatal warnings: parser warnings plus a mount-side check
-		// for an unknown agent id (#28). Copy the parser array rather than
+		// on the pinned agent id (#28). Copy the parser array rather than
 		// mutating it, since parse results may be shared once cached.
+		// Warnings match actual behavior, which differs by block type: a chat
+		// block spawns the pinned agent as-is (unknown → startup error), a
+		// button block falls back to the default agent when the id is unknown.
+		// Both use a pinned agent even while it is disabled. Computed at
+		// render time — a later toggle doesn't update an already-rendered
+		// block (known limitation).
 		const warnings = parsed.warnings ? [...parsed.warnings] : [];
 		const requestedAgent = parsed.config.agent;
-		if (
-			requestedAgent &&
-			!this.getAvailableAgents().some((a) => a.id === requestedAgent)
-		) {
-			warnings.push(
-				`Unknown agent "${requestedAgent}", using the default agent instead.`,
+		if (requestedAgent) {
+			const agentSettings = findAgentSettings(
+				this.settings,
+				requestedAgent,
 			);
+			if (!agentSettings) {
+				warnings.push(
+					parsed.config.type === "chat"
+						? `Unknown agent "${requestedAgent}" — this block will fail to start. Check the agent id in Settings → Agent Client.`
+						: `Unknown agent "${requestedAgent}", using the default agent instead.`,
+				);
+			} else if (!isAgentEnabled(agentSettings)) {
+				warnings.push(
+					`Agent "${requestedAgent}" is disabled in settings; this block pins it and will still use it.`,
+				);
+			}
 		}
 
 		if (warnings.length > 0) {
@@ -1109,16 +1131,23 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	/**
-	 * Register commands for each configured agent
+	 * Register commands for each configured agent.
+	 *
+	 * All presets register unconditionally; a checkCallback hides the command
+	 * while its agent is disabled, so the palette follows the Enabled toggles
+	 * without re-registration. Custom agents remain a load-time snapshot
+	 * (a newly added custom gets its command after a reload — existing
+	 * limitation), but their enabled state is also checked live.
 	 */
 	private registerAgentCommands(): void {
-		const agents = this.getAvailableAgents();
-
-		for (const agent of agents) {
+		for (const agent of getAllAgentsFromSettings(this.settings)) {
 			this.addCommand({
 				id: `switch-agent-to-${agent.id}`,
 				name: `Switch agent to ${agent.displayName}`,
-				callback: () => {
+				checkCallback: (checking) => {
+					const found = findAgentSettings(this.settings, agent.id);
+					if (!found || !isAgentEnabled(found)) return false;
+					if (checking) return true;
 					this.app.workspace.trigger(
 						"agent-client:new-chat-requested",
 						this.lastActiveChatViewId,
@@ -1483,6 +1512,7 @@ export default class AgentClientPlugin extends Plugin {
 			floatingButtonPosition: xyPoint(raw.floatingButtonPosition),
 		};
 
+		this.ensureAtLeastOneEnabled();
 		this.ensureDefaultAgentId();
 
 		if (migratedSecrets) {
@@ -1648,12 +1678,20 @@ export default class AgentClientPlugin extends Plugin {
 
 	ensureDefaultAgentId(): void {
 		const availableIds = this.collectAvailableAgentIds();
-		if (availableIds.length === 0) {
-			this.settings.defaultAgentId = PRESET_AGENTS[0].presetId;
-			return;
-		}
 		if (!availableIds.includes(this.settings.defaultAgentId)) {
-			this.settings.defaultAgentId = availableIds[0];
+			this.settings.defaultAgentId = firstEnabledAgentId(this.settings);
+		}
+	}
+
+	/**
+	 * Repair the "everything disabled" state by re-enabling the first preset.
+	 * The settings UI refuses to disable the last enabled agent, so this is a
+	 * backstop for load-time data and indirect paths (custom deletion).
+	 */
+	ensureAtLeastOneEnabled(): void {
+		const repaired = repairNoEnabledAgents(this.settings);
+		if (repaired) {
+			this.settings.presetAgents = repaired;
 		}
 	}
 

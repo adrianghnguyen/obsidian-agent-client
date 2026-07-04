@@ -1,8 +1,39 @@
 import * as React from "react";
-const { useRef, useEffect } = React;
+const { useRef, useEffect, useMemo } = React;
 import { setIcon, DropdownComponent } from "obsidian";
 import { HeaderButton } from "./shared/IconButton";
 import type { AgentDisplayInfo } from "../services/session-helpers";
+
+/** Stable empty list for the pinned-agent case (no switchable agents). */
+const EMPTY_AGENTS: AgentDisplayInfo[] = [];
+
+/**
+ * Selector options = enabled agents, plus the active agent appended as an
+ * explicit "(disabled)" option when it is not in the enabled enumeration
+ * (kept session or pinned block on a disabled agent). Without it the
+ * dropdown's setValue silently no-ops and the selector renders blank.
+ * Returns `availableAgents` by reference when no append is needed, so the
+ * dropdown-rebuild effect doesn't re-run on ordinary agent switches.
+ */
+function useSelectorAgents(
+	availableAgents: AgentDisplayInfo[] | undefined,
+	currentAgentId: string | undefined,
+	agentLabel: string,
+): AgentDisplayInfo[] {
+	return useMemo(() => {
+		if (!availableAgents) return EMPTY_AGENTS;
+		if (
+			!currentAgentId ||
+			availableAgents.some((agent) => agent.id === currentAgentId)
+		) {
+			return availableAgents;
+		}
+		return [
+			...availableAgents,
+			{ id: currentAgentId, displayName: `${agentLabel} (disabled)` },
+		];
+	}, [availableAgents, currentAgentId, agentLabel]);
+}
 
 // ============================================================================
 // Props Types
@@ -204,13 +235,19 @@ function FloatingHeader({
 	const onAgentChangeRef = useRef(onAgentChange);
 	onAgentChangeRef.current = onAgentChange;
 
+	const selectorAgents = useSelectorAgents(
+		availableAgents,
+		currentAgentId,
+		agentLabel,
+	);
+
 	// Initialize agent dropdown
 	useEffect(() => {
 		const containerEl = agentDropdownRef.current;
 		if (!containerEl) return;
 
 		// Only show dropdown if there are multiple agents
-		if (availableAgents.length <= 1) {
+		if (selectorAgents.length <= 1) {
 			if (agentDropdownInstance.current) {
 				containerEl.empty();
 				agentDropdownInstance.current = null;
@@ -224,7 +261,7 @@ function FloatingHeader({
 			agentDropdownInstance.current = dropdown;
 
 			// Add options
-			for (const agent of availableAgents) {
+			for (const agent of selectorAgents) {
 				dropdown.addOption(agent.id, agent.displayName);
 			}
 
@@ -239,14 +276,14 @@ function FloatingHeader({
 			});
 		}
 
-		// Cleanup on unmount or when availableAgents change
+		// Cleanup on unmount or when the selector options change
 		return () => {
 			if (agentDropdownInstance.current) {
 				containerEl.empty();
 				agentDropdownInstance.current = null;
 			}
 		};
-	}, [availableAgents]);
+	}, [selectorAgents]);
 
 	// Update dropdown value when currentAgentId changes
 	useEffect(() => {
@@ -260,7 +297,7 @@ function FloatingHeader({
 			className={`agent-client-inline-header agent-client-inline-header-floating`}
 		>
 			<div className="agent-client-inline-header-main">
-				{availableAgents.length > 1 ? (
+				{selectorAgents.length > 1 ? (
 					<div className="agent-client-agent-selector">
 						<div ref={agentDropdownRef} />
 						<span
@@ -334,12 +371,18 @@ function EmbeddedHeader({
 	const onAgentChangeRef = useRef(onAgentChange);
 	onAgentChangeRef.current = onAgentChange;
 
+	const selectorAgents = useSelectorAgents(
+		availableAgents,
+		currentAgentId,
+		agentLabel,
+	);
+
 	// Initialize agent dropdown (only when multiple switchable agents exist)
 	useEffect(() => {
 		const containerEl = agentDropdownRef.current;
 		if (!containerEl) return;
 
-		if (!availableAgents || availableAgents.length <= 1) {
+		if (selectorAgents.length <= 1) {
 			if (agentDropdownInstance.current) {
 				containerEl.empty();
 				agentDropdownInstance.current = null;
@@ -351,7 +394,7 @@ function EmbeddedHeader({
 			const dropdown = new DropdownComponent(containerEl);
 			agentDropdownInstance.current = dropdown;
 
-			for (const agent of availableAgents) {
+			for (const agent of selectorAgents) {
 				dropdown.addOption(agent.id, agent.displayName);
 			}
 
@@ -370,7 +413,7 @@ function EmbeddedHeader({
 				agentDropdownInstance.current = null;
 			}
 		};
-	}, [availableAgents]);
+	}, [selectorAgents]);
 
 	// Keep dropdown value in sync with currentAgentId
 	useEffect(() => {
@@ -379,7 +422,7 @@ function EmbeddedHeader({
 		}
 	}, [currentAgentId]);
 
-	const hasSelector = !!availableAgents && availableAgents.length > 1;
+	const hasSelector = selectorAgents.length > 1;
 
 	return (
 		<div className="agent-client-inline-header agent-client-inline-header-embedded">
