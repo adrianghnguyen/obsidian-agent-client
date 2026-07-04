@@ -116,9 +116,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.sendMessageShortcut)
 					.onChange(async (value) => {
 						await this.plugin.settingsService.updateSettings({
-							sendMessageShortcut: value as
-								| "enter"
-								| "cmd-enter",
+							sendMessageShortcut: value as "enter" | "cmd-enter",
 						});
 					}),
 			);
@@ -1269,18 +1267,22 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				text.setPlaceholder("vibe-acp")
 					.setValue(mistralVibe.command)
 					.onChange(async (value) => {
-						this.plugin.settings.mistralVibe.command = value.trim();
-						await this.plugin.saveSettings();
+						await this.plugin.settingsService.updateSettings({
+							mistralVibe: {
+								...this.plugin.settings.mistralVibe,
+								command: value.trim(),
+							},
+						});
 					});
 			});
-		this.addAutoDetectButton(
-			vibePathSetting,
-			"vibe-acp",
-			async (path) => {
-				this.plugin.settings.mistralVibe.command = path;
-				await this.plugin.saveSettings();
-			},
-		);
+		this.addAutoDetectButton(vibePathSetting, "vibe-acp", async (path) => {
+			await this.plugin.settingsService.updateSettings({
+				mistralVibe: {
+					...this.plugin.settings.mistralVibe,
+					command: path,
+				},
+			});
+		});
 		this.addInstallHintCustom(
 			sectionEl,
 			"curl -LsSf https://mistral.ai/vibe/install.sh | bash",
@@ -1295,9 +1297,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				text.setPlaceholder("")
 					.setValue(this.formatArgs(mistralVibe.args))
 					.onChange(async (value) => {
-						this.plugin.settings.mistralVibe.args =
-							this.parseArgs(value);
-						await this.plugin.saveSettings();
+						await this.plugin.settingsService.updateSettings({
+							mistralVibe: {
+								...this.plugin.settings.mistralVibe,
+								args: this.parseArgs(value),
+							},
+						});
 					});
 				text.inputEl.rows = 3;
 			});
@@ -1311,9 +1316,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				text.setPlaceholder("")
 					.setValue(this.formatEnv(mistralVibe.env))
 					.onChange(async (value) => {
-						this.plugin.settings.mistralVibe.env =
-							this.parseEnv(value);
-						await this.plugin.saveSettings();
+						await this.plugin.settingsService.updateSettings({
+							mistralVibe: {
+								...this.plugin.settings.mistralVibe,
+								env: this.parseEnv(value),
+							},
+						});
 					});
 				text.inputEl.rows = 3;
 			});
