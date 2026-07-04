@@ -42,7 +42,7 @@ Yes. If you select text in your note, only that selection is sent as context. Th
 
 ### Does the agent see the notes my note links to?
 
-Not their content—but with **Expand wikilink context** (on by default, **Settings → Agent Client → Mentions**), the agent receives the resolved file paths of every `[[wikilink]]` inside a mentioned note, so it can choose which to open with its Read tool. See [Note Mentions](/usage/mentions#expand-wikilink-context).
+Not their content—but with **Expand wikilink context** (on by default, **Settings → Agent Client → Mentions**), the agent receives the resolved file path (or an unresolved marker) for each `[[wikilink]]` inside a mentioned note, so it can choose which to open with its Read tool. See [Note Mentions](/usage/mentions#expand-wikilink-context).
 
 ### How do I temporarily disable auto-mention?
 
