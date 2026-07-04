@@ -1123,7 +1123,7 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	/**
-	 * Get all available agents (claude, codex, gemini, custom)
+	 * Get all available agents (built-in + custom)
 	 */
 	getAvailableAgents(): Array<{ id: string; displayName: string }> {
 		return [

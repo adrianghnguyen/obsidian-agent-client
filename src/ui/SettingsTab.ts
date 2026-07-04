@@ -1510,6 +1510,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			this.plugin.settings.gemini.displayName ||
 				this.plugin.settings.gemini.id,
 		);
+		existing.add(
+			this.plugin.settings.mistralVibe.displayName ||
+				this.plugin.settings.mistralVibe.id,
+		);
 		for (const item of this.plugin.settings.customAgents) {
 			existing.add(item.displayName || item.id);
 		}
