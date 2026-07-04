@@ -48,6 +48,22 @@ When you send a message with manual mentions:
 2. The note content is included in the message sent to the agent
 3. The agent can then reference, analyze, or modify the note content
 
+## Expand Wikilink Context
+
+When you mention (or auto-mention) a note, any `[[wikilinks]]` inside its content are opaque to the agent—it can't tell which file each one points to. With **Expand wikilink context** on (the default), the plugin sends a compact `<obsidian_note_links>` block **alongside** the note (never mixed into the note body) that resolves each `[[link]]` to a file path and `file://` URI:
+
+- `resolved="true"` — a single matching file (with `path` / `uri`)
+- `resolved="false"` — no match in the vault
+- `resolved="ambiguous"` — multiple files share the basename (each listed as a `<candidate>`)
+
+Only pointers are sent—never the linked notes' content. The agent decides what to open with its Read tool. `![[embeds]]` and in-note `[[#anchors]]` are skipped, and each note is capped at 50 links.
+
+Toggle it in **Settings → Agent Client → Mentions → Expand wikilink context**.
+
+::: info Not the same as "Wikilink formatting"
+This setting resolves `[[links]]` **inside your notes** into paths for the agent to read. The separate **Prompt injection → Wikilink formatting** setting instead asks the agent to **write** `[[Note Name]]` links in its replies. See [Prompt Injection](/usage/prompt-injection).
+:::
+
 ## Length Limits
 
 To prevent excessively large messages, the plugin limits the amount of content included:

@@ -40,6 +40,10 @@ When enabled (**Settings → Agent Client → Mentions → Auto-mention active n
 
 Yes. If you select text in your note, only that selection is sent as context. The auto-mention badge shows the line range (e.g., `@My Note:5-10`).
 
+### Does the agent see the notes my note links to?
+
+Not their content—but with **Expand wikilink context** (on by default, **Settings → Agent Client → Mentions**), the agent receives the resolved file paths of every `[[wikilink]]` inside a mentioned note, so it can choose which to open with its Read tool. See [Note Mentions](/usage/mentions#expand-wikilink-context).
+
 ### How do I temporarily disable auto-mention?
 
 Click the **×** button next to the auto-mention badge above the input field. Click **+** to re-enable it. This only affects the current message.
