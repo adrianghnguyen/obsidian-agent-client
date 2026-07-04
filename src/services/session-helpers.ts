@@ -102,34 +102,57 @@ export function getDefaultAgentId(settings: AgentClientPluginSettings): string {
 }
 
 /**
- * Get list of all available (= enabled) agents from settings.
- *
- * The single enumeration implementation (plugin.getAvailableAgents delegates
- * here): registry-ordered presets first, then custom agents. Disabled agents
- * and unknown presetAgents entries (version skew) are not enumerated;
- * resolution (findAgentSettings) stays unfiltered.
+ * The single enumeration implementation: ordering (registry-ordered presets,
+ * then customs) and display-name resolution are defined here and nowhere
+ * else. `enabled` is decided alongside each entry — including the "missing
+ * presetAgents record entry counts as enabled" rule — so the public views
+ * below never re-resolve ids. Unknown presetAgents entries (version skew)
+ * are not enumerated.
+ */
+function enumerateAgents(
+	settings: AgentClientPluginSettings,
+): Array<AgentDisplayInfo & { enabled: boolean }> {
+	return [
+		...PRESET_AGENTS.map((def) => {
+			const preset = settings.presetAgents[def.presetId];
+			return {
+				id: def.presetId,
+				displayName: preset?.displayName || def.presetId,
+				enabled: !preset || isAgentEnabled(preset),
+			};
+		}),
+		...settings.customAgents.map((agent) => ({
+			id: agent.id,
+			displayName: agent.displayName || agent.id,
+			enabled: isAgentEnabled(agent),
+		})),
+	];
+}
+
+/**
+ * All agents regardless of enabled state — for surfaces that register
+ * everything and gate visibility live (command palette checkCallback).
+ */
+export function getAllAgentsFromSettings(
+	settings: AgentClientPluginSettings,
+): AgentDisplayInfo[] {
+	return enumerateAgents(settings).map(({ id, displayName }) => ({
+		id,
+		displayName,
+	}));
+}
+
+/**
+ * Enabled agents only (plugin.getAvailableAgents delegates here) — the
+ * enumeration every list, menu, and dropdown consumes. Resolution
+ * (findAgentSettings) stays unfiltered.
  */
 export function getAvailableAgentsFromSettings(
 	settings: AgentClientPluginSettings,
 ): AgentDisplayInfo[] {
-	return [
-		...PRESET_AGENTS.flatMap((def) => {
-			const preset = settings.presetAgents[def.presetId];
-			if (preset && !isAgentEnabled(preset)) {
-				return [];
-			}
-			return [
-				{
-					id: def.presetId,
-					displayName: preset?.displayName || def.presetId,
-				},
-			];
-		}),
-		...settings.customAgents.filter(isAgentEnabled).map((agent) => ({
-			id: agent.id,
-			displayName: agent.displayName || agent.id,
-		})),
-	];
+	return enumerateAgents(settings)
+		.filter((agent) => agent.enabled)
+		.map(({ id, displayName }) => ({ id, displayName }));
 }
 
 /**

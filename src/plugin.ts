@@ -51,6 +51,7 @@ import {
 import { PRESET_AGENTS } from "./services/preset-agents";
 import {
 	getAvailableAgentsFromSettings,
+	getAllAgentsFromSettings,
 	findAgentSettings,
 	isAgentEnabled,
 	firstEnabledAgentId,
@@ -1139,19 +1140,7 @@ export default class AgentClientPlugin extends Plugin {
 	 * limitation), but their enabled state is also checked live.
 	 */
 	private registerAgentCommands(): void {
-		const presetAgents = PRESET_AGENTS.map((def) => {
-			const preset = this.settings.presetAgents[def.presetId];
-			return {
-				id: def.presetId,
-				displayName: preset?.displayName || def.presetId,
-			};
-		});
-		const customAgents = this.settings.customAgents.map((agent) => ({
-			id: agent.id,
-			displayName: agent.displayName || agent.id,
-		}));
-
-		for (const agent of [...presetAgents, ...customAgents]) {
+		for (const agent of getAllAgentsFromSettings(this.settings)) {
 			this.addCommand({
 				id: `switch-agent-to-${agent.id}`,
 				name: `Switch agent to ${agent.displayName}`,

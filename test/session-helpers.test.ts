@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
 	getDefaultAgentId,
 	getAvailableAgentsFromSettings,
+	getAllAgentsFromSettings,
 	getCurrentAgent,
 	findAgentSettings,
 	buildAgentConfigWithApiKey,
@@ -104,6 +105,24 @@ describe("getAvailableAgentsFromSettings", () => {
 			"gemini-cli",
 			"mistral-vibe",
 			"my-custom",
+		]);
+	});
+});
+
+describe("getAllAgentsFromSettings", () => {
+	it("includes disabled agents (unfiltered contract for command registration)", () => {
+		const settings = makeSettings({
+			customAgents: [
+				{ ...custom("off-custom", "Off Custom"), enabled: false },
+			],
+		});
+		settings.presetAgents["codex-acp"].enabled = false;
+		expect(getAllAgentsFromSettings(settings)).toEqual([
+			{ id: "claude-code-acp", displayName: "Claude Code" },
+			{ id: "codex-acp", displayName: "Codex" },
+			{ id: "gemini-cli", displayName: "Gemini CLI" },
+			{ id: "mistral-vibe", displayName: "Mistral Vibe" },
+			{ id: "off-custom", displayName: "Off Custom" },
 		]);
 	});
 });
