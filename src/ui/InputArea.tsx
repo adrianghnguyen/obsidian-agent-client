@@ -8,7 +8,6 @@ import type { NoteMetadata } from "../services/vault-service";
 import type {
 	SlashCommand,
 	SessionModeState,
-	SessionModelState,
 	SessionUsage,
 	SessionConfigOption,
 } from "../types/session";
@@ -212,10 +211,6 @@ export interface InputAreaProps {
 	modes?: SessionModeState;
 	/** Callback when mode is changed */
 	onModeChange?: (modeId: string) => void;
-	/** Session model state (available models and current model) - experimental */
-	models?: SessionModelState;
-	/** Callback when model is changed */
-	onModelChange?: (modelId: string) => void;
 	/** Session config options (supersedes modes/models when present) */
 	configOptions?: SessionConfigOption[];
 	/** Callback when a config option is changed */
@@ -243,6 +238,10 @@ export interface InputAreaProps {
 	agentUpdateNotification: AgentUpdateNotification | null;
 	/** Callback to dismiss the agent update notification */
 	onClearAgentUpdate: () => void;
+	/** Gemini CLI deprecation notice (shown while Gemini agent is selected) */
+	geminiNotice: AgentUpdateNotification | null;
+	/** Callback to dismiss the Gemini notice */
+	onClearGeminiNotice: () => void;
 	/** Messages array for input history navigation */
 	messages: ChatMessage[];
 }
@@ -275,8 +274,6 @@ export function InputArea({
 	onRestoredMessageConsumed,
 	modes,
 	onModeChange,
-	models,
-	onModelChange,
 	configOptions,
 	onConfigOptionChange,
 	usage,
@@ -293,6 +290,9 @@ export function InputArea({
 	// Agent update notification props
 	agentUpdateNotification,
 	onClearAgentUpdate,
+	// Gemini CLI deprecation notice props
+	geminiNotice,
+	onClearGeminiNotice,
 	// Input history
 	messages,
 }: InputAreaProps) {
@@ -303,7 +303,8 @@ export function InputArea({
 
 	// Unofficial Obsidian API (see src/types/obsidian-internals.d.ts)
 	const obsidianSpellcheck =
-		(plugin.app.vault.getConfig("spellcheck") as boolean | undefined) ?? true;
+		(plugin.app.vault.getConfig("spellcheck") as boolean | undefined) ??
+		true;
 
 	// Local state (hint and command are still local - not needed for broadcast)
 	const [hintText, setHintText] = useState<string | null>(null);
@@ -963,6 +964,17 @@ export function InputArea({
 				/>
 			)}
 
+			{/* Gemini CLI deprecation notice - lowest priority overlay */}
+			{!errorInfo && !agentUpdateNotification && geminiNotice && (
+				<ErrorBanner
+					errorInfo={geminiNotice}
+					onClose={onClearGeminiNotice}
+					showEmojis={showEmojis}
+					view={view}
+					variant={geminiNotice.variant}
+				/>
+			)}
+
 			{/* Mention Dropdown */}
 			{mentions.isOpen && (
 				<SuggestionPopup
@@ -994,7 +1006,7 @@ export function InputArea({
 				onDrop={(e) => void handleDrop(e)}
 			>
 				{/* Auto-mention Badge */}
-				{autoMentionEnabled && mentions.activeNote && (
+				{mentions.activeNote && (
 					<button
 						className="agent-client-auto-mention-inline"
 						onClick={() =>
@@ -1045,7 +1057,7 @@ export function InputArea({
 						onKeyDown={handleKeyDown}
 						onPaste={(e) => void handlePaste(e)}
 						placeholder={placeholder}
-						className={`agent-client-chat-input-textarea ${autoMentionEnabled && mentions.activeNote ? "has-auto-mention" : ""}`}
+						className={`agent-client-chat-input-textarea ${mentions.activeNote ? "has-auto-mention" : ""}`}
 						rows={1}
 						spellCheck={obsidianSpellcheck}
 					/>
@@ -1077,8 +1089,6 @@ export function InputArea({
 					onSendOrStop={() => void handleSendOrStop()}
 					modes={modes}
 					onModeChange={onModeChange}
-					models={models}
-					onModelChange={onModelChange}
 					configOptions={configOptions}
 					onConfigOptionChange={onConfigOptionChange}
 					usage={usage}

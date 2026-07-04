@@ -6,7 +6,7 @@ Frequently asked questions about Agent Client.
 
 ### What is Agent Client?
 
-Agent Client is an Obsidian plugin that lets you chat with AI agents directly within Obsidian. It supports Claude Code, Codex, Gemini CLI, and any ACP-compatible agent. The plugin uses the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) to communicate with agents.
+Agent Client is an Obsidian plugin that lets you chat with AI agents directly within Obsidian. It supports Claude Code, Codex, Gemini CLI, Mistral Vibe, and any ACP-compatible agent. The plugin uses the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) to communicate with agents.
 
 ### Is this an official Anthropic/OpenAI/Google plugin?
 
@@ -69,9 +69,15 @@ Use the **Broadcast** commands:
 
 By default, new views open in the right pane. You can change this in **Settings → Agent Client → Display → Chat view location** to open in editor tabs or splits instead.
 
+### How do I hide agents I don't use?
+
+Every agent section in **Settings → Agent Client** has an **Enabled** toggle. Turning it off removes the agent from the switch menus, the default-agent dropdown, and the command palette — its settings are kept, so you can re-enable it anytime. At least one agent must stay enabled.
+
+Disabling only hides the agent from lists: already-open chats, restored sessions, and code blocks that pin the agent with `agent:` keep working.
+
 ### What is a custom agent?
 
-Any ACP-compatible agent beyond the built-in ones (Claude Code, Codex, Gemini CLI). You can add custom agents in **Settings → Agent Client → Custom agents**. See [Custom Agents](/agent-setup/custom-agents).
+Any ACP-compatible agent beyond the preset ones (Claude Code, Codex, Gemini CLI, Mistral Vibe). You can add custom agents in **Settings → Agent Client → Custom agents**. See [Custom Agents](/agent-setup/custom-agents).
 
 ### Do all agents support the same features?
 
@@ -85,7 +91,7 @@ Slash commands are provided by the agent, not the plugin. If the input placehold
 
 ### Why are the commands different from what I expected?
 
-Each agent provides its own commands. Claude Code, Codex, and Gemini CLI all have different command sets. Refer to your agent's documentation for available commands.
+Each agent provides its own commands. Claude Code, Codex, Gemini CLI, and Mistral Vibe all have different command sets. Refer to your agent's documentation for available commands.
 
 ## Permissions
 

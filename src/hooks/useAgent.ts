@@ -30,7 +30,6 @@ import type { ChatMessage, ActivePermission } from "../types/chat";
 import type {
 	ChatSession,
 	SessionModeState,
-	SessionModelState,
 	SessionConfigOption,
 } from "../types/session";
 import type { AgentDisplayInfo } from "../services/session-helpers";
@@ -67,13 +66,11 @@ export interface UseAgentReturn {
 	updateSessionFromLoad: (
 		sessionId: string,
 		modes?: SessionModeState,
-		models?: SessionModelState,
 		configOptions?: SessionConfigOption[],
 	) => Promise<void>;
 
 	// Config
 	setMode: (modeId: string) => Promise<void>;
-	setModel: (modelId: string) => Promise<void>;
 	setConfigOption: (configId: string, value: string) => Promise<void>;
 
 	// Message operations
@@ -200,7 +197,6 @@ export function useAgent(
 
 			// Config
 			setMode: agentSession.setMode,
-			setModel: agentSession.setModel,
 			setConfigOption: agentSession.setConfigOption,
 
 			// Message operations
@@ -233,7 +229,6 @@ export function useAgent(
 			agentSession.getAvailableAgents,
 			agentSession.updateSessionFromLoad,
 			agentSession.setMode,
-			agentSession.setModel,
 			agentSession.setConfigOption,
 			agentMessages.sendMessage,
 			agentMessages.clearMessages,
