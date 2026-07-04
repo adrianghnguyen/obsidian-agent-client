@@ -131,15 +131,20 @@ export function buildAgentConfigWithApiKey(
 	const baseConfig = toAgentConfig(agentSettings, workingDirectory);
 
 	const def = PRESET_AGENTS.find((d) => d.presetId === agentId);
+	// Skip the wiring entirely when no secret is configured (account-based
+	// logins): attaching an empty secretId would export an empty env var
+	// (e.g. ANTHROPIC_API_KEY="") into the agent process.
 	if (def?.apiKey) {
 		const presetSettings = agentSettings as PresetAgentUserSettings;
-		return {
-			...baseConfig,
-			apiKey: {
-				secretId: presetSettings.apiKeySecretId,
-				envVarName: def.apiKey.envVarName,
-			},
-		};
+		if (presetSettings.apiKeySecretId) {
+			return {
+				...baseConfig,
+				apiKey: {
+					secretId: presetSettings.apiKeySecretId,
+					envVarName: def.apiKey.envVarName,
+				},
+			};
+		}
 	}
 
 	// Custom agents — no API key injection

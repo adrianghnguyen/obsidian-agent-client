@@ -141,6 +141,16 @@ describe("buildAgentConfigWithApiKey", () => {
 		});
 	});
 
+	it("skips API key wiring when no secret is configured", () => {
+		const agentSettings = preset("claude-code-acp", "Claude Code", "cmd");
+		const config = buildAgentConfigWithApiKey(
+			agentSettings,
+			"claude-code-acp",
+			"/wd",
+		);
+		expect(config).not.toHaveProperty("apiKey");
+	});
+
 	it("passes custom agents through without API key injection", () => {
 		const config = buildAgentConfigWithApiKey(
 			custom("my-custom", "My Custom"),
