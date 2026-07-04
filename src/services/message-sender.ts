@@ -41,7 +41,7 @@ import {
 	type IWikilinkResolver,
 	type BasenameIndex,
 } from "../utils/wikilink-resolver";
-import { formatLinkedNotesPrelude } from "../utils/wikilink-formatter";
+import { formatLinkedNotesBlock } from "../utils/wikilink-formatter";
 
 // ============================================================================
 // Types
@@ -329,7 +329,8 @@ function buildAgentMessageText(
 	// ContentBlock path in preparePrompt, which stays spec-compliant
 	// alongside slash commands.
 	const isSlashCommand = message.startsWith("/");
-	const includeContext = !isSlashCommand && contextBlocks && contextBlocks.length > 0;
+	const includeContext =
+		!isSlashCommand && contextBlocks && contextBlocks.length > 0;
 
 	return [
 		...(includeContext ? [contextBlocks.join("\n")] : []),
@@ -406,25 +407,33 @@ function buildWikilinkContext(
 }
 
 /**
- * Prepend the `<obsidian_metadata>` prelude to note content when wikilinks
- * are present. No-op when ctx is null or the note has no resolvable links.
+ * Build a standalone `<obsidian_note_links>` block for a note body, or null
+ * when expansion is off or the body has no resolvable links. The block is a
+ * SIBLING of the note content — it is never merged into the body, so the note
+ * block stays byte-identical to the note as read from disk.
+ *
+ * @param bodyText  the note/selection text actually sent (scanned for links)
+ * @param sourceRel vault-relative source path (for the resolver)
+ * @param sourceRef identifier the sibling note block uses in this transport
+ *                  (resource `uri` for embedded, absolute path for XML)
  */
-function decorateWithLinkedNotes(
-	rawContent: string,
-	sourcePath: string,
+function buildLinkedNotesBlock(
+	bodyText: string,
+	sourceRel: string,
+	sourceRef: string,
 	ctx: WikilinkScanContext | null,
-): string {
-	if (!ctx) return rawContent;
+): string | null {
+	if (!ctx) return null;
 	const links = ctx.resolver.extractLinkedNoteMetadata(
-		rawContent,
-		sourcePath,
+		bodyText,
+		sourceRel,
 		ctx.basenameIndex,
 	);
-	const prelude = formatLinkedNotesPrelude(links, {
+	if (links.length === 0) return null;
+	return formatLinkedNotesBlock(links, sourceRef, {
 		vaultBasePath: ctx.vaultBasePath,
 		convertToWsl: ctx.convertToWsl,
 	});
-	return prelude + rawContent;
 }
 
 // ============================================================================
@@ -468,6 +477,10 @@ async function preparePromptWithEmbeddedContext(
 	const maxNoteLen = input.maxNoteLength ?? DEFAULT_MAX_NOTE_LENGTH;
 	const wikilinkCtx = buildWikilinkContext(input);
 	const resourceBlocks: ResourcePromptContent[] = [];
+	// Wikilink metadata for the mentioned notes, emitted as sibling text
+	// blocks (never merged into resource.text) so each resource stays
+	// byte-identical to the note on disk.
+	const mentionedLinkBlocks: PromptContent[] = [];
 
 	// Build Resource blocks for each mentioned note
 	for (const { file } of mentionedNotes) {
@@ -482,11 +495,10 @@ async function preparePromptWithEmbeddedContext(
 		);
 		if (!note) continue;
 
-		const baseText = note.wasTruncated
+		const text = note.wasTruncated
 			? note.content +
 				`\n\n[Note: Truncated from ${note.originalLength} to ${maxNoteLen} characters]`
 			: note.content;
-		const text = decorateWithLinkedNotes(baseText, file.path, wikilinkCtx);
 
 		resourceBlocks.push({
 			type: "resource",
@@ -497,6 +509,17 @@ async function preparePromptWithEmbeddedContext(
 				lastModified: note.lastModified,
 			},
 		});
+
+		// ref = the resource uri so the agent can correlate the two blocks.
+		const linksBlock = buildLinkedNotesBlock(
+			note.content,
+			file.path,
+			note.uri,
+			wikilinkCtx,
+		);
+		if (linksBlock) {
+			mentionedLinkBlocks.push({ type: "text", text: linksBlock });
+		}
 	}
 
 	// Build auto-mention Resource block. Sent on slash-command turns too
@@ -536,10 +559,9 @@ async function preparePromptWithEmbeddedContext(
 	const agentContent: PromptContent[] = [
 		...systemBlocks,
 		...resourceBlocks,
+		...mentionedLinkBlocks,
 		...autoMentionBlocks,
-		...(messageText
-			? [{ type: "text" as const, text: messageText }]
-			: []),
+		...(messageText ? [{ type: "text" as const, text: messageText }] : []),
 		...(input.images || []),
 		...(input.resourceLinks || []),
 	];
@@ -586,20 +608,27 @@ async function preparePromptWithTextContext(
 			? `\n\n[Note: This note was truncated. Original length: ${note.originalLength} characters, showing first ${maxNoteLen} characters]`
 			: "";
 
-		const decoratedBody = decorateWithLinkedNotes(
-			note.content,
-			file.path,
-			wikilinkCtx,
+		contextBlocks.push(
+			`<obsidian_mentioned_note ref="${note.absolutePath}">\n${note.content}${truncationNote}\n</obsidian_mentioned_note>`,
 		);
 
-		contextBlocks.push(
-			`<obsidian_mentioned_note ref="${note.absolutePath}">\n${decoratedBody}${truncationNote}\n</obsidian_mentioned_note>`,
+		// Sibling of the note block (ref = the same absolute path). Pushed as a
+		// separate contextBlock, so it is also dropped on slash-command turns
+		// by buildAgentMessageText's includeContext gate.
+		const linksBlock = buildLinkedNotesBlock(
+			note.content,
+			file.path,
+			note.absolutePath,
+			wikilinkCtx,
 		);
+		if (linksBlock) {
+			contextBlocks.push(linksBlock);
+		}
 	}
 
 	// Build auto-mention XML context
 	if (input.activeNote && !input.isAutoMentionDisabled) {
-		const autoMentionContextBlock = await buildAutoMentionTextContext(
+		const autoMentionContextBlocks = await buildAutoMentionTextContext(
 			input.activeNote.path,
 			input.vaultBasePath,
 			vaultAccess,
@@ -608,7 +637,7 @@ async function preparePromptWithTextContext(
 			input.maxSelectionLength ?? DEFAULT_MAX_SELECTION_LENGTH,
 			wikilinkCtx,
 		);
-		contextBlocks.push(autoMentionContextBlock);
+		contextBlocks.push(...autoMentionContextBlocks);
 	}
 
 	// Build system prompt instructions (first message only)
@@ -693,17 +722,12 @@ async function buildAutoMentionResource(
 			];
 		}
 
-		const baseText = sel.wasTruncated
+		const text = sel.wasTruncated
 			? sel.text +
 				`\n\n[Note: Truncated from ${sel.originalLength} to ${maxSelectionLength} characters]`
 			: sel.text;
-		const text = decorateWithLinkedNotes(
-			baseText,
-			activeNote.path,
-			wikilinkCtx,
-		);
 
-		return [
+		const blocks: PromptContent[] = [
 			{
 				type: "resource",
 				resource: { uri, mimeType: "text/markdown", text },
@@ -718,6 +742,19 @@ async function buildAutoMentionResource(
 				text: `The user has selected lines ${fromLine}-${toLine} in the above note. This is what they are currently focusing on.`,
 			},
 		];
+
+		// ref = the resource uri, matching the resource block above.
+		const linksBlock = buildLinkedNotesBlock(
+			sel.text,
+			activeNote.path,
+			uri,
+			wikilinkCtx,
+		);
+		if (linksBlock) {
+			blocks.push({ type: "text", text: linksBlock });
+		}
+
+		return blocks;
 	}
 
 	return [
@@ -739,7 +776,7 @@ async function buildAutoMentionTextContext(
 	selection: { from: EditorPosition; to: EditorPosition } | undefined,
 	maxSelectionLength: number,
 	wikilinkCtx: WikilinkScanContext | null,
-): Promise<string> {
+): Promise<string[]> {
 	const absolutePath = resolveAbsolutePath(notePath, vaultPath, convertToWsl);
 
 	if (selection) {
@@ -753,29 +790,36 @@ async function buildAutoMentionTextContext(
 			maxSelectionLength,
 		);
 		if (!sel) {
-			return `<obsidian_opened_note selection="lines ${fromLine}-${toLine}">The user opened the note ${absolutePath} in Obsidian and is focusing on lines ${fromLine}-${toLine}. This may or may not be related to the current conversation. If it seems relevant, consider using the Read tool to examine the specific lines.</obsidian_opened_note>`;
+			return [
+				`<obsidian_opened_note selection="lines ${fromLine}-${toLine}">The user opened the note ${absolutePath} in Obsidian and is focusing on lines ${fromLine}-${toLine}. This may or may not be related to the current conversation. If it seems relevant, consider using the Read tool to examine the specific lines.</obsidian_opened_note>`,
+			];
 		}
 
 		const truncationNote = sel.wasTruncated
 			? `\n\n[Note: The selection was truncated. Original length: ${sel.originalLength} characters, showing first ${maxSelectionLength} characters]`
 			: "";
 
-		const decoratedSelection = decorateWithLinkedNotes(
-			sel.text,
-			notePath,
-			wikilinkCtx,
-		);
-
-		return `<obsidian_opened_note selection="lines ${fromLine}-${toLine}">
+		const openedNote = `<obsidian_opened_note selection="lines ${fromLine}-${toLine}">
 The user opened the note ${absolutePath} in Obsidian and selected the following text (lines ${fromLine}-${toLine}):
 
-${decoratedSelection}${truncationNote}
+${sel.text}${truncationNote}
 
 This is what the user is currently focusing on.
 </obsidian_opened_note>`;
+
+		// Sibling of the opened-note block (ref = the same absolute path).
+		const linksBlock = buildLinkedNotesBlock(
+			sel.text,
+			notePath,
+			absolutePath,
+			wikilinkCtx,
+		);
+		return linksBlock ? [openedNote, linksBlock] : [openedNote];
 	}
 
-	return `<obsidian_opened_note>The user opened the note ${absolutePath} in Obsidian. This may or may not be related to the current conversation. If it seems relevant, consider using the Read tool to examine the content.</obsidian_opened_note>`;
+	return [
+		`<obsidian_opened_note>The user opened the note ${absolutePath} in Obsidian. This may or may not be related to the current conversation. If it seems relevant, consider using the Read tool to examine the content.</obsidian_opened_note>`,
+	];
 }
 
 // ============================================================================

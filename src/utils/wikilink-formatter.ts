@@ -1,17 +1,19 @@
 /**
  * Wikilink metadata formatter
  *
- * Pure function: takes a `LinkedNoteMetadata[]` (vault-relative) plus the
- * vault base path / WSL flag and produces the `<obsidian_metadata>` body
- * string that gets prepended to the note body in both transports.
- *
- * Design ref: docs/design/wikilink-context.md §4.1
+ * Pure function: takes a `LinkedNoteMetadata[]` (vault-relative), the source
+ * note's ref, and the vault base path / WSL flag, and produces a standalone
+ * `<obsidian_note_links ref="…">` block. The block is emitted as a SIBLING of
+ * the note content (a separate content block in the embedded transport, a
+ * sibling XML element in the text transport), never merged into the note body
+ * — so `resource.text` / `<obsidian_mentioned_note>` stay byte-identical to
+ * the note as the agent would read it from disk.
  */
 
 import type { LinkedNoteMetadata } from "./wikilink-resolver";
 import { buildFileUri, resolveAbsolutePath } from "./paths";
 
-/** Hard cap on links per note (D9). Beyond this, emit `truncated="N"`. */
+/** Hard cap on links per note. Beyond this, emit `truncated="N"`. */
 const MAX_LINKS_PER_NOTE = 50;
 
 export interface FormatLinkedNotesOptions {
@@ -22,14 +24,17 @@ export interface FormatLinkedNotesOptions {
 }
 
 /**
- * Build the `<obsidian_metadata>` prelude for a note.
+ * Build the `<obsidian_note_links ref="…">` block for a note.
  *
- * Returns an empty string when there are no links — the caller should not
- * emit any wrapper in that case (D8: byte-identical to today's output for
- * link-free notes).
+ * `sourceRef` is the identifier the sibling note block uses in this transport
+ * (the resource `uri` for embedded, the absolute path for the XML
+ * `<obsidian_mentioned_note ref>`), so the agent can correlate the two.
+ * Returns an empty string when there are no links; callers skip emitting in
+ * that case, preserving byte-identical output for link-free notes.
  */
-export function formatLinkedNotesPrelude(
+export function formatLinkedNotesBlock(
 	links: LinkedNoteMetadata[],
+	sourceRef: string,
 	options: FormatLinkedNotesOptions,
 ): string {
 	if (links.length === 0) return "";
@@ -46,7 +51,7 @@ export function formatLinkedNotesPrelude(
 		? `<links truncated="${links.length - cap}">`
 		: "<links>";
 
-	return `<obsidian_metadata>\n  ${linksOpen}\n${linkLines.join("\n")}\n  </links>\n</obsidian_metadata>\n`;
+	return `<obsidian_note_links ref="${escapeAttr(sourceRef)}">\n  ${linksOpen}\n${linkLines.join("\n")}\n  </links>\n</obsidian_note_links>`;
 }
 
 function formatLink(
@@ -69,7 +74,11 @@ function formatLink(
 
 	if (link.candidates.length === 1) {
 		const c = link.candidates[0];
-		const absolutePath = resolveAbsolutePath(c.path, vaultBasePath, convertToWsl);
+		const absolutePath = resolveAbsolutePath(
+			c.path,
+			vaultBasePath,
+			convertToWsl,
+		);
 		attrs.push(`path="${escapeAttr(absolutePath)}"`);
 		attrs.push(`uri="${escapeAttr(buildFileUri(absolutePath))}"`);
 		attrs.push(`resolved="true"`);
@@ -78,7 +87,11 @@ function formatLink(
 
 	attrs.push(`resolved="ambiguous"`);
 	const candidateLines = link.candidates.map((c) => {
-		const absolutePath = resolveAbsolutePath(c.path, vaultBasePath, convertToWsl);
+		const absolutePath = resolveAbsolutePath(
+			c.path,
+			vaultBasePath,
+			convertToWsl,
+		);
 		return `      <candidate path="${escapeAttr(absolutePath)}" uri="${escapeAttr(buildFileUri(absolutePath))}" />`;
 	});
 	return `    <link ${attrs.join(" ")}>\n${candidateLines.join("\n")}\n    </link>`;
