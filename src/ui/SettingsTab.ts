@@ -1,5 +1,6 @@
 import {
 	App,
+	Notice,
 	PluginSettingTab,
 	Setting,
 	DropdownComponent,
@@ -9,9 +10,14 @@ import {
 import type AgentClientPlugin from "../plugin";
 import type {
 	CustomAgentSettings,
+	PresetAgentUserSettings,
 	AgentEnvVar,
 	ChatViewLocation,
 } from "../plugin";
+import {
+	PRESET_AGENTS,
+	type PresetAgentDefinition,
+} from "../services/preset-agents";
 import { resolveCommandPath, resolveCommandPathInWsl } from "../utils/paths";
 import {
 	normalizeEnvVars,
@@ -606,10 +612,9 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName("Built-in agents").setHeading();
 
-		this.renderClaudeSettings(containerEl);
-		this.renderCodexSettings(containerEl);
-		this.renderGeminiSettings(containerEl);
-		this.renderMistralVibeSettings(containerEl);
+		for (const def of PRESET_AGENTS) {
+			this.renderPresetSettings(containerEl, def);
+		}
 
 		new Setting(containerEl).setName("Custom agents").setHeading();
 
@@ -911,28 +916,15 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			id,
 			label: `${displayName} (${id})`,
 		});
-		const options: { id: string; label: string }[] = [
-			toOption(
-				this.plugin.settings.claude.id,
-				this.plugin.settings.claude.displayName ||
-					this.plugin.settings.claude.id,
-			),
-			toOption(
-				this.plugin.settings.codex.id,
-				this.plugin.settings.codex.displayName ||
-					this.plugin.settings.codex.id,
-			),
-			toOption(
-				this.plugin.settings.gemini.id,
-				this.plugin.settings.gemini.displayName ||
-					this.plugin.settings.gemini.id,
-			),
-			toOption(
-				this.plugin.settings.mistralVibe.id,
-				this.plugin.settings.mistralVibe.displayName ||
-					this.plugin.settings.mistralVibe.id,
-			),
-		];
+		const options: { id: string; label: string }[] = PRESET_AGENTS.map(
+			(def) => {
+				const preset = this.plugin.settings.presetAgents[def.presetId];
+				return toOption(
+					def.presetId,
+					preset?.displayName || def.presetId,
+				);
+			},
+		);
 		for (const agent of this.plugin.settings.customAgents) {
 			if (agent.id && agent.id.length > 0) {
 				const labelSource =
@@ -952,383 +944,129 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		});
 	}
 
-	private renderGeminiSettings(sectionEl: HTMLElement) {
-		const gemini = this.plugin.settings.gemini;
-
-		new Setting(sectionEl)
-			.setName(gemini.displayName || "Gemini CLI")
-			.setHeading();
-
-		new Setting(sectionEl)
-			.setName("API key")
-			.setDesc(
-				"Gemini API key. Required if not logging in with a Google account. Select from Obsidian's Keychain or create a new secret.",
-			)
-			.addComponent((el) =>
-				new SecretComponent(this.app, el)
-					.setValue(gemini.apiKeySecretId)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							gemini: {
-								...this.plugin.settings.gemini,
-								apiKeySecretId: value,
-							},
-						});
-					}),
-			);
-
-		const geminiPathSetting = new Setting(sectionEl)
-			.setName("Path")
-			.setDesc(
-				'Command name or path to the Gemini CLI. Use just "gemini" to let the login shell resolve it, or enter an absolute path for a specific version.',
-			)
-			.addText((text) => {
-				text.setPlaceholder("gemini")
-					.setValue(gemini.command)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							gemini: {
-								...this.plugin.settings.gemini,
-								command: value.trim(),
-							},
-						});
-					});
-			});
-		this.addAutoDetectButton(geminiPathSetting, "gemini", async (path) => {
-			await this.plugin.settingsService.updateSettings({
-				gemini: {
-					...this.plugin.settings.gemini,
-					command: path,
-				},
-			});
+	/**
+	 * Write a partial update for one preset agent through the settings
+	 * service. Emits a fresh presetAgents record + fresh entry so slice
+	 * subscribers (ChatPanel via useSettingsSelector) detect the change by
+	 * reference compare.
+	 */
+	private async updatePresetAgent(
+		presetId: string,
+		updates: Partial<PresetAgentUserSettings>,
+	): Promise<void> {
+		const current = this.plugin.settings.presetAgents[presetId];
+		if (!current) {
+			return;
+		}
+		await this.plugin.settingsService.updateSettings({
+			presetAgents: {
+				...this.plugin.settings.presetAgents,
+				[presetId]: { ...current, ...updates },
+			},
 		});
-		this.addInstallHint(sectionEl, "@google/gemini-cli");
-
-		new Setting(sectionEl)
-			.setName("Arguments")
-			.setDesc(
-				'Enter one argument per line. Leave empty to run without arguments.(Currently, the Gemini CLI requires the "--experimental-acp" option.)',
-			)
-			.addTextArea((text) => {
-				text.setPlaceholder("")
-					.setValue(this.formatArgs(gemini.args))
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							gemini: {
-								...this.plugin.settings.gemini,
-								args: this.parseArgs(value),
-							},
-						});
-					});
-				text.inputEl.rows = 3;
-			});
-
-		new Setting(sectionEl)
-			.setName("Environment variables")
-			.setDesc(
-				"Enter KEY=VALUE pairs, one per line. Required to authenticate with Vertex AI. GEMINI_API_KEY is derived from the field above.",
-			)
-			.addTextArea((text) => {
-				text.setPlaceholder("GOOGLE_CLOUD_PROJECT=...")
-					.setValue(this.formatEnv(gemini.env))
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							gemini: {
-								...this.plugin.settings.gemini,
-								env: this.parseEnv(value),
-							},
-						});
-					});
-				text.inputEl.rows = 3;
-			});
 	}
 
-	private renderClaudeSettings(sectionEl: HTMLElement) {
-		const claude = this.plugin.settings.claude;
+	/**
+	 * Render the settings section for one preset agent, driven entirely by
+	 * its registry definition (heading, API key row, path + auto-detect,
+	 * install hint, arguments, environment variables).
+	 */
+	private renderPresetSettings(
+		sectionEl: HTMLElement,
+		def: PresetAgentDefinition,
+	) {
+		const preset = this.plugin.settings.presetAgents[def.presetId];
+		if (!preset) {
+			// Normalization guarantees an entry per registry preset.
+			return;
+		}
 
 		new Setting(sectionEl)
-			.setName(claude.displayName || "Claude Code (ACP)")
+			.setName(preset.displayName || def.defaultDisplayName)
 			.setHeading();
 
-		new Setting(sectionEl)
-			.setName("API key")
-			.setDesc(
-				"Anthropic API key. Required if not logging in with an Anthropic account. Select from Obsidian's Keychain or create a new secret.",
-			)
-			.addComponent((el) =>
-				new SecretComponent(this.app, el)
-					.setValue(claude.apiKeySecretId)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							claude: {
-								...this.plugin.settings.claude,
+		if (def.apiKey) {
+			new Setting(sectionEl)
+				.setName("API key")
+				.setDesc(def.apiKey.settingDesc)
+				.addComponent((el) =>
+					new SecretComponent(this.app, el)
+						.setValue(preset.apiKeySecretId)
+						.onChange(async (value) => {
+							await this.updatePresetAgent(def.presetId, {
 								apiKeySecretId: value,
-							},
-						});
-					}),
-			);
+							});
+						}),
+				);
+		}
 
-		const claudePathSetting = new Setting(sectionEl)
+		const pathSetting = new Setting(sectionEl)
 			.setName("Path")
-			.setDesc(
-				'Command name or path to claude-agent-acp. Use just "claude-agent-acp" to let the login shell resolve it, or enter an absolute path.',
-			)
+			.setDesc(def.settingsCopy.pathDesc)
 			.addText((text) => {
-				text.setPlaceholder("claude-agent-acp")
-					.setValue(claude.command)
+				text.setPlaceholder(def.defaultCommand)
+					.setValue(preset.command)
 					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							claude: {
-								...this.plugin.settings.claude,
-								command: value.trim(),
-							},
+						await this.updatePresetAgent(def.presetId, {
+							command: value.trim(),
 						});
 					});
 			});
 		this.addAutoDetectButton(
-			claudePathSetting,
-			"claude-agent-acp",
+			pathSetting,
+			def.defaultCommand,
 			async (path) => {
-				await this.plugin.settingsService.updateSettings({
-					claude: {
-						...this.plugin.settings.claude,
-						command: path,
-					},
-				});
+				await this.updatePresetAgent(def.presetId, { command: path });
 			},
 		);
-		this.addInstallHint(sectionEl, "@agentclientprotocol/claude-agent-acp");
-
-		new Setting(sectionEl)
-			.setName("Arguments")
-			.setDesc(
-				"Enter one argument per line. Leave empty to run without arguments.",
-			)
-			.addTextArea((text) => {
-				text.setPlaceholder("")
-					.setValue(this.formatArgs(claude.args))
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							claude: {
-								...this.plugin.settings.claude,
-								args: this.parseArgs(value),
-							},
-						});
-					});
-				text.inputEl.rows = 3;
-			});
-
-		new Setting(sectionEl)
-			.setName("Environment variables")
-			.setDesc(
-				"Enter KEY=VALUE pairs, one per line. ANTHROPIC_API_KEY is derived from the field above.",
-			)
-			.addTextArea((text) => {
-				text.setPlaceholder("")
-					.setValue(this.formatEnv(claude.env))
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							claude: {
-								...this.plugin.settings.claude,
-								env: this.parseEnv(value),
-							},
-						});
-					});
-				text.inputEl.rows = 3;
-			});
-	}
-
-	private renderCodexSettings(sectionEl: HTMLElement) {
-		const codex = this.plugin.settings.codex;
-
-		new Setting(sectionEl)
-			.setName(codex.displayName || "Codex")
-			.setHeading();
-
-		new Setting(sectionEl)
-			.setName("API key")
-			.setDesc(
-				"OpenAI API key. Required if not logging in with an OpenAI account. Select from Obsidian's Keychain or create a new secret.",
-			)
-			.addComponent((el) =>
-				new SecretComponent(this.app, el)
-					.setValue(codex.apiKeySecretId)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							codex: {
-								...this.plugin.settings.codex,
-								apiKeySecretId: value,
-							},
-						});
-					}),
-			);
-
-		const codexPathSetting = new Setting(sectionEl)
-			.setName("Path")
-			.setDesc(
-				'Command name or path to codex-acp. Use just "codex-acp" to let the login shell resolve it, or enter an absolute path.',
-			)
-			.addText((text) => {
-				text.setPlaceholder("codex-acp")
-					.setValue(codex.command)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							codex: {
-								...this.plugin.settings.codex,
-								command: value.trim(),
-							},
-						});
-					});
-			});
-		this.addAutoDetectButton(
-			codexPathSetting,
-			"codex-acp",
-			async (path) => {
-				await this.plugin.settingsService.updateSettings({
-					codex: {
-						...this.plugin.settings.codex,
-						command: path,
-					},
-				});
-			},
-		);
-		this.addInstallHint(sectionEl, "@zed-industries/codex-acp");
-
-		new Setting(sectionEl)
-			.setName("Arguments")
-			.setDesc(
-				"Enter one argument per line. Leave empty to run without arguments.",
-			)
-			.addTextArea((text) => {
-				text.setPlaceholder("")
-					.setValue(this.formatArgs(codex.args))
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							codex: {
-								...this.plugin.settings.codex,
-								args: this.parseArgs(value),
-							},
-						});
-					});
-				text.inputEl.rows = 3;
-			});
-
-		new Setting(sectionEl)
-			.setName("Environment variables")
-			.setDesc(
-				"Enter KEY=VALUE pairs, one per line. OPENAI_API_KEY is derived from the field above.",
-			)
-			.addTextArea((text) => {
-				text.setPlaceholder("")
-					.setValue(this.formatEnv(codex.env))
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							codex: {
-								...this.plugin.settings.codex,
-								env: this.parseEnv(value),
-							},
-						});
-					});
-				text.inputEl.rows = 3;
-			});
-	}
-
-	private renderMistralVibeSettings(sectionEl: HTMLElement) {
-		const mistralVibe = this.plugin.settings.mistralVibe;
-
-		new Setting(sectionEl)
-			.setName(mistralVibe.displayName || "Mistral Vibe")
-			.setHeading();
-
-		new Setting(sectionEl)
-			.setName("API key")
-			.setDesc(
-				"Mistral API key. Required if not logging in with a Mistral account. Select from Obsidian's Keychain or create a new secret.",
-			)
-			.addComponent((el) =>
-				new SecretComponent(this.app, el)
-					.setValue(mistralVibe.apiKeySecretId)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							mistralVibe: {
-								...this.plugin.settings.mistralVibe,
-								apiKeySecretId: value,
-							},
-						});
-					}),
-			);
-
-		const vibePathSetting = new Setting(sectionEl)
-			.setName("Path")
-			.setDesc(
-				'Command name or path to vibe-acp. Use just "vibe-acp" to let the login shell resolve it, or enter an absolute path.',
-			)
-			.addText((text) => {
-				text.setPlaceholder("vibe-acp")
-					.setValue(mistralVibe.command)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							mistralVibe: {
-								...this.plugin.settings.mistralVibe,
-								command: value.trim(),
-							},
-						});
-					});
-			});
-		this.addAutoDetectButton(vibePathSetting, "vibe-acp", async (path) => {
-			await this.plugin.settingsService.updateSettings({
-				mistralVibe: {
-					...this.plugin.settings.mistralVibe,
-					command: path,
-				},
-			});
-		});
-		// Vibe's curl installer is macOS/Linux-only; native Windows uses the
-		// official uv bootstrap instead (WSL mode runs commands in bash, so
-		// curl is correct there). The WSL toggle re-renders the tab, keeping
-		// this hint in sync.
+		// Native Windows may need a different install command than the
+		// POSIX-shell one (WSL mode runs commands in bash, so it keeps the
+		// default). The WSL toggle re-renders the tab, keeping this in sync.
 		const isNativeWindows =
 			Platform.isWin && !this.plugin.settings.windowsWslMode;
-		this.addInstallHintCustom(
+		this.addInstallHint(
 			sectionEl,
-			isNativeWindows
-				? 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"; uv tool install mistral-vibe'
-				: "curl -LsSf https://mistral.ai/vibe/install.sh | bash",
+			isNativeWindows && def.installHint.nativeWindows
+				? def.installHint.nativeWindows
+				: def.installHint.default,
 		);
 
 		new Setting(sectionEl)
 			.setName("Arguments")
 			.setDesc(
-				"Enter one argument per line. Leave empty to run without arguments.",
+				"Enter one argument per line. Leave empty to run without arguments." +
+					(def.settingsCopy.argsDescSuffix ?? ""),
 			)
 			.addTextArea((text) => {
 				text.setPlaceholder("")
-					.setValue(this.formatArgs(mistralVibe.args))
+					.setValue(this.formatArgs(preset.args))
 					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							mistralVibe: {
-								...this.plugin.settings.mistralVibe,
-								args: this.parseArgs(value),
-							},
+						await this.updatePresetAgent(def.presetId, {
+							args: this.parseArgs(value),
 						});
 					});
 				text.inputEl.rows = 3;
 			});
 
+		const envDescParts = ["Enter KEY=VALUE pairs, one per line."];
+		if (def.settingsCopy.envDescExtra) {
+			envDescParts.push(def.settingsCopy.envDescExtra);
+		}
+		if (def.apiKey) {
+			envDescParts.push(
+				`${def.apiKey.envVarName} is derived from the field above.`,
+			);
+		}
+
 		new Setting(sectionEl)
 			.setName("Environment variables")
-			.setDesc(
-				"Enter KEY=VALUE pairs, one per line. MISTRAL_API_KEY is derived from the field above.",
-			)
+			.setDesc(envDescParts.join(" "))
 			.addTextArea((text) => {
-				text.setPlaceholder("")
-					.setValue(this.formatEnv(mistralVibe.env))
+				text.setPlaceholder(def.settingsCopy.envPlaceholder ?? "")
+					.setValue(this.formatEnv(preset.env))
 					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							mistralVibe: {
-								...this.plugin.settings.mistralVibe,
-								env: this.parseEnv(value),
-							},
+						await this.updatePresetAgent(def.presetId, {
+							env: this.parseEnv(value),
 						});
 					});
 				text.inputEl.rows = 3;
@@ -1402,6 +1140,42 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						await this.flushSettings();
 						this.refreshAgentDropdown();
 					});
+				// Preset ids are reserved. Validate on blur, not per
+				// keystroke: onChange commits every intermediate value, so a
+				// mid-typing collision check would misfire.
+				text.inputEl.addEventListener("blur", () => {
+					const committed =
+						this.plugin.settings.customAgents[index]?.id;
+					if (
+						!committed ||
+						!PRESET_AGENTS.some((def) => def.presetId === committed)
+					) {
+						return;
+					}
+					const taken = new Set<string>(
+						PRESET_AGENTS.map((def) => def.presetId),
+					);
+					this.plugin.settings.customAgents.forEach((item, i) => {
+						if (i !== index) {
+							taken.add(item.id);
+						}
+					});
+					let suffix = 2;
+					let candidate = `${committed}-${suffix}`;
+					while (taken.has(candidate)) {
+						suffix += 1;
+						candidate = `${committed}-${suffix}`;
+					}
+					this.plugin.settings.customAgents[index].id = candidate;
+					text.setValue(candidate);
+					new Notice(
+						`[Agent Client] "${committed}" is reserved for a built-in agent. This custom agent was renamed to "${candidate}".`,
+					);
+					this.plugin.ensureDefaultAgentId();
+					void this.flushSettings().then(() => {
+						this.refreshAgentDropdown();
+					});
+				});
 			});
 
 		idSetting.addExtraButton((button) => {
@@ -1506,22 +1280,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	private generateCustomAgentDisplayName(): string {
 		const base = "Custom agent";
 		const existing = new Set<string>();
-		existing.add(
-			this.plugin.settings.claude.displayName ||
-				this.plugin.settings.claude.id,
-		);
-		existing.add(
-			this.plugin.settings.codex.displayName ||
-				this.plugin.settings.codex.id,
-		);
-		existing.add(
-			this.plugin.settings.gemini.displayName ||
-				this.plugin.settings.gemini.id,
-		);
-		existing.add(
-			this.plugin.settings.mistralVibe.displayName ||
-				this.plugin.settings.mistralVibe.id,
-		);
+		for (const def of PRESET_AGENTS) {
+			const preset = this.plugin.settings.presetAgents[def.presetId];
+			existing.add(preset?.displayName || def.presetId);
+		}
 		for (const item of this.plugin.settings.customAgents) {
 			existing.add(item.displayName || item.id);
 		}
@@ -1556,22 +1318,9 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * Renders a copyable npm install command hint below a Path setting.
-	 */
-	private addInstallHint(containerEl: HTMLElement, npmPackage: string): void {
-		this.addInstallHintCustom(
-			containerEl,
-			`npm install -g ${npmPackage}@latest`,
-		);
-	}
-
-	/**
 	 * Renders a copyable install command hint below a Path setting.
 	 */
-	private addInstallHintCustom(
-		containerEl: HTMLElement,
-		command: string,
-	): void {
+	private addInstallHint(containerEl: HTMLElement, command: string): void {
 		const frag = createFragment();
 		frag.appendText("Not installed? Run in terminal: ");
 		frag.createEl("code", { text: command });

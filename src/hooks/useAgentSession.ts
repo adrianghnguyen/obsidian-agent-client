@@ -206,7 +206,6 @@ export function useAgentSession(
 				}
 
 				const agentConfig = buildAgentConfigWithApiKey(
-					settings,
 					agentSettings,
 					agentId,
 					effectiveCwd,

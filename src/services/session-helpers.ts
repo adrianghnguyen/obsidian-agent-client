@@ -6,14 +6,12 @@
 import type { AgentClientPluginSettings } from "../plugin";
 import type {
 	BaseAgentSettings,
-	ClaudeAgentSettings,
-	GeminiAgentSettings,
-	CodexAgentSettings,
-	MistralVibeAgentSettings,
+	PresetAgentUserSettings,
 } from "../types/agent";
 import type { ChatSession, SavedSessionInfo } from "../types/session";
 import type { ChatMessage } from "../types/chat";
 import { toAgentConfig } from "./settings-normalizer";
+import { PRESET_AGENTS } from "./preset-agents";
 import { truncateTitle } from "../utils/text";
 import type { AgentUpdateNotification } from "./update-checker";
 
@@ -40,33 +38,27 @@ export interface AgentDisplayInfo {
  * Get the default agent ID from settings (for new views).
  */
 export function getDefaultAgentId(settings: AgentClientPluginSettings): string {
-	return settings.defaultAgentId || settings.claude.id;
+	return settings.defaultAgentId || PRESET_AGENTS[0].presetId;
 }
 
 /**
  * Get list of all available agents from settings.
+ *
+ * The single enumeration implementation (plugin.getAvailableAgents delegates
+ * here): registry-ordered presets first, then custom agents. Unknown
+ * presetAgents entries (version skew) are deliberately not enumerated.
  */
 export function getAvailableAgentsFromSettings(
 	settings: AgentClientPluginSettings,
 ): AgentDisplayInfo[] {
 	return [
-		{
-			id: settings.claude.id,
-			displayName: settings.claude.displayName || settings.claude.id,
-		},
-		{
-			id: settings.codex.id,
-			displayName: settings.codex.displayName || settings.codex.id,
-		},
-		{
-			id: settings.gemini.id,
-			displayName: settings.gemini.displayName || settings.gemini.id,
-		},
-		{
-			id: settings.mistralVibe.id,
-			displayName:
-				settings.mistralVibe.displayName || settings.mistralVibe.id,
-		},
+		...PRESET_AGENTS.map((def) => {
+			const preset = settings.presetAgents[def.presetId];
+			return {
+				id: def.presetId,
+				displayName: preset?.displayName || def.presetId,
+			};
+		}),
 		...settings.customAgents.map((agent) => ({
 			id: agent.id,
 			displayName: agent.displayName || agent.id,
@@ -97,22 +89,21 @@ export function getCurrentAgent(
 
 /**
  * Find agent settings by ID from plugin settings.
+ *
+ * Presets resolve before custom agents (a custom sharing a preset id has
+ * never been reachable). The preset lookup is gated on registry membership
+ * so preserved unknown presetAgents entries (version skew) never shadow a
+ * same-id custom agent.
  */
 export function findAgentSettings(
 	settings: AgentClientPluginSettings,
 	agentId: string,
 ): BaseAgentSettings | null {
-	if (agentId === settings.claude.id) {
-		return settings.claude;
-	}
-	if (agentId === settings.codex.id) {
-		return settings.codex;
-	}
-	if (agentId === settings.gemini.id) {
-		return settings.gemini;
-	}
-	if (agentId === settings.mistralVibe.id) {
-		return settings.mistralVibe;
+	if (PRESET_AGENTS.some((def) => def.presetId === agentId)) {
+		const preset = settings.presetAgents[agentId];
+		if (preset) {
+			return preset;
+		}
 	}
 	// Search in custom agents
 	const customAgent = settings.customAgents.find(
@@ -122,59 +113,31 @@ export function findAgentSettings(
 }
 
 /**
- * Build AgentConfig with API key injection intent for known agents.
+ * Build AgentConfig with API key injection intent for preset agents.
  *
- * For built-in agents, attaches an `apiKey` intent (secretId + envVarName)
- * to the config. AcpClient.initialize() resolves the secret value from
- * Obsidian's secret storage just before spawn.
+ * For presets with API-key wiring in the registry, attaches an `apiKey`
+ * intent (secretId + envVarName) to the config. AcpClient.initialize()
+ * resolves the secret value from Obsidian's secret storage just before
+ * spawn.
  *
- * Custom agents pass through unchanged (they manage env vars directly).
+ * Custom agents (and presets without an apiKey registry entry) pass through
+ * unchanged (they manage env vars directly).
  */
 export function buildAgentConfigWithApiKey(
-	settings: AgentClientPluginSettings,
 	agentSettings: BaseAgentSettings,
 	agentId: string,
 	workingDirectory: string,
 ) {
 	const baseConfig = toAgentConfig(agentSettings, workingDirectory);
 
-	if (agentId === settings.claude.id) {
-		const claudeSettings = agentSettings as ClaudeAgentSettings;
+	const def = PRESET_AGENTS.find((d) => d.presetId === agentId);
+	if (def?.apiKey) {
+		const presetSettings = agentSettings as PresetAgentUserSettings;
 		return {
 			...baseConfig,
 			apiKey: {
-				secretId: claudeSettings.apiKeySecretId,
-				envVarName: "ANTHROPIC_API_KEY",
-			},
-		};
-	}
-	if (agentId === settings.codex.id) {
-		const codexSettings = agentSettings as CodexAgentSettings;
-		return {
-			...baseConfig,
-			apiKey: {
-				secretId: codexSettings.apiKeySecretId,
-				envVarName: "OPENAI_API_KEY",
-			},
-		};
-	}
-	if (agentId === settings.gemini.id) {
-		const geminiSettings = agentSettings as GeminiAgentSettings;
-		return {
-			...baseConfig,
-			apiKey: {
-				secretId: geminiSettings.apiKeySecretId,
-				envVarName: "GEMINI_API_KEY",
-			},
-		};
-	}
-	if (agentId === settings.mistralVibe.id) {
-		const mistralSettings = agentSettings as MistralVibeAgentSettings;
-		return {
-			...baseConfig,
-			apiKey: {
-				secretId: mistralSettings.apiKeySecretId,
-				envVarName: "MISTRAL_API_KEY",
+				secretId: presetSettings.apiKeySecretId,
+				envVarName: def.apiKey.envVarName,
 			},
 		};
 	}
