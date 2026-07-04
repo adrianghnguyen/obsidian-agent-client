@@ -158,6 +158,61 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 8px;
 }
 
+/* ===== Settings Tab Collapsible Agent Sections ===== */
+.agent-client-agent-summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) 0;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Inside the bordered custom-agent card the border-top double-lines with
+   the card border — drop it there. */
+.agent-client-custom-agent .agent-client-agent-summary {
+	border-top: none;
+	padding-top: 0;
+}
+
+/* Text-like button: the summary is a real <button> for keyboard/focus,
+   restyled to read as a heading row. Name left, chevron pushed right. */
+.agent-client-agent-summary-button {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	padding: 0 var(--size-4-2);
+	background: none;
+	border: none;
+	box-shadow: none;
+	color: var(--text-normal);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	text-align: left;
+	cursor: pointer;
+}
+
+.agent-client-agent-summary-button:hover {
+	color: var(--text-accent);
+}
+
+.agent-client-agent-summary-chevron {
+	display: flex;
+	align-items: center;
+	color: var(--text-muted);
+	transition: transform 100ms ease-in-out;
+}
+
+.agent-client-agent-summary.agent-client-open
+	.agent-client-agent-summary-chevron {
+	transform: rotate(90deg);
+}
+
+.agent-client-agent-section-body.agent-client-collapsed {
+	display: none;
+}
+
 /* ===== Loading Indicator ===== */
 .agent-client-loading-indicator {
 	display: flex;

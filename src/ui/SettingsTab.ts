@@ -6,6 +6,8 @@ import {
 	DropdownComponent,
 	Platform,
 	SecretComponent,
+	ToggleComponent,
+	setIcon,
 } from "obsidian";
 import type AgentClientPlugin from "../plugin";
 import type {
@@ -34,6 +36,14 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	plugin: AgentClientPlugin;
 	private agentSelector: DropdownComponent | null = null;
 	private unsubscribe: (() => void) | null = null;
+	/**
+	 * Open agent sections ("preset:<id>" / "custom:<id>"). Deliberately
+	 * non-persisted (cleared on hide), but held on the instance so
+	 * refreshDisplay() calls from in-section actions (Auto-detect, the WSL
+	 * toggle) re-render sections in their current open state instead of
+	 * collapsing everything.
+	 */
+	private openSections = new Set<string>();
 
 	constructor(app: App, plugin: AgentClientPlugin) {
 		super(app, plugin);
@@ -877,6 +887,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			this.unsubscribe();
 			this.unsubscribe = null;
 		}
+		this.openSections.clear();
 	}
 
 	private renderAgentSelector(containerEl: HTMLElement) {
@@ -941,45 +952,113 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * Shared "Enabled" toggle row for preset and custom agent sections.
+	 * "Enabled" toggle rendered into an agent section's summary row.
 	 * Refuses to disable the last enabled agent (Notice + revert). After the
 	 * write, re-validates the default agent and refreshes the default-agent
-	 * dropdown in place — no refreshDisplay(), so the tab keeps its scroll
-	 * and focus state.
+	 * dropdown in place — no refreshDisplay(), so open sections, scroll,
+	 * and focus are kept.
 	 */
-	private addEnabledToggle(
-		sectionEl: HTMLElement,
+	private addEnabledToggleControl(
+		parentEl: HTMLElement,
 		// Resolved at interaction time: a custom agent's id can be renamed
 		// after this row rendered (the id editor commits per keystroke).
 		getAgentId: () => string | undefined,
 		currentValue: boolean,
 		writer: { write: (value: boolean) => Promise<void> | void },
 	): void {
-		new Setting(sectionEl)
-			.setName("Enabled")
-			.setDesc(
-				"Show this agent in agent lists, menus, and commands. Pinned blocks and restored sessions keep working while disabled.",
-			)
-			.addToggle((toggle) => {
-				toggle.setValue(currentValue).onChange(async (value) => {
-					const agentId = getAgentId();
-					if (agentId === undefined) {
-						return;
-					}
-					if (!value && this.isLastEnabledAgent(agentId)) {
-						toggle.setValue(true);
-						new Notice(
-							"[Agent Client] At least one agent must stay enabled.",
-						);
-						return;
-					}
-					await writer.write(value);
-					this.plugin.ensureAtLeastOneEnabled();
-					this.plugin.ensureDefaultAgentId();
-					await this.flushSettings();
-					this.refreshAgentDropdown();
-				});
+		const toggle = new ToggleComponent(parentEl);
+		toggle
+			.setValue(currentValue)
+			.setTooltip("Show this agent in agent lists, menus, and commands")
+			.onChange(async (value) => {
+				const agentId = getAgentId();
+				if (agentId === undefined) {
+					return;
+				}
+				if (!value && this.isLastEnabledAgent(agentId)) {
+					toggle.setValue(true);
+					new Notice(
+						"[Agent Client] At least one agent must stay enabled.",
+					);
+					return;
+				}
+				await writer.write(value);
+				this.plugin.ensureAtLeastOneEnabled();
+				this.plugin.ensureDefaultAgentId();
+				await this.flushSettings();
+				this.refreshAgentDropdown();
 			});
+		toggle.toggleEl.setAttribute("aria-label", "Enabled");
+	}
+
+	/**
+	 * Collapsible section shell shared by preset and custom agent sections.
+	 * The summary row is a real <button> (keyboard/focus for free, with
+	 * aria-expanded) holding the chevron + agent name; the Enabled toggle
+	 * sits in the row as a flex sibling — not nested, since interactive
+	 * content inside a button is invalid and as a sibling its clicks can't
+	 * reach the collapse handler. Open/close flips classes in place, no
+	 * re-render. Interim UI until the SettingsTab migrates to the
+	 * declarative settings API (Obsidian 1.13, see plan/TODO.md).
+	 *
+	 * `renderBody` receives the (initially hidden when closed) body element
+	 * plus the summary name element, so body controls that edit the display
+	 * name can sync the summary label in place.
+	 */
+	private renderCollapsibleAgentSection(
+		containerEl: HTMLElement,
+		sectionId: string,
+		name: string,
+		enabledToggle: {
+			getAgentId: () => string | undefined;
+			currentValue: boolean;
+			write: (value: boolean) => Promise<void> | void;
+		},
+		renderBody: (bodyEl: HTMLElement, nameEl: HTMLElement) => void,
+	): void {
+		const isOpen = this.openSections.has(sectionId);
+
+		const summaryEl = containerEl.createDiv({
+			cls: "agent-client-agent-summary",
+		});
+		summaryEl.toggleClass("agent-client-open", isOpen);
+		const buttonEl = summaryEl.createEl("button", {
+			cls: "agent-client-agent-summary-button",
+			attr: { type: "button", "aria-expanded": String(isOpen) },
+		});
+		const nameEl = buttonEl.createSpan({
+			cls: "agent-client-agent-summary-name",
+			text: name,
+		});
+		const chevronEl = buttonEl.createSpan({
+			cls: "agent-client-agent-summary-chevron",
+		});
+		setIcon(chevronEl, "chevron-right");
+		this.addEnabledToggleControl(
+			summaryEl,
+			enabledToggle.getAgentId,
+			enabledToggle.currentValue,
+			{ write: enabledToggle.write },
+		);
+
+		const bodyEl = containerEl.createDiv({
+			cls: "agent-client-agent-section-body",
+		});
+		bodyEl.toggleClass("agent-client-collapsed", !isOpen);
+
+		buttonEl.addEventListener("click", () => {
+			const open = !this.openSections.has(sectionId);
+			if (open) {
+				this.openSections.add(sectionId);
+			} else {
+				this.openSections.delete(sectionId);
+			}
+			buttonEl.setAttribute("aria-expanded", String(open));
+			summaryEl.toggleClass("agent-client-open", open);
+			bodyEl.toggleClass("agent-client-collapsed", !open);
+		});
+
+		renderBody(bodyEl, nameEl);
 	}
 
 	/**
@@ -1005,12 +1084,13 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * Render the settings section for one preset agent, driven entirely by
-	 * its registry definition (heading, API key row, path + auto-detect,
-	 * install hint, arguments, environment variables).
+	 * Render the collapsible settings section for one preset agent, driven
+	 * entirely by its registry definition (summary row with Enabled toggle,
+	 * API key row, path + auto-detect, install hint, arguments, environment
+	 * variables).
 	 */
 	private renderPresetSettings(
-		sectionEl: HTMLElement,
+		containerEl: HTMLElement,
 		def: PresetAgentDefinition,
 	) {
 		const preset = this.plugin.settings.presetAgents[def.presetId];
@@ -1019,22 +1099,27 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		new Setting(sectionEl)
-			.setName(preset.displayName || def.defaultDisplayName)
-			.setHeading();
-
-		this.addEnabledToggle(
-			sectionEl,
-			() => def.presetId,
-			isAgentEnabled(preset),
+		this.renderCollapsibleAgentSection(
+			containerEl,
+			`preset:${def.presetId}`,
+			preset.displayName || def.defaultDisplayName,
 			{
+				getAgentId: () => def.presetId,
+				currentValue: isAgentEnabled(preset),
 				write: (value) =>
 					this.updatePresetAgent(def.presetId, { enabled: value }),
 			},
+			(bodyEl) => this.renderPresetSettingsBody(bodyEl, def, preset),
 		);
+	}
 
+	private renderPresetSettingsBody(
+		bodyEl: HTMLElement,
+		def: PresetAgentDefinition,
+		preset: PresetAgentUserSettings,
+	) {
 		if (def.apiKey) {
-			new Setting(sectionEl)
+			new Setting(bodyEl)
 				.setName("API key")
 				.setDesc(def.apiKey.settingDesc)
 				.addComponent((el) =>
@@ -1048,7 +1133,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				);
 		}
 
-		const pathSetting = new Setting(sectionEl)
+		const pathSetting = new Setting(bodyEl)
 			.setName("Path")
 			.setDesc(def.settingsCopy.pathDesc)
 			.addText((text) => {
@@ -1073,13 +1158,13 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		const isNativeWindows =
 			Platform.isWin && !this.plugin.settings.windowsWslMode;
 		this.addInstallHint(
-			sectionEl,
+			bodyEl,
 			isNativeWindows && def.installHint.nativeWindows
 				? def.installHint.nativeWindows
 				: def.installHint.default,
 		);
 
-		new Setting(sectionEl)
+		new Setting(bodyEl)
 			.setName("Arguments")
 			.setDesc(
 				"Enter one argument per line. Leave empty to run without arguments." +
@@ -1106,7 +1191,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			);
 		}
 
-		new Setting(sectionEl)
+		new Setting(bodyEl)
 			.setName("Environment variables")
 			.setDesc(envDescParts.join(" "))
 			.addTextArea((text) => {
@@ -1147,6 +1232,9 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						args: [],
 						env: [],
 					});
+					// Open the new agent's section so it can be configured
+					// right away.
+					this.openSections.add(`custom:${newId}`);
 					this.plugin.ensureDefaultAgentId();
 					await this.flushSettings();
 					this.refreshDisplay();
@@ -1163,18 +1251,29 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			cls: "agent-client-custom-agent",
 		});
 
-		this.addEnabledToggle(
+		this.renderCollapsibleAgentSection(
 			blockEl,
-			() => this.plugin.settings.customAgents[index]?.id,
-			isAgentEnabled(agent),
+			`custom:${agent.id}`,
+			agent.displayName || agent.id,
 			{
+				getAgentId: () => this.plugin.settings.customAgents[index]?.id,
+				currentValue: isAgentEnabled(agent),
 				write: (value) => {
 					this.plugin.settings.customAgents[index].enabled = value;
 				},
 			},
+			(bodyEl, nameEl) =>
+				this.renderCustomAgentBody(bodyEl, nameEl, agent, index),
 		);
+	}
 
-		const idSetting = new Setting(blockEl)
+	private renderCustomAgentBody(
+		bodyEl: HTMLElement,
+		summaryNameEl: HTMLElement,
+		agent: CustomAgentSettings,
+		index: number,
+	) {
+		const idSetting = new Setting(bodyEl)
 			.setName("Agent ID")
 			.setDesc("Unique identifier used to reference this agent.")
 			.addText((text) => {
@@ -1268,7 +1367,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				});
 		});
 
-		new Setting(blockEl)
+		new Setting(bodyEl)
 			.setName("Display name")
 			.setDesc("Shown in menus and headers.")
 			.addText((text) => {
@@ -1276,16 +1375,21 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(agent.displayName || agent.id)
 					.onChange(async (value) => {
 						const trimmed = value.trim();
-						this.plugin.settings.customAgents[index].displayName =
+						const next =
 							trimmed.length > 0
 								? trimmed
 								: this.plugin.settings.customAgents[index].id;
+						this.plugin.settings.customAgents[index].displayName =
+							next;
+						// Keep the collapsed-summary label in sync without a
+						// re-render (which would drop focus mid-typing).
+						summaryNameEl.setText(next);
 						await this.flushSettings();
 						this.refreshAgentDropdown();
 					});
 			});
 
-		new Setting(blockEl)
+		new Setting(bodyEl)
 			.setName("Path")
 			.setDesc(
 				"Command name or path to the custom agent. Use just the command name to let the login shell resolve it, or enter an absolute path.",
@@ -1300,7 +1404,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					});
 			});
 
-		new Setting(blockEl)
+		new Setting(bodyEl)
 			.setName("Arguments")
 			.setDesc(
 				"Enter one argument per line. Leave empty to run without arguments.",
@@ -1316,7 +1420,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				text.inputEl.rows = 3;
 			});
 
-		new Setting(blockEl)
+		new Setting(bodyEl)
 			.setName("Environment variables")
 			.setDesc(
 				"Enter KEY=VALUE pairs, one per line. (Stored as plain text)",
