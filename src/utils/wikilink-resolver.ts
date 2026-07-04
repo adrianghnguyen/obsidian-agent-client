@@ -1,161 +1,107 @@
 /**
  * Wikilink resolver
  *
- * Pure utilities for extracting `[[wikilinks]]` from note content and resolving
- * them to vault files. Skips `![[embeds]]`.
- *
- * The resolver returns vault-relative metadata; the formatter is responsible
- * for converting `path` to absolute path / `file://` URI.
+ * Reads a note's wikilinks from Obsidian's metadata cache — never by scanning
+ * raw note text. The cache excludes links inside code blocks/inline code and
+ * separates embeds (`.embeds`) and frontmatter links (`.frontmatterLinks`), so
+ * we get body wikilinks only, already tokenized. Each is resolved to its single
+ * destination via Obsidian's own linkpath resolution (`getFirstLinkpathDest`).
  */
 
-import { TFile, type App } from "obsidian";
-
-export interface LinkedNoteCandidate {
-	/** Vault-relative path (e.g., "folder/Note.md") */
-	path: string;
-	/** File basename without extension (e.g., "Note") */
-	basename: string;
-}
+import { TFile, parseLinktext, type App } from "obsidian";
 
 export interface LinkedNoteMetadata {
-	/** Target portion of the wikilink (`[[Foo]]` → "Foo", `[[Foo#Bar]]` → "Foo") */
+	/** Target note name as written (`[[Foo#Bar]]` → "Foo"). */
 	linkText: string;
-	/** Alias (`[[Foo|bar]]` → "bar"); undefined when same as linkText */
+	/** User-typed alias (`[[Foo|bar]]` → "bar"); undefined when none. */
 	displayText?: string;
-	/** Section anchor (`[[Foo#Bar]]` → "Bar"); undefined when no anchor */
+	/** Section/anchor (`[[Foo#Bar]]` → "Bar"); undefined when none. */
 	section?: string;
-	/** Resolved file matches; empty = unresolved, single = resolved, multiple = ambiguous */
-	candidates: LinkedNoteCandidate[];
+	/** Vault-relative path of the resolved file; undefined = unresolved. */
+	resolvedPath?: string;
 }
 
-/**
- * Index of vault files keyed by basename. Multiple files can share a basename
- * (collision), which is what surfaces ambiguity in `extractLinkedNoteMetadata`.
- *
- * Build once per `preparePrompt` and reuse across multiple notes (perf).
- */
-export type BasenameIndex = Map<string, TFile[]>;
+/** 0-based inclusive line range for scoping links to a selection. */
+export interface LineRange {
+	fromLine: number;
+	toLine: number;
+}
 
 /**
  * VaultService-implemented port. Lets `preparePrompt` request resolver work
  * without taking an `App` dependency itself.
  */
 export interface IWikilinkResolver {
-	buildBasenameIndex(): BasenameIndex;
-	extractLinkedNoteMetadata(
-		content: string,
-		sourcePath: string,
-		basenameIndex: BasenameIndex,
+	getNoteWikiLinks(
+		notePath: string,
+		lineRange?: LineRange,
 	): LinkedNoteMetadata[];
 }
 
-/** Build a basename → files index from the vault's markdown files. */
-export function buildBasenameIndex(app: App): BasenameIndex {
-	const index: BasenameIndex = new Map();
-	const files = app.vault.getMarkdownFiles();
-	for (const file of files) {
-		const entries = index.get(file.basename) ?? [];
-		entries.push(file);
-		index.set(file.basename, entries);
-	}
-	return index;
+/**
+ * Extract the user-typed alias from a wikilink's raw text. Obsidian's
+ * `displayText` is auto-populated for section links (e.g. "Foo > Bar") even
+ * with no alias, so it can't be used as an alias flag — parse `original`
+ * instead. Operates on the clean per-link string, not the document, so it is
+ * immune to the code-block issue that motivated the cache migration.
+ */
+function extractAlias(original: string): string | undefined {
+	const inner = original.replace(/^\[\[/, "").replace(/\]\]$/, "");
+	const pipe = inner.indexOf("|");
+	if (pipe === -1) return undefined;
+	const alias = inner.slice(pipe + 1).trim();
+	return alias.length > 0 ? alias : undefined;
 }
 
 /**
- * Resolve a single wikilink target string to candidate files.
- *
- * Combines two sources:
- *   1. `metadataCache.getFirstLinkpathDest(target, sourcePath)` — Obsidian's
- *      own resolver, which respects relative paths and same-folder priority.
- *   2. Basename collisions from the prebuilt index (only when target has no
- *      extension), so ambiguous links surface multiple candidates.
- *
- * Map dedupes by file path; result preserves insertion order.
+ * Wikilinks in a note's body, from the metadata cache. When `lineRange` is
+ * given, only links whose position falls fully within it (for selection
+ * scoping). Markdown links and embeds are excluded; each wikilink resolves to
+ * a single destination (or unresolved).
  */
-function resolveWikiLinkTargets(
-	rawTarget: string,
-	sourcePath: string,
-	basenameIndex: BasenameIndex,
+export function getNoteWikiLinks(
 	app: App,
-): TFile[] {
-	const target = rawTarget.trim();
-	if (!target) return [];
-
-	const results = new Map<string, TFile>();
-
-	const resolved = app.metadataCache.getFirstLinkpathDest(target, sourcePath);
-	if (resolved instanceof TFile) {
-		results.set(resolved.path, resolved);
-	}
-
-	if (!/\.[^./]+$/.test(target)) {
-		const basename = target.split("/").pop() ?? target;
-		const duplicates = basenameIndex.get(basename) ?? [];
-		for (const file of duplicates) {
-			results.set(file.path, file);
-		}
-	}
-
-	return Array.from(results.values());
-}
-
-/**
- * Extract structured metadata for every `[[wikilink]]` in `content`.
- *
- * Skips `![[embeds]]` and in-document anchors (`[[#Heading]]`).
- * Dedupes by composite key `target|alias|section` so the same link written
- * multiple times produces one entry.
- */
-export function extractLinkedNoteMetadata(
-	content: string,
-	sourcePath: string,
-	basenameIndex: BasenameIndex,
-	app: App,
+	notePath: string,
+	lineRange?: LineRange,
 ): LinkedNoteMetadata[] {
-	if (!content) return [];
+	const file = app.vault.getFileByPath(notePath);
+	if (!(file instanceof TFile)) return [];
 
-	const linkPattern = /\[\[([^\]]+)\]\]/g;
-	const matches = new Map<string, LinkedNoteMetadata>();
+	const links = app.metadataCache.getFileCache(file)?.links ?? [];
+	const result: LinkedNoteMetadata[] = [];
+	const seen = new Set<string>();
 
-	let match: RegExpExecArray | null;
-	while ((match = linkPattern.exec(content)) !== null) {
-		// Skip embeds: `![[Foo]]`
-		if (match.index > 0 && content[match.index - 1] === "!") continue;
+	for (const link of links) {
+		// Wikilinks only (skip markdown links [t](p)); embeds live in .embeds.
+		if (!link.original.startsWith("[[")) continue;
 
-		const inner = match[1]?.trim();
-		if (!inner) continue;
+		// Selection scoping: keep only links fully inside the selected lines.
+		if (
+			lineRange &&
+			(link.position.start.line < lineRange.fromLine ||
+				link.position.end.line > lineRange.toLine)
+		) {
+			continue;
+		}
 
-		const [targetPart, displayPart] = inner.split("|");
-		const [targetWithoutSection, sectionPart] = targetPart.split("#");
-		const linkText = targetWithoutSection?.trim();
-		if (!linkText) continue; // in-document anchor (`[[#Heading]]`) or whitespace-only
+		const { path, subpath } = parseLinktext(link.link);
+		if (!path) continue; // in-document anchor like [[#Heading]]
 
-		const aliasTrimmed = displayPart?.trim();
-		const sectionTrimmed = sectionPart?.trim();
+		const section = subpath.startsWith("#") ? subpath.slice(1) : undefined;
+		const displayText = extractAlias(link.original);
 
-		const key = `${linkText}|${aliasTrimmed ?? ""}|${sectionTrimmed ?? ""}`;
-		if (matches.has(key)) continue;
+		const key = `${path}|${displayText ?? ""}|${section ?? ""}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
 
-		const candidateFiles = resolveWikiLinkTargets(
-			linkText,
-			sourcePath,
-			basenameIndex,
-			app,
-		);
-
-		matches.set(key, {
-			linkText,
-			displayText:
-				aliasTrimmed && aliasTrimmed !== linkText
-					? aliasTrimmed
-					: undefined,
-			section: sectionTrimmed || undefined,
-			candidates: candidateFiles.map((file) => ({
-				path: file.path,
-				basename: file.basename,
-			})),
+		const dest = app.metadataCache.getFirstLinkpathDest(path, notePath);
+		result.push({
+			linkText: path,
+			displayText,
+			section: section || undefined,
+			resolvedPath: dest?.path,
 		});
 	}
 
-	return Array.from(matches.values());
+	return result;
 }

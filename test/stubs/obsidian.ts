@@ -41,3 +41,16 @@ export class TFile {
 export function parseYaml(content: string): unknown {
 	return parseYamlImpl(content);
 }
+
+/**
+ * Split a linktext into path + subpath. Mirrors Obsidian's `parseLinktext`:
+ * the subpath keeps its leading '#' and is '' when absent.
+ */
+export function parseLinktext(linktext: string): {
+	path: string;
+	subpath: string;
+} {
+	const hash = linktext.indexOf("#");
+	if (hash === -1) return { path: linktext, subpath: "" };
+	return { path: linktext.slice(0, hash), subpath: linktext.slice(hash) };
+}

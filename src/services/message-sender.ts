@@ -39,7 +39,7 @@ import {
 import { buildFileUri, resolveAbsolutePath } from "../utils/paths";
 import {
 	type IWikilinkResolver,
-	type BasenameIndex,
+	type LineRange,
 } from "../utils/wikilink-resolver";
 import { formatLinkedNotesBlock } from "../utils/wikilink-formatter";
 
@@ -380,12 +380,12 @@ function buildAutoMentionContext(
 }
 
 /**
- * Per-prompt scan context: built once at the top of `preparePrompt`,
- * threaded into helpers so the basename index isn't rebuilt per mention.
+ * Per-prompt scan context, or null when wikilink expansion is off. Holds the
+ * resolver plus path-conversion settings; there is no index to build (link
+ * data comes from Obsidian's metadata cache on demand).
  */
 interface WikilinkScanContext {
 	resolver: IWikilinkResolver;
-	basenameIndex: BasenameIndex;
 	vaultBasePath: string;
 	convertToWsl: boolean;
 }
@@ -400,35 +400,31 @@ function buildWikilinkContext(
 	if (!input.expandWikilinkContext || !input.wikilinkResolver) return null;
 	return {
 		resolver: input.wikilinkResolver,
-		basenameIndex: input.wikilinkResolver.buildBasenameIndex(),
 		vaultBasePath: input.vaultBasePath,
 		convertToWsl: input.convertToWsl ?? false,
 	};
 }
 
 /**
- * Build a standalone `<obsidian_note_links>` block for a note body, or null
- * when expansion is off or the body has no resolvable links. The block is a
- * SIBLING of the note content — it is never merged into the body, so the note
- * block stays byte-identical to the note as read from disk.
+ * Build a standalone `<obsidian_note_links>` block for a note, or null when
+ * expansion is off or the note has no resolvable wikilinks. Reads links from
+ * the metadata cache (not the note text), optionally scoped to a selection's
+ * line range. Emitted as a SIBLING of the note content — never merged in, so
+ * the note block stays byte-identical to the note as read from disk.
  *
- * @param bodyText  the note/selection text actually sent (scanned for links)
- * @param sourceRel vault-relative source path (for the resolver)
+ * @param notePath  vault-relative note path (the resolver reads its cache)
+ * @param lineRange 0-based inclusive selection range, or undefined for whole note
  * @param sourceRef identifier the sibling note block uses in this transport
  *                  (resource `uri` for embedded, absolute path for XML)
  */
 function buildLinkedNotesBlock(
-	bodyText: string,
-	sourceRel: string,
+	notePath: string,
+	lineRange: LineRange | undefined,
 	sourceRef: string,
 	ctx: WikilinkScanContext | null,
 ): string | null {
 	if (!ctx) return null;
-	const links = ctx.resolver.extractLinkedNoteMetadata(
-		bodyText,
-		sourceRel,
-		ctx.basenameIndex,
-	);
+	const links = ctx.resolver.getNoteWikiLinks(notePath, lineRange);
 	if (links.length === 0) return null;
 	return formatLinkedNotesBlock(links, sourceRef, {
 		vaultBasePath: ctx.vaultBasePath,
@@ -512,8 +508,8 @@ async function preparePromptWithEmbeddedContext(
 
 		// ref = the resource uri so the agent can correlate the two blocks.
 		const linksBlock = buildLinkedNotesBlock(
-			note.content,
 			file.path,
+			undefined,
 			note.uri,
 			wikilinkCtx,
 		);
@@ -616,8 +612,8 @@ async function preparePromptWithTextContext(
 		// separate contextBlock, so it is also dropped on slash-command turns
 		// by buildAgentMessageText's includeContext gate.
 		const linksBlock = buildLinkedNotesBlock(
-			note.content,
 			file.path,
+			undefined,
 			note.absolutePath,
 			wikilinkCtx,
 		);
@@ -745,8 +741,11 @@ async function buildAutoMentionResource(
 
 		// ref = the resource uri, matching the resource block above.
 		const linksBlock = buildLinkedNotesBlock(
-			sel.text,
 			activeNote.path,
+			{
+				fromLine: activeNote.selection.from.line,
+				toLine: activeNote.selection.to.line,
+			},
 			uri,
 			wikilinkCtx,
 		);
@@ -809,8 +808,8 @@ This is what the user is currently focusing on.
 
 		// Sibling of the opened-note block (ref = the same absolute path).
 		const linksBlock = buildLinkedNotesBlock(
-			sel.text,
 			notePath,
+			{ fromLine: selection.from.line, toLine: selection.to.line },
 			absolutePath,
 			wikilinkCtx,
 		);

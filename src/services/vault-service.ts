@@ -18,11 +18,10 @@ import { EditorView } from "@codemirror/view";
 import { Compartment, StateEffect } from "@codemirror/state";
 import { getLogger, Logger } from "../utils/logger";
 import {
-	buildBasenameIndex,
-	extractLinkedNoteMetadata,
-	type BasenameIndex,
+	getNoteWikiLinks,
 	type IWikilinkResolver,
 	type LinkedNoteMetadata,
+	type LineRange,
 } from "../utils/wikilink-resolver";
 
 // ============================================================================
@@ -309,21 +308,11 @@ export class VaultService implements IVaultAccess, IWikilinkResolver {
 	// IWikilinkResolver Implementation
 	// ========================================================================
 
-	buildBasenameIndex(): BasenameIndex {
-		return buildBasenameIndex(this.plugin.app);
-	}
-
-	extractLinkedNoteMetadata(
-		content: string,
-		sourcePath: string,
-		basenameIndex: BasenameIndex,
+	getNoteWikiLinks(
+		notePath: string,
+		lineRange?: LineRange,
 	): LinkedNoteMetadata[] {
-		return extractLinkedNoteMetadata(
-			content,
-			sourcePath,
-			basenameIndex,
-			this.plugin.app,
-		);
+		return getNoteWikiLinks(this.plugin.app, notePath, lineRange);
 	}
 
 	// ========================================================================
@@ -522,7 +511,10 @@ export class VaultService implements IVaultAccess, IWikilinkResolver {
 			try {
 				listener();
 			} catch (error) {
-				getLogger().error("[VaultService] Selection listener error", error);
+				getLogger().error(
+					"[VaultService] Selection listener error",
+					error,
+				);
 			}
 		}
 	}

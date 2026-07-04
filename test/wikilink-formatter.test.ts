@@ -15,7 +15,7 @@ const UNIX: FormatLinkedNotesOptions = {
 };
 
 function link(partial: Partial<LinkedNoteMetadata>): LinkedNoteMetadata {
-	return { linkText: "Foo", candidates: [], ...partial };
+	return { linkText: "Foo", ...partial };
 }
 
 describe("formatLinkedNotesBlock — wrapper and empty handling", () => {
@@ -25,7 +25,7 @@ describe("formatLinkedNotesBlock — wrapper and empty handling", () => {
 
 	it("wraps links in <obsidian_note_links ref> with the given ref", () => {
 		const out = formatLinkedNotesBlock(
-			[link({ linkText: "Foo", candidates: [] })],
+			[link({ linkText: "Foo" })],
 			"/vault/Src.md",
 			UNIX,
 		);
@@ -52,7 +52,7 @@ describe("formatLinkedNotesBlock — wrapper and empty handling", () => {
 describe("formatLinkedNotesBlock — per-link rendering", () => {
 	it("renders an unresolved link as self-closing resolved=false (no path/uri)", () => {
 		const out = formatLinkedNotesBlock(
-			[link({ linkText: "Missing", candidates: [] })],
+			[link({ linkText: "Missing" })],
 			"/vault/Src.md",
 			UNIX,
 		);
@@ -60,44 +60,15 @@ describe("formatLinkedNotesBlock — per-link rendering", () => {
 		expect(out).not.toContain("path=");
 	});
 
-	it("renders a single candidate as resolved=true with path and uri", () => {
+	it("renders a resolved link as resolved=true with path and uri", () => {
 		const out = formatLinkedNotesBlock(
-			[
-				link({
-					linkText: "Note",
-					candidates: [{ path: "folder/Note.md", basename: "Note" }],
-				}),
-			],
+			[link({ linkText: "Note", resolvedPath: "folder/Note.md" })],
 			"/vault/Src.md",
 			UNIX,
 		);
 		expect(out).toContain(
 			'<link text="Note" path="/vault/folder/Note.md" uri="file:///vault/folder/Note.md" resolved="true" />',
 		);
-	});
-
-	it("renders multiple candidates as resolved=ambiguous with nested <candidate>", () => {
-		const out = formatLinkedNotesBlock(
-			[
-				link({
-					linkText: "Dup",
-					candidates: [
-						{ path: "a/Dup.md", basename: "Dup" },
-						{ path: "b/Dup.md", basename: "Dup" },
-					],
-				}),
-			],
-			"/vault/Src.md",
-			UNIX,
-		);
-		expect(out).toContain('<link text="Dup" resolved="ambiguous">');
-		expect(out).toContain(
-			'<candidate path="/vault/a/Dup.md" uri="file:///vault/a/Dup.md" />',
-		);
-		expect(out).toContain(
-			'<candidate path="/vault/b/Dup.md" uri="file:///vault/b/Dup.md" />',
-		);
-		expect(out).toContain("</link>");
 	});
 
 	it("includes displayText and section attributes when present", () => {
@@ -107,7 +78,6 @@ describe("formatLinkedNotesBlock — per-link rendering", () => {
 					linkText: "Foo",
 					displayText: "bar",
 					section: "Heading",
-					candidates: [],
 				}),
 			],
 			"/vault/Src.md",
@@ -120,7 +90,7 @@ describe("formatLinkedNotesBlock — per-link rendering", () => {
 
 	it("omits displayText and section when absent", () => {
 		const out = formatLinkedNotesBlock(
-			[link({ linkText: "Foo", candidates: [] })],
+			[link({ linkText: "Foo" })],
 			"/vault/Src.md",
 			UNIX,
 		);
@@ -130,7 +100,7 @@ describe("formatLinkedNotesBlock — per-link rendering", () => {
 
 	it("escapes XML special characters in link attributes", () => {
 		const out = formatLinkedNotesBlock(
-			[link({ linkText: "A & B<\"'>", candidates: [] })],
+			[link({ linkText: "A & B<\"'>" })],
 			"/vault/Src.md",
 			UNIX,
 		);
@@ -142,9 +112,7 @@ describe("formatLinkedNotesBlock — per-link rendering", () => {
 
 describe("formatLinkedNotesBlock — 50-link cap", () => {
 	function makeLinks(n: number): LinkedNoteMetadata[] {
-		return Array.from({ length: n }, (_, i) =>
-			link({ linkText: `L${i}`, candidates: [] }),
-		);
+		return Array.from({ length: n }, (_, i) => link({ linkText: `L${i}` }));
 	}
 
 	it("emits <links> without truncated when at or under the cap", () => {
@@ -180,12 +148,7 @@ describe("formatLinkedNotesBlock — 50-link cap", () => {
 describe("formatLinkedNotesBlock — path handling", () => {
 	it("returns the relative path unchanged when vaultBasePath is empty", () => {
 		const out = formatLinkedNotesBlock(
-			[
-				link({
-					linkText: "Note",
-					candidates: [{ path: "folder/Note.md", basename: "Note" }],
-				}),
-			],
+			[link({ linkText: "Note", resolvedPath: "folder/Note.md" })],
 			"Src.md",
 			{ vaultBasePath: "", convertToWsl: false },
 		);
@@ -195,12 +158,7 @@ describe("formatLinkedNotesBlock — path handling", () => {
 
 	it("converts to a WSL path when convertToWsl is set", () => {
 		const out = formatLinkedNotesBlock(
-			[
-				link({
-					linkText: "Note",
-					candidates: [{ path: "folder/Note.md", basename: "Note" }],
-				}),
-			],
+			[link({ linkText: "Note", resolvedPath: "folder/Note.md" })],
 			"C:\\Vault\\Src.md",
 			{ vaultBasePath: "C:\\Vault", convertToWsl: true },
 		);

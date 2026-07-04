@@ -67,34 +67,20 @@ function formatLink(
 		attrs.push(`section="${escapeAttr(link.section)}"`);
 	}
 
-	if (link.candidates.length === 0) {
+	if (link.resolvedPath === undefined) {
 		attrs.push(`resolved="false"`);
 		return `    <link ${attrs.join(" ")} />`;
 	}
 
-	if (link.candidates.length === 1) {
-		const c = link.candidates[0];
-		const absolutePath = resolveAbsolutePath(
-			c.path,
-			vaultBasePath,
-			convertToWsl,
-		);
-		attrs.push(`path="${escapeAttr(absolutePath)}"`);
-		attrs.push(`uri="${escapeAttr(buildFileUri(absolutePath))}"`);
-		attrs.push(`resolved="true"`);
-		return `    <link ${attrs.join(" ")} />`;
-	}
-
-	attrs.push(`resolved="ambiguous"`);
-	const candidateLines = link.candidates.map((c) => {
-		const absolutePath = resolveAbsolutePath(
-			c.path,
-			vaultBasePath,
-			convertToWsl,
-		);
-		return `      <candidate path="${escapeAttr(absolutePath)}" uri="${escapeAttr(buildFileUri(absolutePath))}" />`;
-	});
-	return `    <link ${attrs.join(" ")}>\n${candidateLines.join("\n")}\n    </link>`;
+	const absolutePath = resolveAbsolutePath(
+		link.resolvedPath,
+		vaultBasePath,
+		convertToWsl,
+	);
+	attrs.push(`path="${escapeAttr(absolutePath)}"`);
+	attrs.push(`uri="${escapeAttr(buildFileUri(absolutePath))}"`);
+	attrs.push(`resolved="true"`);
+	return `    <link ${attrs.join(" ")} />`;
 }
 
 /** XML attribute-value escaping. Covers all five XML predefined entities. */
