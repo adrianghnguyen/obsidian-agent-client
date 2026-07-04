@@ -8,9 +8,22 @@ Open a terminal (Terminal on macOS/Linux, PowerShell on Windows) and run the fol
 
 1. Install Mistral Vibe:
 
-```bash
+::: code-group
+
+```bash [macOS/Linux]
 curl -LsSf https://mistral.ai/vibe/install.sh | bash
 ```
+
+```powershell [Windows]
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+uv tool install mistral-vibe
+```
+
+:::
+
+::: warning Windows support
+Mistral states that Vibe "works on Windows, but we officially support and target UNIX environments" — the Windows commands above install [uv](https://docs.astral.sh/uv/) first, then install Vibe with it. For best compatibility on Windows, consider running the agent through [WSL Mode](./#wsl-mode-windows) instead.
+:::
 
 2. Find the installation path:
 
