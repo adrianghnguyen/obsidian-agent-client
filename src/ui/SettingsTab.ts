@@ -953,6 +953,20 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	/**
+	 * Move a custom section's open state when its agent id changes. Without
+	 * this, a section renamed while open stays keyed under the old id and
+	 * the next refreshDisplay() collapses it mid-edit.
+	 */
+	private rekeyOpenSection(oldId: string, newId: string): void {
+		if (oldId === newId) {
+			return;
+		}
+		if (this.openSections.delete(`custom:${oldId}`)) {
+			this.openSections.add(`custom:${newId}`);
+		}
+	}
+
+	/**
 	 * "Enabled" toggle rendered into an agent section's summary row.
 	 * Refuses to disable the last enabled agent (Notice + revert). After the
 	 * write, re-validates the default agent and refreshes the default-agent
@@ -1312,6 +1326,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							text.setValue(nextId);
 						}
 						this.plugin.settings.customAgents[index].id = nextId;
+						this.rekeyOpenSection(previousId, nextId);
 						if (
 							this.plugin.settings.defaultAgentId === previousId
 						) {
@@ -1361,6 +1376,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						candidate = `${committed}-${suffix}`;
 					}
 					this.plugin.settings.customAgents[index].id = candidate;
+					this.rekeyOpenSection(committed, candidate);
 					if (wasDefaultAtFocus) {
 						this.plugin.settings.defaultAgentId = candidate;
 					}
