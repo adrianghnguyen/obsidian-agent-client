@@ -7,6 +7,7 @@ import {
 	Platform,
 	SecretComponent,
 	ToggleComponent,
+	ExtraButtonComponent,
 	setIcon,
 } from "obsidian";
 import type AgentClientPlugin from "../plugin";
@@ -1015,6 +1016,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			write: (value: boolean) => Promise<void> | void;
 		},
 		renderBody: (bodyEl: HTMLElement, nameEl: HTMLElement) => void,
+		// Optional controls rendered after the Enabled toggle (e.g. the
+		// custom agent delete button). Siblings of the collapse button, so
+		// their clicks can't toggle the section.
+		renderSummaryTrailing?: (summaryEl: HTMLElement) => void,
 	): void {
 		const isOpen = this.openSections.has(sectionId);
 
@@ -1040,6 +1045,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			enabledToggle.currentValue,
 			{ write: enabledToggle.write },
 		);
+		renderSummaryTrailing?.(summaryEl);
 
 		const bodyEl = containerEl.createDiv({
 			cls: "agent-client-agent-section-body",
@@ -1264,6 +1270,23 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			},
 			(bodyEl, nameEl) =>
 				this.renderCustomAgentBody(bodyEl, nameEl, agent, index),
+			(summaryEl) => {
+				// Delete lives in the summary row (next to the Enabled
+				// toggle) so it clearly removes the whole agent — inside the
+				// body it read as deleting just the Agent ID.
+				new ExtraButtonComponent(summaryEl)
+					.setIcon("trash")
+					.setTooltip("Delete this agent")
+					.onClick(async () => {
+						this.plugin.settings.customAgents.splice(index, 1);
+						// Deleting the last enabled agent must not leave
+						// everything disabled.
+						this.plugin.ensureAtLeastOneEnabled();
+						this.plugin.ensureDefaultAgentId();
+						await this.flushSettings();
+						this.refreshDisplay();
+					});
+			},
 		);
 	}
 
@@ -1273,7 +1296,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		agent: CustomAgentSettings,
 		index: number,
 	) {
-		const idSetting = new Setting(bodyEl)
+		new Setting(bodyEl)
 			.setName("Agent ID")
 			.setDesc("Unique identifier used to reference this agent.")
 			.addText((text) => {
@@ -1351,21 +1374,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					});
 				});
 			});
-
-		idSetting.addExtraButton((button) => {
-			button
-				.setIcon("trash")
-				.setTooltip("Delete this agent")
-				.onClick(async () => {
-					this.plugin.settings.customAgents.splice(index, 1);
-					// Deleting the last enabled agent must not leave
-					// everything disabled.
-					this.plugin.ensureAtLeastOneEnabled();
-					this.plugin.ensureDefaultAgentId();
-					await this.flushSettings();
-					this.refreshDisplay();
-				});
-		});
 
 		new Setting(bodyEl)
 			.setName("Display name")
