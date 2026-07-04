@@ -2,7 +2,7 @@
  * Wikilink resolver
  *
  * Pure utilities for extracting `[[wikilinks]]` from note content and resolving
- * them to vault files. Skips `![[embeds]]` (per design D6).
+ * them to vault files. Skips `![[embeds]]`.
  *
  * The resolver returns vault-relative metadata; the formatter is responsible
  * for converting `path` to absolute path / `file://` URI.
