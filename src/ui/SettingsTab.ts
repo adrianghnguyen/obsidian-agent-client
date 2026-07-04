@@ -166,7 +166,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Expand wikilink context")
 			.setDesc(
-				"Surface [[wikilinks]] inside mentioned notes as resolved file paths so the agent can choose which to read. Does not embed linked content.",
+				"Surface [[wikilinks]] found inside mentioned/auto-mentioned notes as resolved file paths so the agent can choose which to read. Does not embed linked content. (Distinct from Prompt injection → Wikilink formatting, which asks the agent to write [[links]] in its replies.)",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -543,7 +543,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setName("Wikilink formatting")
 				.setDesc(
-					"Instruct agents to use [[Note Name]] wikilink syntax when referencing notes.",
+					"Instruct agents to use [[Note Name]] wikilink syntax when referencing notes in their replies. (Distinct from Mentions → Expand wikilink context, which resolves [[links]] inside your notes to file paths.)",
 				)
 				.addToggle((toggle) =>
 					toggle
