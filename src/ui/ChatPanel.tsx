@@ -45,6 +45,7 @@ import {
 import { checkAgentUpdate } from "../services/update-checker";
 import type { SessionStatus } from "../services/view-registry";
 import { buildGeminiDeprecationNotice } from "../services/session-helpers";
+import { PRESET_AGENTS, GEMINI_PRESET_ID } from "../services/preset-agents";
 
 /** Stable empty array for useSuggestions when no commands available */
 const EMPTY_COMMANDS: SlashCommand[] = [];
@@ -152,10 +153,7 @@ function selectChatPanelSettings(s: AgentClientPluginSettings) {
 		// These change rarely (only via SettingsTab), so adding them to the slice
 		// does not erode the #20 narrow-subscription intent (no high-frequency
 		// fields here).
-		claude: s.claude,
-		codex: s.codex,
-		gemini: s.gemini,
-		mistralVibe: s.mistralVibe,
+		presetAgents: s.presetAgents,
 		customAgents: s.customAgents,
 		displaySettings: { fontSize: s.displaySettings.fontSize },
 	};
@@ -174,13 +172,10 @@ function chatPanelSettingsEqual(
 		a.enableSystemNotifications === b.enableSystemNotifications &&
 		// SessionStorage always writes a fresh array; reference compare suffices.
 		a.savedSessions === b.savedSessions &&
-		// SettingsTab rebuilds each built-in agent ({ ...settings.claude, … })
-		// and flushSettings emits a fresh customAgents array on edit, so a
+		// SettingsTab.updatePresetAgent emits a fresh presetAgents record and
+		// flushSettings emits a fresh customAgents array on edit, so a
 		// reference compare detects agent changes (and only those).
-		a.claude === b.claude &&
-		a.codex === b.codex &&
-		a.gemini === b.gemini &&
-		a.mistralVibe === b.mistralVibe &&
+		a.presetAgents === b.presetAgents &&
 		a.customAgents === b.customAgents &&
 		a.displaySettings.fontSize === b.displaySettings.fontSize
 	);
@@ -362,39 +357,24 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// ============================================================
 	const activeAgentLabel = useMemo(() => {
 		const activeId = session.agentId;
-		if (activeId === plugin.settings.claude.id) {
-			return (
-				plugin.settings.claude.displayName || plugin.settings.claude.id
-			);
+		if (PRESET_AGENTS.some((def) => def.presetId === activeId)) {
+			const preset = settings.presetAgents[activeId];
+			if (preset) {
+				return preset.displayName || preset.id;
+			}
 		}
-		if (activeId === plugin.settings.codex.id) {
-			return (
-				plugin.settings.codex.displayName || plugin.settings.codex.id
-			);
-		}
-		if (activeId === plugin.settings.gemini.id) {
-			return (
-				plugin.settings.gemini.displayName || plugin.settings.gemini.id
-			);
-		}
-		if (activeId === plugin.settings.mistralVibe.id) {
-			return (
-				plugin.settings.mistralVibe.displayName ||
-				plugin.settings.mistralVibe.id
-			);
-		}
-		const custom = plugin.settings.customAgents.find(
+		const custom = settings.customAgents.find(
 			(agent) => agent.id === activeId,
 		);
 		return custom?.displayName || custom?.id || activeId;
-	}, [session.agentId, plugin.settings]);
+	}, [session.agentId, settings.presetAgents, settings.customAgents]);
 
 	const availableAgents = useMemo(() => {
 		return plugin.getAvailableAgents();
-		// Depend on the whole settings slice: its identity flips through the
-		// useSettingsSelector equality cache whenever a selected field changes,
-		// so the agent list refreshes on agent-settings edits.
-	}, [plugin, settings]);
+		// Depend on just the agent identity fields (not the whole slice), so
+		// unrelated slice changes (e.g. savedSessions on every turn save)
+		// don't rebuild the header dropdown.
+	}, [plugin, settings.presetAgents, settings.customAgents]);
 
 	// ============================================================
 	// Chat Actions
@@ -436,10 +416,10 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// derived synchronously from the active agent id (no network).
 	const geminiNotice = useMemo(
 		() =>
-			session.agentId === plugin.settings.gemini.id
+			session.agentId === GEMINI_PRESET_ID
 				? buildGeminiDeprecationNotice()
 				: null,
-		[session.agentId, plugin.settings.gemini.id],
+		[session.agentId],
 	);
 
 	// Dismiss state lives locally in ChatPanel so it never races with the

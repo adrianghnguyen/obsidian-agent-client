@@ -32,10 +32,12 @@ import {
 import { AgentClientSettingTab } from "./ui/SettingsTab";
 import { AcpClient } from "./acp/acp-client";
 import {
-	sanitizeArgs,
-	normalizeEnvVars,
 	normalizeCustomAgent,
 	ensureUniqueCustomAgentIds,
+	normalizePresetAgents,
+	defaultPresetAgentSettings,
+	resolveDefaultAgentId,
+	type ApiKeyMigrator,
 	parseChatFontSize,
 	str,
 	bool,
@@ -46,19 +48,18 @@ import {
 	nestedStrRecord,
 	xyPoint,
 } from "./services/settings-normalizer";
+import { PRESET_AGENTS } from "./services/preset-agents";
+import { getAvailableAgentsFromSettings } from "./services/session-helpers";
 import {
 	AgentEnvVar,
-	GeminiAgentSettings,
-	ClaudeAgentSettings,
-	CodexAgentSettings,
-	MistralVibeAgentSettings,
+	PresetAgentUserSettings,
 	CustomAgentSettings,
 } from "./types/agent";
 import type { SavedSessionInfo } from "./types/session";
 import { initializeLogger, getLogger } from "./utils/logger";
 
 // Re-export for backward compatibility
-export type { AgentEnvVar, MistralVibeAgentSettings, CustomAgentSettings };
+export type { AgentEnvVar, PresetAgentUserSettings, CustomAgentSettings };
 
 /**
  * Generate a short, device-neutral block id for persist embedded chats.
@@ -91,10 +92,13 @@ export type ChatViewLocation =
 	| "editor-split";
 
 export interface AgentClientPluginSettings {
-	gemini: GeminiAgentSettings;
-	claude: ClaudeAgentSettings;
-	codex: CodexAgentSettings;
-	mistralVibe: MistralVibeAgentSettings;
+	/**
+	 * Per-preset user overrides, keyed by presetId (see
+	 * services/preset-agents.ts for the static registry). Normalization
+	 * guarantees an entry for every registry preset; unknown keys written by
+	 * a newer plugin version are preserved but never enumerated.
+	 */
+	presetAgents: Record<string, PresetAgentUserSettings>;
 	customAgents: CustomAgentSettings[];
 	/** Default agent ID for new views (renamed from activeAgentId for multi-session) */
 	defaultAgentId: string;
@@ -159,40 +163,14 @@ export interface AgentClientPluginSettings {
 }
 
 const DEFAULT_SETTINGS: AgentClientPluginSettings = {
-	claude: {
-		id: "claude-code-acp",
-		displayName: "Claude Code",
-		apiKeySecretId: "",
-		command: "claude-agent-acp",
-		args: [],
-		env: [],
-	},
-	codex: {
-		id: "codex-acp",
-		displayName: "Codex",
-		apiKeySecretId: "",
-		command: "codex-acp",
-		args: [],
-		env: [],
-	},
-	gemini: {
-		id: "gemini-cli",
-		displayName: "Gemini CLI",
-		apiKeySecretId: "",
-		command: "gemini",
-		args: ["--experimental-acp"],
-		env: [],
-	},
-	mistralVibe: {
-		id: "mistral-vibe",
-		displayName: "Mistral Vibe",
-		apiKeySecretId: "",
-		command: "vibe-acp",
-		args: [],
-		env: [],
-	},
+	presetAgents: Object.fromEntries(
+		PRESET_AGENTS.map((def) => [
+			def.presetId,
+			defaultPresetAgentSettings(def),
+		]),
+	),
 	customAgents: [],
-	defaultAgentId: "claude-code-acp",
+	defaultAgentId: PRESET_AGENTS[0].presetId,
 	autoAllowPermissions: false,
 	autoMentionActiveNote: true,
 	enableSystemNotifications: true,
@@ -1123,36 +1101,11 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	/**
-	 * Get all available agents (built-in + custom)
+	 * Get all available agents (preset + custom). Delegates to the single
+	 * enumeration implementation in session-helpers.
 	 */
 	getAvailableAgents(): Array<{ id: string; displayName: string }> {
-		return [
-			{
-				id: this.settings.claude.id,
-				displayName:
-					this.settings.claude.displayName || this.settings.claude.id,
-			},
-			{
-				id: this.settings.codex.id,
-				displayName:
-					this.settings.codex.displayName || this.settings.codex.id,
-			},
-			{
-				id: this.settings.gemini.id,
-				displayName:
-					this.settings.gemini.displayName || this.settings.gemini.id,
-			},
-			{
-				id: this.settings.mistralVibe.id,
-				displayName:
-					this.settings.mistralVibe.displayName ||
-					this.settings.mistralVibe.id,
-			},
-			...this.settings.customAgents.map((agent) => ({
-				id: agent.id,
-				displayName: agent.displayName || agent.id,
-			})),
-		];
+		return getAvailableAgentsFromSettings(this.settings);
 	}
 
 	/**
@@ -1347,118 +1300,60 @@ export default class AgentClientPlugin extends Plugin {
 		const D = DEFAULT_SETTINGS;
 		let migratedSecrets = false;
 
-		// Extract agent sub-objects
-		const rc = obj(raw.claude) ?? {};
-		const rk = obj(raw.codex) ?? {};
-		const rg = obj(raw.gemini) ?? {};
-		const rmv = obj(raw.mistralVibe) ?? {};
+		// Extract settings sub-objects
 		const re = obj(raw.exportSettings) ?? {};
 		const rd = obj(raw.displaySettings) ?? {};
 
-		// Normalize custom agents
+		// Normalize custom agents. Preset ids are reserved: a custom that
+		// collides with one has always been dead weight (preset-first
+		// resolution), so suffix-renaming it changes no session behavior.
 		const customAgents = Array.isArray(raw.customAgents)
 			? ensureUniqueCustomAgentIds(
 					raw.customAgents.map((a: unknown) =>
 						normalizeCustomAgent(obj(a) ?? {}),
 					),
+					PRESET_AGENTS.map((def) => def.presetId),
 				)
 			: [];
 
 		// Migration: defaultAgentId ← activeAgentId (old name)
 		const availableAgentIds = [
-			D.claude.id,
-			D.codex.id,
-			D.gemini.id,
-			D.mistralVibe.id,
+			...PRESET_AGENTS.map((def) => def.presetId),
 			...customAgents.map((a) => a.id),
 		];
-		const rawDefaultId =
-			str(raw.defaultAgentId, "") || str(raw.activeAgentId, "");
 		const defaultAgentId =
-			rawDefaultId && availableAgentIds.includes(rawDefaultId)
-				? rawDefaultId
-				: availableAgentIds[0] || D.claude.id;
+			resolveDefaultAgentId(raw, availableAgentIds) ||
+			PRESET_AGENTS[0].presetId;
+
+		// Secret-storage side effects (writes + Notices) are injected into the
+		// pure normalizer; called only for presets with apiKey.legacy wiring.
+		const migrateApiKey: ApiKeyMigrator = ({
+			def,
+			current,
+			legacyPlain,
+		}) => {
+			const legacy = def.apiKey?.legacy;
+			if (!legacy) {
+				return current;
+			}
+			return this.migrateLegacyApiKey(
+				legacy.defaultSecretId,
+				legacy.fallbackSecretId,
+				current,
+				legacyPlain,
+				legacy.noticeLabel,
+				() => {
+					migratedSecrets = true;
+				},
+			);
+		};
 
 		this.settings = {
-			claude: {
-				id: D.claude.id, // Fixed — never from raw
-				displayName: str(rc.displayName, D.claude.displayName),
-				apiKeySecretId: this.migrateLegacyApiKey(
-					"claude-api-key",
-					"agent-client-claude-api-key",
-					str(rc.apiKeySecretId, D.claude.apiKeySecretId),
-					str(rc.apiKey, ""),
-					"Claude",
-					() => {
-						migratedSecrets = true;
-					},
-				),
-				// Migration: claude.command ← claudeCodeAcpCommandPath (old name)
-				command:
-					str(rc.command, "") ||
-					str(raw.claudeCodeAcpCommandPath, "") ||
-					D.claude.command,
-				args: sanitizeArgs(rc.args),
-				env: normalizeEnvVars(rc.env),
-			},
-			codex: {
-				id: D.codex.id,
-				displayName: str(rk.displayName, D.codex.displayName),
-				apiKeySecretId: this.migrateLegacyApiKey(
-					"openai-api-key",
-					"agent-client-openai-api-key",
-					str(rk.apiKeySecretId, D.codex.apiKeySecretId),
-					str(rk.apiKey, ""),
-					"Codex",
-					() => {
-						migratedSecrets = true;
-					},
-				),
-				command: str(rk.command, "") || D.codex.command,
-				args: sanitizeArgs(rk.args),
-				env: normalizeEnvVars(rk.env),
-			},
-			gemini: {
-				id: D.gemini.id,
-				displayName: str(rg.displayName, D.gemini.displayName),
-				apiKeySecretId: this.migrateLegacyApiKey(
-					"gemini-api-key",
-					"agent-client-gemini-api-key",
-					str(rg.apiKeySecretId, D.gemini.apiKeySecretId),
-					str(rg.apiKey, ""),
-					"Gemini",
-					() => {
-						migratedSecrets = true;
-					},
-				),
-				// Migration: gemini.command ← geminiCommandPath (old name)
-				command:
-					str(rg.command, "") ||
-					str(raw.geminiCommandPath, "") ||
-					D.gemini.command,
-				args:
-					sanitizeArgs(rg.args).length > 0
-						? sanitizeArgs(rg.args)
-						: D.gemini.args,
-				env: normalizeEnvVars(rg.env),
-			},
-			mistralVibe: {
-				id: D.mistralVibe.id,
-				displayName: str(rmv.displayName, D.mistralVibe.displayName),
-				apiKeySecretId: this.migrateLegacyApiKey(
-					"mistral-api-key",
-					"agent-client-mistral-api-key",
-					str(rmv.apiKeySecretId, D.mistralVibe.apiKeySecretId),
-					str(rmv.apiKey, ""),
-					"Mistral Vibe",
-					() => {
-						migratedSecrets = true;
-					},
-				),
-				command: str(rmv.command, "") || D.mistralVibe.command,
-				args: sanitizeArgs(rmv.args),
-				env: normalizeEnvVars(rmv.env),
-			},
+			presetAgents: normalizePresetAgents(
+				raw,
+				PRESET_AGENTS,
+				migrateApiKey,
+			),
 			customAgents,
 			defaultAgentId,
 			autoAllowPermissions: bool(
@@ -1754,7 +1649,7 @@ export default class AgentClientPlugin extends Plugin {
 	ensureDefaultAgentId(): void {
 		const availableIds = this.collectAvailableAgentIds();
 		if (availableIds.length === 0) {
-			this.settings.defaultAgentId = DEFAULT_SETTINGS.claude.id;
+			this.settings.defaultAgentId = PRESET_AGENTS[0].presetId;
 			return;
 		}
 		if (!availableIds.includes(this.settings.defaultAgentId)) {
@@ -1764,11 +1659,7 @@ export default class AgentClientPlugin extends Plugin {
 
 	private collectAvailableAgentIds(): string[] {
 		const ids = new Set<string>();
-		ids.add(this.settings.claude.id);
-		ids.add(this.settings.codex.id);
-		ids.add(this.settings.gemini.id);
-		ids.add(this.settings.mistralVibe.id);
-		for (const agent of this.settings.customAgents) {
+		for (const agent of this.getAvailableAgents()) {
 			if (agent.id && agent.id.length > 0) {
 				ids.add(agent.id);
 			}

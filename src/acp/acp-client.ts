@@ -196,12 +196,15 @@ export class AcpClient {
 
 		// Resolve API key secret just before spawn so the latest value is used.
 		// Custom agents don't set config.apiKey and inject keys via env directly.
+		// Skip empty values (e.g. the secret was deleted from the Keychain):
+		// exporting ANTHROPIC_API_KEY="" etc. can break account-based logins.
 		if (config.apiKey) {
-			const secretValue =
-				this.plugin.app.secretStorage.getSecret(
-					config.apiKey.secretId,
-				) ?? "";
-			baseEnv[config.apiKey.envVarName] = secretValue;
+			const secretValue = this.plugin.app.secretStorage.getSecret(
+				config.apiKey.secretId,
+			);
+			if (secretValue) {
+				baseEnv[config.apiKey.envVarName] = secretValue;
+			}
 		}
 
 		// In WSL mode, forward the configured env var NAMES into WSL via WSLENV
@@ -416,21 +419,24 @@ export class AcpClient {
 		try {
 			this.logger.log("[AcpClient] Starting ACP initialization...");
 
-			const initResult = await this.connection.agent.request("initialize", {
-				protocolVersion: acp.PROTOCOL_VERSION,
-				clientCapabilities: {
-					fs: {
-						readTextFile: false,
-						writeTextFile: false,
+			const initResult = await this.connection.agent.request(
+				"initialize",
+				{
+					protocolVersion: acp.PROTOCOL_VERSION,
+					clientCapabilities: {
+						fs: {
+							readTextFile: false,
+							writeTextFile: false,
+						},
+						terminal: true,
 					},
-					terminal: true,
+					clientInfo: {
+						name: "obsidian-agent-client",
+						title: "Agent Client for Obsidian",
+						version: this.plugin.manifest.version,
+					},
 				},
-				clientInfo: {
-					name: "obsidian-agent-client",
-					title: "Agent Client for Obsidian",
-					version: this.plugin.manifest.version,
-				},
-			});
+			);
 
 			this.logger.log(
 				`[AcpClient] ✅ Connected to agent (protocol v${initResult.protocolVersion})`,
@@ -547,10 +553,13 @@ export class AcpClient {
 				`[AcpClient] Sending prompt with ${content.length} content blocks`,
 			);
 
-			const promptResult = await connection.agent.request("session/prompt", {
-				sessionId: sessionId,
-				prompt: acpContent,
-			});
+			const promptResult = await connection.agent.request(
+				"session/prompt",
+				{
+					sessionId: sessionId,
+					prompt: acpContent,
+				},
+			);
 
 			this.logger.log(
 				`[AcpClient] Agent completed with: ${promptResult.stopReason}`,
