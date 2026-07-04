@@ -358,16 +358,16 @@ export const ChatPanel = React.memo(function ChatPanel({
 	const activeAgentLabel = useMemo(() => {
 		const activeId = session.agentId;
 		if (PRESET_AGENTS.some((def) => def.presetId === activeId)) {
-			const preset = plugin.settings.presetAgents[activeId];
+			const preset = settings.presetAgents[activeId];
 			if (preset) {
 				return preset.displayName || preset.id;
 			}
 		}
-		const custom = plugin.settings.customAgents.find(
+		const custom = settings.customAgents.find(
 			(agent) => agent.id === activeId,
 		);
 		return custom?.displayName || custom?.id || activeId;
-	}, [session.agentId, plugin.settings]);
+	}, [session.agentId, settings.presetAgents, settings.customAgents]);
 
 	const availableAgents = useMemo(() => {
 		return plugin.getAvailableAgents();
