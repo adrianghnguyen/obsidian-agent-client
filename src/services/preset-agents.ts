@@ -7,7 +7,7 @@
  * produced by `normalizePresetAgents` (settings-normalizer.ts).
  *
  * Adding a preset agent = adding one entry here + a docs page
- * (see AGENTS.md "Add Agent Type").
+ * (see AGENTS.md "Add Preset Agent").
  */
 
 /** Legacy plaintext-key → secret-storage migration wiring (original presets only). */
