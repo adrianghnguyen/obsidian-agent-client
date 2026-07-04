@@ -37,7 +37,7 @@ Choose one of the following methods:
 ### Option A: API Key
 
 1. Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Open **Settings → Agent Client → Built-in agents → Codex → API key**
+2. Open **Settings → Agent Client → Preset agents → Codex → API key**
 3. Click the **Link...** button next to the API key field
 4. In the **Select secret** dialog:
    - To use an existing secret: select it from the list and click **Save**

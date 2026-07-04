@@ -67,7 +67,7 @@ If you have a Gemini Code Assist License from your organization, add `GOOGLE_CLO
 If you prefer to use an API key for authentication:
 
 1. Get your API key from [Google AI Studio](https://aistudio.google.com/apikey)
-2. Open **Settings → Agent Client → Built-in agents → Gemini CLI → API key**
+2. Open **Settings → Agent Client → Preset agents → Gemini CLI → API key**
 3. Click the **Link...** button next to the API key field
 4. In the **Select secret** dialog:
    - To use an existing secret: select it from the list and click **Save**
@@ -93,7 +93,7 @@ If authentication still fails, set the key on the Gemini CLI side instead: run `
 
 If you are using Vertex AI for enterprise workloads:
 
-1. In **Settings → Agent Client → Built-in agents → Gemini CLI → Environment variables**, add:
+1. In **Settings → Agent Client → Preset agents → Gemini CLI → Environment variables**, add:
 
 ```
 GOOGLE_API_KEY=YOUR_API_KEY

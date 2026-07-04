@@ -209,7 +209,7 @@ export class AcpClient {
 
 		// In WSL mode, forward the configured env var NAMES into WSL via WSLENV
 		// (Windows env vars are otherwise invisible to the Linux agent process,
-		// so the plugin's API key field would have no effect in WSL). Built-in
+		// so the plugin's API key field would have no effect in WSL). Preset
 		// agents resolve the API key into baseEnv above — not into config.env —
 		// so its var name must be added explicitly, or the key would never cross
 		// into WSL. Must run AFTER the secret is injected into baseEnv. (#312)

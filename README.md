@@ -90,7 +90,7 @@ Open a terminal (Terminal on macOS/Linux, PowerShell on Windows) and run the fol
 
 4. **Configure** in **Settings → Agent Client**:
    - **Node.js path**: e.g., `/usr/local/bin/node`
-   - **Built-in agents → Claude Code → Path**: e.g., `/usr/local/bin/claude-agent-acp` (not `claude`)
+   - **Preset agents → Claude Code → Path**: e.g., `/usr/local/bin/claude-agent-acp` (not `claude`)
    - **API key**: Add your key, or leave empty if logged in via CLI
 
 5. **Start chatting**: Click the robot icon in the ribbon

@@ -62,7 +62,7 @@ export interface BaseAgentSettings {
 }
 
 /**
- * Per-preset user overrides for a preset (built-in) agent.
+ * Per-preset user overrides for a preset agent.
  *
  * Stored in `settings.presetAgents[presetId]`. The static side of a preset
  * (default command, API-key env var name, install hints, settings copy) lives

@@ -159,7 +159,7 @@ export interface ChatSession {
 	/** Current state of the session */
 	state: SessionState;
 
-	/** ID of the active agent (a built-in agent ID such as "claude-code-acp", or a custom agent ID) */
+	/** ID of the active agent (a preset agent ID such as "claude-code-acp", or a custom agent ID) */
 	agentId: string;
 
 	/** Display name of the agent at session creation time */
