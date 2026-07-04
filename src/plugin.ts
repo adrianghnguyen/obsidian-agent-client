@@ -864,17 +864,32 @@ export default class AgentClientPlugin extends Plugin {
 		}
 
 		// Collect non-fatal warnings: parser warnings plus a mount-side check
-		// for an unknown agent id (#28). Copy the parser array rather than
+		// on the pinned agent id (#28). Copy the parser array rather than
 		// mutating it, since parse results may be shared once cached.
+		// Warnings match actual behavior, which differs by block type: a chat
+		// block spawns the pinned agent as-is (unknown → startup error), a
+		// button block falls back to the default agent when the id is unknown.
+		// Both use a pinned agent even while it is disabled. Computed at
+		// render time — a later toggle doesn't update an already-rendered
+		// block (known limitation).
 		const warnings = parsed.warnings ? [...parsed.warnings] : [];
 		const requestedAgent = parsed.config.agent;
-		if (
-			requestedAgent &&
-			!this.getAvailableAgents().some((a) => a.id === requestedAgent)
-		) {
-			warnings.push(
-				`Unknown agent "${requestedAgent}", using the default agent instead.`,
+		if (requestedAgent) {
+			const agentSettings = findAgentSettings(
+				this.settings,
+				requestedAgent,
 			);
+			if (!agentSettings) {
+				warnings.push(
+					parsed.config.type === "chat"
+						? `Unknown agent "${requestedAgent}" — this block will fail to start. Check the agent id in Settings → Agent Client.`
+						: `Unknown agent "${requestedAgent}", using the default agent instead.`,
+				);
+			} else if (!isAgentEnabled(agentSettings)) {
+				warnings.push(
+					`Agent "${requestedAgent}" is disabled in settings; this block pins it and will still use it.`,
+				);
+			}
 		}
 
 		if (warnings.length > 0) {

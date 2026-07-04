@@ -5,6 +5,7 @@ import { Notice } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
 import type { AgentButtonBlockConfig } from "../utils/agent-block-parser";
+import { findAgentSettings } from "../services/session-helpers";
 
 interface AgentButtonBlockProps {
 	plugin: AgentClientPlugin;
@@ -21,8 +22,12 @@ function resolveAgentId(
 	plugin: AgentClientPlugin,
 	preferred: string | undefined,
 ): string {
-	const available = plugin.getAvailableAgents().map((a) => a.id);
-	if (preferred && available.includes(preferred)) return preferred;
+	// Resolution, not enumeration: an explicit `agent:` pin is honored even
+	// while the agent is disabled (same semantics as pinned chat blocks).
+	// Only an unknown id falls back to the default agent.
+	if (preferred && findAgentSettings(plugin.settings, preferred)) {
+		return preferred;
+	}
 	return plugin.settings.defaultAgentId;
 }
 
