@@ -1283,9 +1283,17 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				},
 			});
 		});
+		// Vibe's curl installer is macOS/Linux-only; native Windows uses the
+		// official uv bootstrap instead (WSL mode runs commands in bash, so
+		// curl is correct there). The WSL toggle re-renders the tab, keeping
+		// this hint in sync.
+		const isNativeWindows =
+			Platform.isWin && !this.plugin.settings.windowsWslMode;
 		this.addInstallHintCustom(
 			sectionEl,
-			"curl -LsSf https://mistral.ai/vibe/install.sh | bash",
+			isNativeWindows
+				? 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"; uv tool install mistral-vibe'
+				: "curl -LsSf https://mistral.ai/vibe/install.sh | bash",
 		);
 
 		new Setting(sectionEl)
