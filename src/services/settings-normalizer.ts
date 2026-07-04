@@ -143,6 +143,7 @@ export const normalizeCustomAgent = (
 				: "",
 		args: sanitizeArgs(agent?.args),
 		env: normalizeEnvVars(agent?.env),
+		enabled: bool(agent?.enabled, true),
 	};
 };
 
@@ -215,6 +216,7 @@ export const defaultPresetAgentSettings = (
 	command: def.defaultCommand,
 	args: [...def.defaultArgs],
 	env: [],
+	enabled: true,
 });
 
 /**
@@ -275,6 +277,7 @@ export const normalizePresetAgents = (
 				str(entry.command, "") || legacyCommand || def.defaultCommand,
 			args: args.length > 0 ? args : [...def.defaultArgs],
 			env: normalizeEnvVars(entry.env),
+			enabled: bool(entry.enabled, true),
 		};
 	}
 

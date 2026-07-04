@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
 	normalizePresetAgents,
 	defaultPresetAgentSettings,
+	normalizeCustomAgent,
 	ensureUniqueCustomAgentIds,
 	resolveDefaultAgentId,
 	type ApiKeyMigrator,
@@ -39,6 +40,7 @@ describe("normalizePresetAgents", () => {
 			command: "/opt/claude-agent-acp",
 			args: ["--verbose"],
 			env: [{ key: "FOO", value: "bar" }],
+			enabled: true,
 		});
 		expect(result["codex-acp"].command).toBe("/opt/codex-acp");
 		expect(result["gemini-cli"].displayName).toBe("Gemini");
@@ -158,6 +160,20 @@ describe("normalizePresetAgents", () => {
 		expect(second.opencode).toEqual(first.opencode);
 	});
 
+	it("defaults enabled to true and preserves an explicit false", () => {
+		const result = normalizePresetAgents(
+			{
+				presetAgents: {
+					"codex-acp": { enabled: false },
+				},
+			},
+			PRESET_AGENTS,
+			noMigration,
+		);
+		expect(result["claude-code-acp"].enabled).toBe(true);
+		expect(result["codex-acp"].enabled).toBe(false);
+	});
+
 	it("routes legacy plaintext apiKeys through the injected migrator with registry wiring", () => {
 		const migrate = vi.fn<ApiKeyMigrator>(({ def, legacyPlain }) =>
 			legacyPlain ? `migrated-${def.presetId}` : "",
@@ -216,6 +232,15 @@ describe("ensureUniqueCustomAgentIds with reserved ids", () => {
 			PRESET_IDS,
 		);
 		expect(result.map((a) => a.id)).toEqual(["dup", "dup-2"]);
+	});
+});
+
+describe("normalizeCustomAgent", () => {
+	it("defaults enabled to true and preserves an explicit false", () => {
+		expect(normalizeCustomAgent({ id: "a" }).enabled).toBe(true);
+		expect(normalizeCustomAgent({ id: "a", enabled: false }).enabled).toBe(
+			false,
+		);
 	});
 });
 

@@ -51,6 +51,14 @@ export interface BaseAgentSettings {
 
 	/** Environment variables for the agent process */
 	env: AgentEnvVar[];
+
+	/**
+	 * Whether the agent appears in agent lists and menus (enumeration).
+	 * `undefined` means enabled (backward compatibility with stored data).
+	 * Disabling never blocks resolution: pinned blocks, restored sessions,
+	 * and already-open chats keep working. Check via `isAgentEnabled()`.
+	 */
+	enabled?: boolean;
 }
 
 /**

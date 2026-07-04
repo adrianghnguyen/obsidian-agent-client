@@ -49,7 +49,13 @@ import {
 	xyPoint,
 } from "./services/settings-normalizer";
 import { PRESET_AGENTS } from "./services/preset-agents";
-import { getAvailableAgentsFromSettings } from "./services/session-helpers";
+import {
+	getAvailableAgentsFromSettings,
+	findAgentSettings,
+	isAgentEnabled,
+	firstEnabledAgentId,
+	repairNoEnabledAgents,
+} from "./services/session-helpers";
 import {
 	AgentEnvVar,
 	PresetAgentUserSettings,
@@ -1483,6 +1489,7 @@ export default class AgentClientPlugin extends Plugin {
 			floatingButtonPosition: xyPoint(raw.floatingButtonPosition),
 		};
 
+		this.ensureAtLeastOneEnabled();
 		this.ensureDefaultAgentId();
 
 		if (migratedSecrets) {
@@ -1648,12 +1655,20 @@ export default class AgentClientPlugin extends Plugin {
 
 	ensureDefaultAgentId(): void {
 		const availableIds = this.collectAvailableAgentIds();
-		if (availableIds.length === 0) {
-			this.settings.defaultAgentId = PRESET_AGENTS[0].presetId;
-			return;
-		}
 		if (!availableIds.includes(this.settings.defaultAgentId)) {
-			this.settings.defaultAgentId = availableIds[0];
+			this.settings.defaultAgentId = firstEnabledAgentId(this.settings);
+		}
+	}
+
+	/**
+	 * Repair the "everything disabled" state by re-enabling the first preset.
+	 * The settings UI refuses to disable the last enabled agent, so this is a
+	 * backstop for load-time data and indirect paths (custom deletion).
+	 */
+	ensureAtLeastOneEnabled(): void {
+		const repaired = repairNoEnabledAgents(this.settings);
+		if (repaired) {
+			this.settings.presetAgents = repaired;
 		}
 	}
 

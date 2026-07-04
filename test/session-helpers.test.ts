@@ -2,8 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
 	getDefaultAgentId,
 	getAvailableAgentsFromSettings,
+	getCurrentAgent,
 	findAgentSettings,
 	buildAgentConfigWithApiKey,
+	isAgentEnabled,
+	firstEnabledAgentId,
+	repairNoEnabledAgents,
 } from "../src/services/session-helpers";
 import type { AgentClientPluginSettings } from "../src/plugin";
 import type {
@@ -83,6 +87,65 @@ describe("getAvailableAgentsFromSettings", () => {
 			displayName: "codex-acp",
 		});
 	});
+
+	it("excludes disabled presets and customs; undefined means enabled", () => {
+		const settings = makeSettings({
+			customAgents: [
+				custom("my-custom", "My Custom"),
+				{ ...custom("off-custom", "Off Custom"), enabled: false },
+			],
+		});
+		settings.presetAgents["codex-acp"].enabled = false;
+		settings.presetAgents["claude-code-acp"].enabled = true;
+		expect(
+			getAvailableAgentsFromSettings(settings).map((a) => a.id),
+		).toEqual([
+			"claude-code-acp",
+			"gemini-cli",
+			"mistral-vibe",
+			"my-custom",
+		]);
+	});
+});
+
+describe("enabled helpers", () => {
+	it("isAgentEnabled treats only explicit false as disabled", () => {
+		expect(isAgentEnabled({})).toBe(true);
+		expect(isAgentEnabled({ enabled: true })).toBe(true);
+		expect(isAgentEnabled({ enabled: false })).toBe(false);
+	});
+
+	it("firstEnabledAgentId walks presets in registry order, then customs", () => {
+		const settings = makeSettings({
+			customAgents: [custom("my-custom", "My Custom")],
+		});
+		expect(firstEnabledAgentId(settings)).toBe("claude-code-acp");
+
+		settings.presetAgents["claude-code-acp"].enabled = false;
+		expect(firstEnabledAgentId(settings)).toBe("codex-acp");
+
+		for (const entry of Object.values(settings.presetAgents)) {
+			entry.enabled = false;
+		}
+		expect(firstEnabledAgentId(settings)).toBe("my-custom");
+
+		settings.customAgents[0].enabled = false;
+		// Backstop when everything is disabled (repair prevents persisting).
+		expect(firstEnabledAgentId(settings)).toBe("claude-code-acp");
+	});
+
+	it("repairNoEnabledAgents re-enables the first preset only when everything is disabled", () => {
+		const healthy = makeSettings();
+		expect(repairNoEnabledAgents(healthy)).toBeNull();
+
+		const broken = makeSettings();
+		for (const entry of Object.values(broken.presetAgents)) {
+			entry.enabled = false;
+		}
+		const repaired = repairNoEnabledAgents(broken);
+		expect(repaired?.["claude-code-acp"].enabled).toBe(true);
+		expect(repaired?.["codex-acp"].enabled).toBe(false);
+	});
 });
 
 describe("findAgentSettings", () => {
@@ -116,6 +179,32 @@ describe("findAgentSettings", () => {
 		expect(findAgentSettings(settings, "opencode")?.displayName).toBe(
 			"My OpenCode",
 		);
+	});
+
+	it("resolves disabled agents (disabling filters enumeration, not resolution)", () => {
+		const settings = makeSettings();
+		settings.presetAgents["gemini-cli"].enabled = false;
+		expect(findAgentSettings(settings, "gemini-cli")?.displayName).toBe(
+			"Gemini CLI",
+		);
+	});
+});
+
+describe("getCurrentAgent", () => {
+	it("keeps the display name of a disabled agent", () => {
+		const settings = makeSettings();
+		settings.presetAgents["gemini-cli"].enabled = false;
+		expect(getCurrentAgent(settings, "gemini-cli")).toEqual({
+			id: "gemini-cli",
+			displayName: "Gemini CLI",
+		});
+	});
+
+	it("degrades to the raw id for unknown agents", () => {
+		expect(getCurrentAgent(makeSettings(), "ghost")).toEqual({
+			id: "ghost",
+			displayName: "ghost",
+		});
 	});
 });
 
@@ -170,5 +259,11 @@ describe("getDefaultAgentId", () => {
 
 	it("falls back to the first preset when unset", () => {
 		expect(getDefaultAgentId(makeSettings())).toBe("claude-code-acp");
+	});
+
+	it("falls back to the first enabled agent when the stored default is disabled", () => {
+		const settings = makeSettings({ defaultAgentId: "claude-code-acp" });
+		settings.presetAgents["claude-code-acp"].enabled = false;
+		expect(getDefaultAgentId(settings)).toBe("codex-acp");
 	});
 });
