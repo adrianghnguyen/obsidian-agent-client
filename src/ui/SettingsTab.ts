@@ -18,6 +18,10 @@ import {
 	PRESET_AGENTS,
 	type PresetAgentDefinition,
 } from "../services/preset-agents";
+import {
+	getAvailableAgentsFromSettings,
+	isAgentEnabled,
+} from "../services/session-helpers";
 import { resolveCommandPath, resolveCommandPathInWsl } from "../utils/paths";
 import {
 	normalizeEnvVars,
@@ -912,28 +916,14 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	private getAgentOptions(): { id: string; label: string }[] {
-		const toOption = (id: string, displayName: string) => ({
+		// Default-agent candidates come from the enabled enumeration —
+		// disabled agents can't be picked as the default.
+		const options = getAvailableAgentsFromSettings(
+			this.plugin.settings,
+		).map(({ id, displayName }) => ({
 			id,
 			label: `${displayName} (${id})`,
-		});
-		const options: { id: string; label: string }[] = PRESET_AGENTS.map(
-			(def) => {
-				const preset = this.plugin.settings.presetAgents[def.presetId];
-				return toOption(
-					def.presetId,
-					preset?.displayName || def.presetId,
-				);
-			},
-		);
-		for (const agent of this.plugin.settings.customAgents) {
-			if (agent.id && agent.id.length > 0) {
-				const labelSource =
-					agent.displayName && agent.displayName.length > 0
-						? agent.displayName
-						: agent.id;
-				options.push(toOption(agent.id, labelSource));
-			}
-		}
+		}));
 		const seen = new Set<string>();
 		return options.filter(({ id }) => {
 			if (seen.has(id)) {
@@ -942,6 +932,54 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			seen.add(id);
 			return true;
 		});
+	}
+
+	/** True when `agentId` is the only agent still enabled. */
+	private isLastEnabledAgent(agentId: string): boolean {
+		const enabled = getAvailableAgentsFromSettings(this.plugin.settings);
+		return enabled.length === 1 && enabled[0].id === agentId;
+	}
+
+	/**
+	 * Shared "Enabled" toggle row for preset and custom agent sections.
+	 * Refuses to disable the last enabled agent (Notice + revert). After the
+	 * write, re-validates the default agent and refreshes the default-agent
+	 * dropdown in place — no refreshDisplay(), so the tab keeps its scroll
+	 * and focus state.
+	 */
+	private addEnabledToggle(
+		sectionEl: HTMLElement,
+		// Resolved at interaction time: a custom agent's id can be renamed
+		// after this row rendered (the id editor commits per keystroke).
+		getAgentId: () => string | undefined,
+		currentValue: boolean,
+		writer: { write: (value: boolean) => Promise<void> | void },
+	): void {
+		new Setting(sectionEl)
+			.setName("Enabled")
+			.setDesc(
+				"Show this agent in agent lists, menus, and commands. Pinned blocks and restored sessions keep working while disabled.",
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(currentValue).onChange(async (value) => {
+					const agentId = getAgentId();
+					if (agentId === undefined) {
+						return;
+					}
+					if (!value && this.isLastEnabledAgent(agentId)) {
+						toggle.setValue(true);
+						new Notice(
+							"[Agent Client] At least one agent must stay enabled.",
+						);
+						return;
+					}
+					await writer.write(value);
+					this.plugin.ensureAtLeastOneEnabled();
+					this.plugin.ensureDefaultAgentId();
+					await this.flushSettings();
+					this.refreshAgentDropdown();
+				});
+			});
 	}
 
 	/**
@@ -984,6 +1022,16 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		new Setting(sectionEl)
 			.setName(preset.displayName || def.defaultDisplayName)
 			.setHeading();
+
+		this.addEnabledToggle(
+			sectionEl,
+			() => def.presetId,
+			isAgentEnabled(preset),
+			{
+				write: (value) =>
+					this.updatePresetAgent(def.presetId, { enabled: value }),
+			},
+		);
 
 		if (def.apiKey) {
 			new Setting(sectionEl)
@@ -1115,6 +1163,17 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			cls: "agent-client-custom-agent",
 		});
 
+		this.addEnabledToggle(
+			blockEl,
+			() => this.plugin.settings.customAgents[index]?.id,
+			isAgentEnabled(agent),
+			{
+				write: (value) => {
+					this.plugin.settings.customAgents[index].enabled = value;
+				},
+			},
+		);
+
 		const idSetting = new Setting(blockEl)
 			.setName("Agent ID")
 			.setDesc("Unique identifier used to reference this agent.")
@@ -1200,6 +1259,9 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				.setTooltip("Delete this agent")
 				.onClick(async () => {
 					this.plugin.settings.customAgents.splice(index, 1);
+					// Deleting the last enabled agent must not leave
+					// everything disabled.
+					this.plugin.ensureAtLeastOneEnabled();
 					this.plugin.ensureDefaultAgentId();
 					await this.flushSettings();
 					this.refreshDisplay();
