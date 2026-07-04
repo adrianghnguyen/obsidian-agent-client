@@ -625,7 +625,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		// Agents
 		// ─────────────────────────────────────────────────────────────────────
 
-		new Setting(containerEl).setName("Built-in agents").setHeading();
+		new Setting(containerEl).setName("Preset agents").setHeading();
 
 		for (const def of PRESET_AGENTS) {
 			this.renderPresetSettings(containerEl, def);
@@ -1382,7 +1382,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					}
 					text.setValue(candidate);
 					new Notice(
-						`[Agent Client] "${committed}" is reserved for a built-in agent. This custom agent was renamed to "${candidate}".`,
+						`[Agent Client] "${committed}" is reserved for a preset agent. This custom agent was renamed to "${candidate}".`,
 					);
 					this.plugin.ensureDefaultAgentId();
 					void this.flushSettings().then(() => {

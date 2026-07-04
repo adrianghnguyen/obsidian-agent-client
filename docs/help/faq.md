@@ -77,7 +77,7 @@ Disabling only hides the agent from lists: already-open chats, restored sessions
 
 ### What is a custom agent?
 
-Any ACP-compatible agent beyond the built-in ones (Claude Code, Codex, Gemini CLI, Mistral Vibe). You can add custom agents in **Settings → Agent Client → Custom agents**. See [Custom Agents](/agent-setup/custom-agents).
+Any ACP-compatible agent beyond the preset ones (Claude Code, Codex, Gemini CLI, Mistral Vibe). You can add custom agents in **Settings → Agent Client → Custom agents**. See [Custom Agents](/agent-setup/custom-agents).
 
 ### Do all agents support the same features?
 

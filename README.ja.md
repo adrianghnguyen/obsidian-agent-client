@@ -86,7 +86,7 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
 
 4. **設定 → Agent Client** で設定:
    - **Node.js path**: 例: `/usr/local/bin/node`
-   - **Built-in agents → Claude Code → Path**: 例: `/usr/local/bin/claude-agent-acp`（`claude`ではない）
+   - **Preset agents → Claude Code → Path**: 例: `/usr/local/bin/claude-agent-acp`（`claude`ではない）
    - **API key**: キーを追加、またはCLIでログイン済みの場合は空欄
 
 5. **チャット開始**: リボンのロボットアイコンをクリック

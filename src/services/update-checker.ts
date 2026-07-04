@@ -1,7 +1,7 @@
 /**
  * Agent Update Checker
  *
- * Checks built-in agent ACP adapters for:
+ * Checks preset agent ACP adapters for:
  * 1. Package migration — deprecated packages that have been renamed
  * 2. Version updates — newer versions available on npm
  *
