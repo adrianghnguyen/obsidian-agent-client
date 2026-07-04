@@ -155,6 +155,7 @@ function selectChatPanelSettings(s: AgentClientPluginSettings) {
 		claude: s.claude,
 		codex: s.codex,
 		gemini: s.gemini,
+		mistralVibe: s.mistralVibe,
 		customAgents: s.customAgents,
 		displaySettings: { fontSize: s.displaySettings.fontSize },
 	};
@@ -179,6 +180,7 @@ function chatPanelSettingsEqual(
 		a.claude === b.claude &&
 		a.codex === b.codex &&
 		a.gemini === b.gemini &&
+		a.mistralVibe === b.mistralVibe &&
 		a.customAgents === b.customAgents &&
 		a.displaySettings.fontSize === b.displaySettings.fontSize
 	);
@@ -373,6 +375,12 @@ export const ChatPanel = React.memo(function ChatPanel({
 		if (activeId === plugin.settings.gemini.id) {
 			return (
 				plugin.settings.gemini.displayName || plugin.settings.gemini.id
+			);
+		}
+		if (activeId === plugin.settings.mistralVibe.id) {
+			return (
+				plugin.settings.mistralVibe.displayName ||
+				plugin.settings.mistralVibe.id
 			);
 		}
 		const custom = plugin.settings.customAgents.find(

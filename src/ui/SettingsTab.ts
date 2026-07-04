@@ -116,9 +116,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.sendMessageShortcut)
 					.onChange(async (value) => {
 						await this.plugin.settingsService.updateSettings({
-							sendMessageShortcut: value as
-								| "enter"
-								| "cmd-enter",
+							sendMessageShortcut: value as "enter" | "cmd-enter",
 						});
 					}),
 			);
@@ -611,6 +609,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		this.renderClaudeSettings(containerEl);
 		this.renderCodexSettings(containerEl);
 		this.renderGeminiSettings(containerEl);
+		this.renderMistralVibeSettings(containerEl);
 
 		new Setting(containerEl).setName("Custom agents").setHeading();
 
@@ -928,6 +927,11 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				this.plugin.settings.gemini.displayName ||
 					this.plugin.settings.gemini.id,
 			),
+			toOption(
+				this.plugin.settings.mistralVibe.id,
+				this.plugin.settings.mistralVibe.displayName ||
+					this.plugin.settings.mistralVibe.id,
+			),
 		];
 		for (const agent of this.plugin.settings.customAgents) {
 			if (agent.id && agent.id.length > 0) {
@@ -1229,6 +1233,108 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			});
 	}
 
+	private renderMistralVibeSettings(sectionEl: HTMLElement) {
+		const mistralVibe = this.plugin.settings.mistralVibe;
+
+		new Setting(sectionEl)
+			.setName(mistralVibe.displayName || "Mistral Vibe")
+			.setHeading();
+
+		new Setting(sectionEl)
+			.setName("API key")
+			.setDesc(
+				"Mistral API key. Required if not logging in with a Mistral account. Select from Obsidian's Keychain or create a new secret.",
+			)
+			.addComponent((el) =>
+				new SecretComponent(this.app, el)
+					.setValue(mistralVibe.apiKeySecretId)
+					.onChange(async (value) => {
+						await this.plugin.settingsService.updateSettings({
+							mistralVibe: {
+								...this.plugin.settings.mistralVibe,
+								apiKeySecretId: value,
+							},
+						});
+					}),
+			);
+
+		const vibePathSetting = new Setting(sectionEl)
+			.setName("Path")
+			.setDesc(
+				'Command name or path to vibe-acp. Use just "vibe-acp" to let the login shell resolve it, or enter an absolute path.',
+			)
+			.addText((text) => {
+				text.setPlaceholder("vibe-acp")
+					.setValue(mistralVibe.command)
+					.onChange(async (value) => {
+						await this.plugin.settingsService.updateSettings({
+							mistralVibe: {
+								...this.plugin.settings.mistralVibe,
+								command: value.trim(),
+							},
+						});
+					});
+			});
+		this.addAutoDetectButton(vibePathSetting, "vibe-acp", async (path) => {
+			await this.plugin.settingsService.updateSettings({
+				mistralVibe: {
+					...this.plugin.settings.mistralVibe,
+					command: path,
+				},
+			});
+		});
+		// Vibe's curl installer is macOS/Linux-only; native Windows uses the
+		// official uv bootstrap instead (WSL mode runs commands in bash, so
+		// curl is correct there). The WSL toggle re-renders the tab, keeping
+		// this hint in sync.
+		const isNativeWindows =
+			Platform.isWin && !this.plugin.settings.windowsWslMode;
+		this.addInstallHintCustom(
+			sectionEl,
+			isNativeWindows
+				? 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"; uv tool install mistral-vibe'
+				: "curl -LsSf https://mistral.ai/vibe/install.sh | bash",
+		);
+
+		new Setting(sectionEl)
+			.setName("Arguments")
+			.setDesc(
+				"Enter one argument per line. Leave empty to run without arguments.",
+			)
+			.addTextArea((text) => {
+				text.setPlaceholder("")
+					.setValue(this.formatArgs(mistralVibe.args))
+					.onChange(async (value) => {
+						await this.plugin.settingsService.updateSettings({
+							mistralVibe: {
+								...this.plugin.settings.mistralVibe,
+								args: this.parseArgs(value),
+							},
+						});
+					});
+				text.inputEl.rows = 3;
+			});
+
+		new Setting(sectionEl)
+			.setName("Environment variables")
+			.setDesc(
+				"Enter KEY=VALUE pairs, one per line. MISTRAL_API_KEY is derived from the field above.",
+			)
+			.addTextArea((text) => {
+				text.setPlaceholder("")
+					.setValue(this.formatEnv(mistralVibe.env))
+					.onChange(async (value) => {
+						await this.plugin.settingsService.updateSettings({
+							mistralVibe: {
+								...this.plugin.settings.mistralVibe,
+								env: this.parseEnv(value),
+							},
+						});
+					});
+				text.inputEl.rows = 3;
+			});
+	}
+
 	private renderCustomAgents(containerEl: HTMLElement) {
 		if (this.plugin.settings.customAgents.length === 0) {
 			containerEl.createEl("p", {
@@ -1412,6 +1518,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			this.plugin.settings.gemini.displayName ||
 				this.plugin.settings.gemini.id,
 		);
+		existing.add(
+			this.plugin.settings.mistralVibe.displayName ||
+				this.plugin.settings.mistralVibe.id,
+		);
 		for (const item of this.plugin.settings.customAgents) {
 			existing.add(item.displayName || item.id);
 		}
@@ -1449,7 +1559,19 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	 * Renders a copyable npm install command hint below a Path setting.
 	 */
 	private addInstallHint(containerEl: HTMLElement, npmPackage: string): void {
-		const command = `npm install -g ${npmPackage}@latest`;
+		this.addInstallHintCustom(
+			containerEl,
+			`npm install -g ${npmPackage}@latest`,
+		);
+	}
+
+	/**
+	 * Renders a copyable install command hint below a Path setting.
+	 */
+	private addInstallHintCustom(
+		containerEl: HTMLElement,
+		command: string,
+	): void {
 		const frag = createFragment();
 		frag.appendText("Not installed? Run in terminal: ");
 		frag.createEl("code", { text: command });

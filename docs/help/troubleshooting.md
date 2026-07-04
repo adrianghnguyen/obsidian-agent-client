@@ -52,6 +52,10 @@ The agent requires authentication before processing requests.
 - Open **Settings → Agent Client → Built-in agents → Gemini CLI → API key**, click **Link...**, and link or create a secret. See [Gemini CLI Setup](/agent-setup/gemini-cli#authentication).
 - Or run `gemini` in Terminal first to authenticate with your Google account
 
+**For Mistral Vibe:**
+- Open **Settings → Agent Client → Built-in agents → Mistral Vibe → API key**, click **Link...**, and link or create a secret. See [Mistral Vibe Setup](/agent-setup/mistral-vibe#authentication).
+- Or run `vibe` in Terminal first to authenticate with your Mistral account
+
 ### "No Authentication Methods" error
 
 The agent didn't provide authentication options.

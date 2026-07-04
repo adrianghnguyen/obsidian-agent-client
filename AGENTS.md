@@ -1,7 +1,7 @@
 # Agent Client Plugin - LLM Developer Guide
 
 ## Overview
-Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, custom agents) via ACP.
+Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, Mistral Vibe, custom agents) via ACP.
 
 **Tech**: React 19, TypeScript, Obsidian API, Agent Client Protocol (ACP)
 
@@ -12,7 +12,7 @@ src/
 ├── types/                       # Type definitions (no logic, no dependencies)
 │   ├── chat.ts                  # ChatMessage, MessageContent, PromptContent, AttachedFile, ActivePermission
 │   ├── session.ts               # ChatSession, SessionUpdate (12-type union), SessionInfo, Capabilities
-│   ├── agent.ts                 # AgentConfig, agent settings (Claude/Codex/Gemini/Custom)
+│   ├── agent.ts                 # AgentConfig, agent settings (Claude/Codex/Gemini/Mistral Vibe/Custom)
 │   └── errors.ts                # AcpError, ProcessError, ErrorInfo
 ├── acp/                         # ACP protocol (SDK dependency confined here)
 │   ├── acp-client.ts            # Process lifecycle, UI-facing API (AcpClient class)
@@ -286,9 +286,16 @@ interface ISettingsAccess {
 
 ### Add Agent Type
 1. Add settings type in `types/agent.ts`
-2. Add config and defaults in `plugin.ts`
-3. Add API key injection in `services/session-helpers.ts`
+2. Add config, defaults, normalization, and legacy-key migration in `plugin.ts`
+   (interface, `DEFAULT_SETTINGS`, `loadSettings`, `getAvailableAgents`, `collectAvailableAgentIds`)
+3. Add agent listing + API key injection in `services/session-helpers.ts`
+   (`getAvailableAgentsFromSettings`, `findAgentSettings`, `buildAgentConfigWithApiKey`)
 4. Update `ui/SettingsTab.ts` for configuration UI
+   (render section, `getAgentOptions`, `generateCustomAgentDisplayName`)
+5. Update `ui/ChatPanel.tsx`
+   (`activeAgentLabel`, `selectChatPanelSettings` + `chatPanelSettingsEqual`)
+6. Add docs: `docs/agent-setup/<agent>.md` + mentions in agent-setup index,
+   quick-start, docs index, FAQ, troubleshooting, ACP support, context files
 
 ### Modify Message Types
 1. Update `ChatMessage`/`MessageContent` in `types/chat.ts`
@@ -323,6 +330,7 @@ interface ISettingsAccess {
 - Claude Code: `@agentclientprotocol/claude-agent-acp` (ANTHROPIC_API_KEY)
 - Codex: `@zed-industries/codex-acp` (OPENAI_API_KEY)
 - Gemini CLI: `@google/gemini-cli` (GEMINI_API_KEY)
+- Mistral Vibe: `mistral-vibe` (MISTRAL_API_KEY)
 - Custom: Any ACP-compatible agent
 
 ---

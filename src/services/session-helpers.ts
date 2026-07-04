@@ -9,6 +9,7 @@ import type {
 	ClaudeAgentSettings,
 	GeminiAgentSettings,
 	CodexAgentSettings,
+	MistralVibeAgentSettings,
 } from "../types/agent";
 import type { ChatSession, SavedSessionInfo } from "../types/session";
 import type { ChatMessage } from "../types/chat";
@@ -61,6 +62,11 @@ export function getAvailableAgentsFromSettings(
 			id: settings.gemini.id,
 			displayName: settings.gemini.displayName || settings.gemini.id,
 		},
+		{
+			id: settings.mistralVibe.id,
+			displayName:
+				settings.mistralVibe.displayName || settings.mistralVibe.id,
+		},
 		...settings.customAgents.map((agent) => ({
 			id: agent.id,
 			displayName: agent.displayName || agent.id,
@@ -104,6 +110,9 @@ export function findAgentSettings(
 	}
 	if (agentId === settings.gemini.id) {
 		return settings.gemini;
+	}
+	if (agentId === settings.mistralVibe.id) {
+		return settings.mistralVibe;
 	}
 	// Search in custom agents
 	const customAgent = settings.customAgents.find(
@@ -156,6 +165,16 @@ export function buildAgentConfigWithApiKey(
 			apiKey: {
 				secretId: geminiSettings.apiKeySecretId,
 				envVarName: "GEMINI_API_KEY",
+			},
+		};
+	}
+	if (agentId === settings.mistralVibe.id) {
+		const mistralSettings = agentSettings as MistralVibeAgentSettings;
+		return {
+			...baseConfig,
+			apiKey: {
+				secretId: mistralSettings.apiKeySecretId,
+				envVarName: "MISTRAL_API_KEY",
 			},
 		};
 	}

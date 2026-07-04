@@ -51,13 +51,14 @@ import {
 	GeminiAgentSettings,
 	ClaudeAgentSettings,
 	CodexAgentSettings,
+	MistralVibeAgentSettings,
 	CustomAgentSettings,
 } from "./types/agent";
 import type { SavedSessionInfo } from "./types/session";
 import { initializeLogger, getLogger } from "./utils/logger";
 
 // Re-export for backward compatibility
-export type { AgentEnvVar, CustomAgentSettings };
+export type { AgentEnvVar, MistralVibeAgentSettings, CustomAgentSettings };
 
 /**
  * Generate a short, device-neutral block id for persist embedded chats.
@@ -93,6 +94,7 @@ export interface AgentClientPluginSettings {
 	gemini: GeminiAgentSettings;
 	claude: ClaudeAgentSettings;
 	codex: CodexAgentSettings;
+	mistralVibe: MistralVibeAgentSettings;
 	customAgents: CustomAgentSettings[];
 	/** Default agent ID for new views (renamed from activeAgentId for multi-session) */
 	defaultAgentId: string;
@@ -179,6 +181,14 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 		apiKeySecretId: "",
 		command: "gemini",
 		args: ["--experimental-acp"],
+		env: [],
+	},
+	mistralVibe: {
+		id: "mistral-vibe",
+		displayName: "Mistral Vibe",
+		apiKeySecretId: "",
+		command: "vibe-acp",
+		args: [],
 		env: [],
 	},
 	customAgents: [],
@@ -1113,7 +1123,7 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	/**
-	 * Get all available agents (claude, codex, gemini, custom)
+	 * Get all available agents (built-in + custom)
 	 */
 	getAvailableAgents(): Array<{ id: string; displayName: string }> {
 		return [
@@ -1131,6 +1141,12 @@ export default class AgentClientPlugin extends Plugin {
 				id: this.settings.gemini.id,
 				displayName:
 					this.settings.gemini.displayName || this.settings.gemini.id,
+			},
+			{
+				id: this.settings.mistralVibe.id,
+				displayName:
+					this.settings.mistralVibe.displayName ||
+					this.settings.mistralVibe.id,
 			},
 			...this.settings.customAgents.map((agent) => ({
 				id: agent.id,
@@ -1335,6 +1351,7 @@ export default class AgentClientPlugin extends Plugin {
 		const rc = obj(raw.claude) ?? {};
 		const rk = obj(raw.codex) ?? {};
 		const rg = obj(raw.gemini) ?? {};
+		const rmv = obj(raw.mistralVibe) ?? {};
 		const re = obj(raw.exportSettings) ?? {};
 		const rd = obj(raw.displaySettings) ?? {};
 
@@ -1352,6 +1369,7 @@ export default class AgentClientPlugin extends Plugin {
 			D.claude.id,
 			D.codex.id,
 			D.gemini.id,
+			D.mistralVibe.id,
 			...customAgents.map((a) => a.id),
 		];
 		const rawDefaultId =
@@ -1423,6 +1441,23 @@ export default class AgentClientPlugin extends Plugin {
 						? sanitizeArgs(rg.args)
 						: D.gemini.args,
 				env: normalizeEnvVars(rg.env),
+			},
+			mistralVibe: {
+				id: D.mistralVibe.id,
+				displayName: str(rmv.displayName, D.mistralVibe.displayName),
+				apiKeySecretId: this.migrateLegacyApiKey(
+					"mistral-api-key",
+					"agent-client-mistral-api-key",
+					str(rmv.apiKeySecretId, D.mistralVibe.apiKeySecretId),
+					str(rmv.apiKey, ""),
+					"Mistral Vibe",
+					() => {
+						migratedSecrets = true;
+					},
+				),
+				command: str(rmv.command, "") || D.mistralVibe.command,
+				args: sanitizeArgs(rmv.args),
+				env: normalizeEnvVars(rmv.env),
 			},
 			customAgents,
 			defaultAgentId,
@@ -1732,6 +1767,7 @@ export default class AgentClientPlugin extends Plugin {
 		ids.add(this.settings.claude.id);
 		ids.add(this.settings.codex.id);
 		ids.add(this.settings.gemini.id);
+		ids.add(this.settings.mistralVibe.id);
 		for (const agent of this.settings.customAgents) {
 			if (agent.id && agent.id.length > 0) {
 				ids.add(agent.id);
