@@ -286,9 +286,16 @@ interface ISettingsAccess {
 
 ### Add Agent Type
 1. Add settings type in `types/agent.ts`
-2. Add config and defaults in `plugin.ts`
-3. Add API key injection in `services/session-helpers.ts`
+2. Add config, defaults, normalization, and legacy-key migration in `plugin.ts`
+   (interface, `DEFAULT_SETTINGS`, `loadSettings`, `getAvailableAgents`, `collectAvailableAgentIds`)
+3. Add agent listing + API key injection in `services/session-helpers.ts`
+   (`getAvailableAgentsFromSettings`, `findAgentSettings`, `buildAgentConfigWithApiKey`)
 4. Update `ui/SettingsTab.ts` for configuration UI
+   (render section, `getAgentOptions`, `generateCustomAgentDisplayName`)
+5. Update `ui/ChatPanel.tsx`
+   (`activeAgentLabel`, `selectChatPanelSettings` + `chatPanelSettingsEqual`)
+6. Add docs: `docs/agent-setup/<agent>.md` + mentions in agent-setup index,
+   quick-start, docs index, FAQ, troubleshooting, ACP support, context files
 
 ### Modify Message Types
 1. Update `ChatMessage`/`MessageContent` in `types/chat.ts`
