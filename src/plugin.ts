@@ -1115,16 +1115,35 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	/**
-	 * Register commands for each configured agent
+	 * Register commands for each configured agent.
+	 *
+	 * All presets register unconditionally; a checkCallback hides the command
+	 * while its agent is disabled, so the palette follows the Enabled toggles
+	 * without re-registration. Custom agents remain a load-time snapshot
+	 * (a newly added custom gets its command after a reload — existing
+	 * limitation), but their enabled state is also checked live.
 	 */
 	private registerAgentCommands(): void {
-		const agents = this.getAvailableAgents();
+		const presetAgents = PRESET_AGENTS.map((def) => {
+			const preset = this.settings.presetAgents[def.presetId];
+			return {
+				id: def.presetId,
+				displayName: preset?.displayName || def.presetId,
+			};
+		});
+		const customAgents = this.settings.customAgents.map((agent) => ({
+			id: agent.id,
+			displayName: agent.displayName || agent.id,
+		}));
 
-		for (const agent of agents) {
+		for (const agent of [...presetAgents, ...customAgents]) {
 			this.addCommand({
 				id: `switch-agent-to-${agent.id}`,
 				name: `Switch agent to ${agent.displayName}`,
-				callback: () => {
+				checkCallback: (checking) => {
+					const found = findAgentSettings(this.settings, agent.id);
+					if (!found || !isAgentEnabled(found)) return false;
+					if (checking) return true;
 					this.app.workspace.trigger(
 						"agent-client:new-chat-requested",
 						this.lastActiveChatViewId,
