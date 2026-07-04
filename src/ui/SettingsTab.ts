@@ -1140,6 +1140,19 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						await this.flushSettings();
 						this.refreshAgentDropdown();
 					});
+				// Captured on focus: was the custom being edited the default
+				// agent? At blur time `defaultAgentId === presetId` is
+				// ambiguous — either onChange's keystroke-retargeting followed
+				// this edit, or the default pointed at the preset all along —
+				// and only the former should follow the repair rename.
+				let wasDefaultAtFocus = false;
+				text.inputEl.addEventListener("focus", () => {
+					const currentId =
+						this.plugin.settings.customAgents[index]?.id;
+					wasDefaultAtFocus =
+						currentId !== undefined &&
+						this.plugin.settings.defaultAgentId === currentId;
+				});
 				// Preset ids are reserved. Validate on blur, not per
 				// keystroke: onChange commits every intermediate value, so a
 				// mid-typing collision check would misfire.
@@ -1167,6 +1180,9 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						candidate = `${committed}-${suffix}`;
 					}
 					this.plugin.settings.customAgents[index].id = candidate;
+					if (wasDefaultAtFocus) {
+						this.plugin.settings.defaultAgentId = candidate;
+					}
 					text.setValue(candidate);
 					new Notice(
 						`[Agent Client] "${committed}" is reserved for a built-in agent. This custom agent was renamed to "${candidate}".`,
