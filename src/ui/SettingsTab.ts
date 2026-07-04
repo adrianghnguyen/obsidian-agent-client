@@ -1551,27 +1551,14 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	 * Renders a copyable npm install command hint below a Path setting.
 	 */
 	private addInstallHint(containerEl: HTMLElement, npmPackage: string): void {
-		const command = `npm install -g ${npmPackage}@latest`;
-		const frag = createFragment();
-		frag.appendText("Not installed? Run in terminal: ");
-		frag.createEl("code", { text: command });
-		new Setting(containerEl).setDesc(frag).addButton((btn) => {
-			btn.setButtonText("Copy").onClick(() => {
-				void navigator.clipboard.writeText(command).then(
-					() => {
-						btn.setButtonText("Copied!");
-						window.setTimeout(() => {
-							btn.setButtonText("Copy");
-						}, 1500);
-					},
-					() => undefined,
-				);
-			});
-		});
+		this.addInstallHintCustom(
+			containerEl,
+			`npm install -g ${npmPackage}@latest`,
+		);
 	}
 
 	/**
-	 * Renders a copyable install command hint below a Path setting (custom command).
+	 * Renders a copyable install command hint below a Path setting.
 	 */
 	private addInstallHintCustom(
 		containerEl: HTMLElement,
