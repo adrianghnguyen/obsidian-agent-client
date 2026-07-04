@@ -21,6 +21,20 @@ export const Platform = {
 };
 
 /**
+ * Minimal `TFile` stand-in for tests that resolve wikilinks. Only the fields
+ * the resolver reads (`path`, `basename`) plus real-class identity so that
+ * `resolved instanceof TFile` works with fixtures.
+ */
+export class TFile {
+	path: string;
+	basename: string;
+	constructor(path: string, basename: string) {
+		this.path = path;
+		this.basename = basename;
+	}
+}
+
+/**
  * Parse a YAML document. Mirrors Obsidian's `parseYaml`, which is a thin
  * wrapper over the `yaml` package.
  */
