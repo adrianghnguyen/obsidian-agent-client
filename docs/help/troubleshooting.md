@@ -88,6 +88,10 @@ The agent connected but couldn't create a session.
 2. Check if your vault path contains special characters that might cause issues
 3. Reload the plugin
 
+### An agent is missing from the agent lists
+
+If an agent doesn't appear in the switch menu, the default-agent dropdown, or the command palette, its **Enabled** toggle is probably off. Go to **Settings → Agent Client**, find the agent's section, and turn **Enabled** back on.
+
 ### "Agent Not Found" error
 
 The selected agent ID doesn't exist in settings.
