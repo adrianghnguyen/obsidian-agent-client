@@ -21,9 +21,36 @@ export const Platform = {
 };
 
 /**
+ * Minimal `TFile` stand-in for tests that resolve wikilinks. Only the fields
+ * the resolver reads (`path`, `basename`) plus real-class identity so that
+ * `resolved instanceof TFile` works with fixtures.
+ */
+export class TFile {
+	path: string;
+	basename: string;
+	constructor(path: string, basename: string) {
+		this.path = path;
+		this.basename = basename;
+	}
+}
+
+/**
  * Parse a YAML document. Mirrors Obsidian's `parseYaml`, which is a thin
  * wrapper over the `yaml` package.
  */
 export function parseYaml(content: string): unknown {
 	return parseYamlImpl(content);
+}
+
+/**
+ * Split a linktext into path + subpath. Mirrors Obsidian's `parseLinktext`:
+ * the subpath keeps its leading '#' and is '' when absent.
+ */
+export function parseLinktext(linktext: string): {
+	path: string;
+	subpath: string;
+} {
+	const hash = linktext.indexOf("#");
+	if (hash === -1) return { path: linktext, subpath: "" };
+	return { path: linktext.slice(0, hash), subpath: linktext.slice(hash) };
 }

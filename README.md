@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
 
 ## Features
 
-- **Note Mentions**: Reference your notes with `@notename` syntax
+- **Note Mentions**: Reference your notes with `@notename` syntax; the agent also sees resolved paths for `[[wikilinks]]` inside them
 - **Image Attachments**: Paste or drag-and-drop images into the chat
 - **Slash Commands**: Use `/` commands provided by your agent
 - **Multi-Agent Support**: Switch between Claude Code, Codex, Gemini CLI, Mistral Vibe, and custom agents

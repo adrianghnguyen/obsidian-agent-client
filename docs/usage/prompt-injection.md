@@ -37,6 +37,10 @@ Configure in **Settings → Agent Client → Prompt injection**:
 
 When the master toggle is off, no instructions are injected regardless of the sub-toggle states. When the master toggle is on, only the enabled sub-toggles are injected.
 
+::: warning Not the same as "Expand wikilink context"
+**Wikilink formatting** here asks the agent to *write* `[[Note Name]]` links in its replies. The separate **Mentions → Expand wikilink context** setting *resolves* `[[links]]` already inside your notes into file paths. Different direction, different setting—see [Note Mentions](/usage/mentions#expand-wikilink-context).
+:::
+
 ## Instruction Text
 
 For reference, the exact strings injected when each toggle is on:
