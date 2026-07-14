@@ -77,6 +77,18 @@ A draggable, resizable chat window that floats over your workspace. Enable it in
 
 See [Floating Chat](/usage/floating-chat) for details.
 
+## Embedded Chat Blocks
+
+Embed a live chat — or a quick-action button — directly inside a note using a fenced code block. The chat renders inline in Reading view, next to the content it is about.
+
+````md
+```agent-client
+type: chat
+```
+````
+
+See [Embeddable Agent Blocks](/usage/embeddable-blocks) for chat and button options, persistence, and examples.
+
 ## Changing Models and Modes
 
 Below the input field, you'll find dropdowns to:
