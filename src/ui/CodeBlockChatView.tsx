@@ -219,16 +219,16 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 	/**
 	 * Bounded per-frame wait for the block to be (re-)attached to the DOM,
 	 * then scroll and focus. Sections far from the scroll position may stay
-	 * pruned; give up silently after ~1s so a miss costs nothing.
+	 * pruned; give up silently after one second so a miss costs nothing.
 	 */
-	private scrollAndFocusInputWhenConnected(attemptsLeft = 60): void {
+	private scrollAndFocusInputWhenConnected(deadline = Date.now() + 1000): void {
 		if (this.containerEl.isConnected) {
 			this.scrollAndFocusInput();
 			return;
 		}
-		if (attemptsLeft <= 0) return;
+		if (Date.now() > deadline) return;
 		window.requestAnimationFrame(() =>
-			this.scrollAndFocusInputWhenConnected(attemptsLeft - 1),
+			this.scrollAndFocusInputWhenConnected(deadline),
 		);
 	}
 
