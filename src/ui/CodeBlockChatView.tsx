@@ -1,6 +1,7 @@
 import * as React from "react";
 const { useEffect, useMemo } = React;
 import { createRoot, type Root } from "react-dom/client";
+import { MarkdownView, type WorkspaceLeaf } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
 import { ChatContextProvider } from "./ChatContext";
@@ -196,6 +197,67 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 	}
 
 	focus(): void {
+		// The block can be registered yet invisible: its host note may sit in
+		// a background tab (switching notes does NOT unmount embedded blocks).
+		// Reveal the hosting leaf first — scrollIntoView and textarea.focus()
+		// are no-ops on a hidden container — mirroring ChatView.focus()'s
+		// revealLeaf and FloatingViewContainer.focus()'s expand.
+		const hostLeaf = this.findHostLeaf();
+		if (hostLeaf) {
+			void this.plugin.app.workspace.revealLeaf(hostLeaf).then(() => {
+				// The re-shown view re-attaches pruned sections with a delay
+				// that is not observable up front (one frame is measurably too
+				// short: focus() on a detached textarea is a silent no-op).
+				// Wait per frame, bounded, until the block is back in the DOM.
+				this.scrollAndFocusInputWhenConnected();
+			});
+			return;
+		}
+		this.scrollAndFocusInput();
+	}
+
+	/**
+	 * Bounded per-frame wait for the block to be (re-)attached to the DOM,
+	 * then scroll and focus. Sections far from the scroll position may stay
+	 * pruned; give up silently after ~1s so a miss costs nothing.
+	 */
+	private scrollAndFocusInputWhenConnected(attemptsLeft = 60): void {
+		if (this.containerEl.isConnected) {
+			this.scrollAndFocusInput();
+			return;
+		}
+		if (attemptsLeft <= 0) return;
+		window.requestAnimationFrame(() =>
+			this.scrollAndFocusInputWhenConnected(attemptsLeft - 1),
+		);
+	}
+
+	/**
+	 * The markdown leaf hosting this block, or null (e.g. a rendering context
+	 * that is not a leaf). DOM containment is tried first: while the block is
+	 * visible it picks the exact tab even when the same note is open in
+	 * multiple tabs, so revealLeaf stays a no-op for the tab the user is
+	 * already looking at. Containment fails while the block is detached —
+	 * background tabs are pruned from the preview DOM (verified 2026-07-15:
+	 * containerEl.isConnected === false) — so fall back to matching the
+	 * leaf's file against sourcePath.
+	 */
+	private findHostLeaf(): WorkspaceLeaf | null {
+		const leaves = this.plugin.app.workspace.getLeavesOfType("markdown");
+		return (
+			leaves.find((leaf) =>
+				leaf.view.containerEl.contains(this.containerEl),
+			) ??
+			leaves.find(
+				(leaf) =>
+					leaf.view instanceof MarkdownView &&
+					leaf.view.file?.path === this.sourcePath,
+			) ??
+			null
+		);
+	}
+
+	private scrollAndFocusInput(): void {
 		this.containerEl.scrollIntoView({ block: "nearest" });
 		window.requestAnimationFrame(() => {
 			const textarea = this.containerEl.querySelector(
