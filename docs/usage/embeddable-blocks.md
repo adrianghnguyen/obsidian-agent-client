@@ -2,6 +2,10 @@
 
 Drop a live agent chat or a quick-action button straight into a note using a fenced code block. The block renders inline in Reading view, so the chat lives next to the content it is about.
 
+<p align="center">
+  <img src="/images/embedded-chat-block.webp" alt="An embedded chat running inside a note in Reading view" width="600" />
+</p>
+
 ## Fence Languages
 
 A block is written as a fenced code block whose language is either `agent-client` or `agent`. The two are interchangeable aliases for the same renderer — pick whichever reads better in your note.
@@ -39,6 +43,10 @@ An **empty body** renders a default chat block — so the shortest possible embe
 ## Chat Blocks
 
 A chat block (`type: chat`, or no `type` at all) mounts a fully interactive chat inside the note.
+
+<p align="center">
+  <img src="/images/embedded-block-source-vs-rendered.webp" alt="The rendered chat in Reading view side by side with its YAML fence in Source mode" />
+</p>
 
 ### Options
 
@@ -102,6 +110,10 @@ autoSend: true
 ```
 ````
 
+<p align="center">
+  <img src="/images/agent-button-block.webp" alt="A rendered quick-action button block in a note" width="400" />
+</p>
+
 ### Options
 
 | Option | Type | Required | Default | Description |
@@ -122,7 +134,11 @@ autoSend: true
 | `right-pane` | `right`, `right-tab` | The right sidebar |
 | `floating` | `float`, `floating-chat` | A floating chat window |
 | `editor-tab` | `tab` | A normal editor tab |
-| `embedded` | `embed`, `embeddable` | An embedded view |
+| `embedded` | `embed`, `embeddable` | The nearest embedded chat block in the same note |
+
+::: tip How `viewType: embedded` finds its target
+`embedded` does not open a new view — it delivers the prompt to the nearest **existing** chat block in the same note (looking above the button first, then below). If the note contains no embedded chat block, a notice is shown and nothing opens.
+:::
 
 ## Validation and Warnings {#validation-and-warnings}
 
@@ -144,7 +160,8 @@ Optional, "soft" fields never break the block. When their value is unrecognized,
 
 - `persist` and `autoSend` accept `true`/`false`, `yes`/`no`, `on`/`off`, and `1`/`0`, **case-insensitive**. An unrecognized value defaults to `false` with a warning. (An absent value simply defaults to `false`, no warning.)
 - An unrecognized `height` is ignored, falling back to the default, with a warning.
-- An **unknown `agent` id** falls back to the default agent, with a warning.
+- An **unknown `agent` id** always shows a warning, but what happens next depends on the block type: a **button** block falls back to the default agent, while a **chat** block keeps the pinned id and fails to start — fix the agent id in **Settings → Agent Client**.
+- A **disabled agent** that a block pins explicitly is still used — pinning overrides the enabled toggle — with a warning noting it is disabled in settings.
 
 ## Examples
 
