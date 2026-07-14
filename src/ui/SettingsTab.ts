@@ -40,7 +40,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	/**
 	 * Open agent sections ("preset:<id>" / "custom:<id>"). Deliberately
 	 * non-persisted (cleared on hide), but held on the instance so
-	 * refreshDisplay() calls from in-section actions (Auto-detect, the WSL
+	 * renderContent() calls from in-section actions (Auto-detect, the WSL
 	 * toggle) re-render sections in their current open state instead of
 	 * collapsing everything.
 	 */
@@ -52,16 +52,25 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * Re-renders the settings tab. Wraps the deprecated display() call so the
-	 * suppression lives in one place until Obsidian 1.13 leaves Catalyst beta
-	 * and the tab can migrate to getSettingDefinitions().
+	 * Obsidian's entry point for rendering the tab. Kept as a thin delegate:
+	 * SettingTab.display() is deprecated since Obsidian 1.13, so internal
+	 * re-renders must call renderContent() directly — a this.display() call
+	 * would trip @typescript-eslint/no-deprecated (an error in the obsidianmd
+	 * config), and Obsidian's plugin review rejects disabling that rule.
+	 * Overriding the method itself is lint-clean. Migrate to
+	 * getSettingDefinitions() once Obsidian 1.13 leaves Catalyst beta.
 	 */
-	private refreshDisplay(): void {
-		// eslint-disable-next-line @typescript-eslint/no-deprecated -- migrate to getSettingDefinitions once Obsidian 1.13 leaves Catalyst beta
-		this.display();
+	display(): void {
+		this.renderContent();
 	}
 
-	display(): void {
+	/**
+	 * Full render of the settings tab into containerEl. Called by display()
+	 * (Obsidian's entry point) and directly by in-tab actions that need a
+	 * re-render (visibility toggles, custom agent add/delete, auto-detect).
+	 * Same delegation shape as SessionHistoryModal.renderContent().
+	 */
+	private renderContent(): void {
 		const { containerEl } = this;
 
 		containerEl.empty();
@@ -386,7 +395,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								autoCollapseDiffs: value,
 							},
 						});
-						this.refreshDisplay();
+						this.renderContent();
 					}),
 			);
 
@@ -535,7 +544,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.promptInjection.enabled = value;
 						await this.plugin.saveSettings();
-						this.refreshDisplay();
+						this.renderContent();
 					}),
 			);
 
@@ -607,7 +616,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							await this.plugin.settingsService.updateSettings({
 								windowsWslMode: value,
 							});
-							this.refreshDisplay(); // Refresh to show/hide distribution setting
+							this.renderContent(); // Refresh to show/hide distribution setting
 						}),
 				);
 
@@ -728,7 +737,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								includeImages: value,
 							},
 						});
-						this.refreshDisplay();
+						this.renderContent();
 					}),
 			);
 
@@ -760,7 +769,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 										| "base64",
 								},
 							});
-							this.refreshDisplay();
+							this.renderContent();
 						}),
 				);
 
@@ -970,7 +979,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	/**
 	 * Move a custom section's open state when its agent id changes. Without
 	 * this, a section renamed while open stays keyed under the old id and
-	 * the next refreshDisplay() collapses it mid-edit.
+	 * the next renderContent() collapses it mid-edit.
 	 */
 	private rekeyOpenSection(oldId: string, newId: string): void {
 		if (oldId === newId) {
@@ -985,7 +994,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	 * "Enabled" toggle rendered into an agent section's summary row.
 	 * Refuses to disable the last enabled agent (Notice + revert). After the
 	 * write, re-validates the default agent and refreshes the default-agent
-	 * dropdown in place — no refreshDisplay(), so open sections, scroll,
+	 * dropdown in place — no renderContent(), so open sections, scroll,
 	 * and focus are kept.
 	 */
 	private addEnabledToggleControl(
@@ -1272,7 +1281,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					this.openSections.add(`custom:${newId}`);
 					this.plugin.ensureDefaultAgentId();
 					await this.flushSettings();
-					this.refreshDisplay();
+					this.renderContent();
 				});
 		});
 	}
@@ -1313,7 +1322,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						this.plugin.ensureAtLeastOneEnabled();
 						this.plugin.ensureDefaultAgentId();
 						await this.flushSettings();
-						this.refreshDisplay();
+						this.renderContent();
 					});
 			},
 		);
@@ -1590,7 +1599,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							: await resolveCommandPath(commandName);
 						if (found) {
 							await onResolved(found);
-							this.refreshDisplay();
+							this.renderContent();
 						} else {
 							btn.setButtonText("Not found");
 							window.setTimeout(() => {
