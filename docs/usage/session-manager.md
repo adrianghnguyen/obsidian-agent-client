@@ -51,7 +51,7 @@ Each session entry shows an icon reflecting its current state:
 
 ### Switch to a Session
 
-Click any session entry to focus that chat view. If the view is in the sidebar, Obsidian reveals it. If it is a floating window, it is brought to the front. If it is an embedded chat block, its host note is brought to the front, scrolled to the block, and the chat input is focused.
+Click any session entry to focus that chat view. Sidebar views are revealed by Obsidian, floating windows are brought to the front, and embedded chat blocks bring their host note forward, scroll to the block, and focus the chat input.
 
 ### Session Menu
 
