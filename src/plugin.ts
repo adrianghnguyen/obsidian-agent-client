@@ -772,7 +772,17 @@ export default class AgentClientPlugin extends Plugin {
 		initialExpanded = false,
 		initialPosition?: { x: number; y: number },
 		initialAgentId?: string,
-	): FloatingViewContainer {
+	): FloatingViewContainer | null {
+		// Single choke point for the setting: commands, the floating button,
+		// and the onload bootstrap are already gated upstream, but agent
+		// buttons and the in-window "new window" action are not. A window
+		// created while the feature is off becomes unreachable after a
+		// minimize (the button and every floating command are hidden or
+		// disabled with the setting), so refuse creation outright.
+		if (!this.settings.enableFloatingChat) {
+			new Notice("[Agent Client] Floating chat is disabled in settings.");
+			return null;
+		}
 		// instanceId is just the counter (e.g., "0", "1", "2")
 		// FloatingViewContainer will create viewId as "floating-chat-{instanceId}"
 		const instanceId = String(this.floatingChatCounter++);
@@ -1064,7 +1074,7 @@ export default class AgentClientPlugin extends Plugin {
 				undefined,
 				agentId,
 			);
-			targetViewId = container.viewId;
+			targetViewId = container?.viewId ?? null;
 		} else if (viewType === "editor-tab") {
 			const leaf = this.app.workspace.getLeaf("tab");
 			await leaf.setViewState({
