@@ -1341,20 +1341,23 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				text.setPlaceholder("custom-agent")
 					.setValue(agent.id)
 					.onChange(async (value) => {
+						const trimmed = value.trim();
+						// An empty field is a transient state while retyping,
+						// not a committable id — keep the last valid id in
+						// settings and let the user keep typing. The blur
+						// handler below restores the field if it is abandoned
+						// empty.
+						if (trimmed.length === 0) {
+							return;
+						}
 						const previousId =
 							this.plugin.settings.customAgents[index].id;
-						const trimmed = value.trim();
-						let nextId = trimmed;
-						if (nextId.length === 0) {
-							nextId = this.generateCustomAgentId();
-							text.setValue(nextId);
-						}
-						this.plugin.settings.customAgents[index].id = nextId;
-						this.rekeyOpenSection(previousId, nextId);
+						this.plugin.settings.customAgents[index].id = trimmed;
+						this.rekeyOpenSection(previousId, trimmed);
 						if (
 							this.plugin.settings.defaultAgentId === previousId
 						) {
-							this.plugin.settings.defaultAgentId = nextId;
+							this.plugin.settings.defaultAgentId = trimmed;
 						}
 						this.plugin.ensureDefaultAgentId();
 						await this.flushSettings();
@@ -1377,6 +1380,20 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				// keystroke: onChange commits every intermediate value, so a
 				// mid-typing collision check would misfire.
 				text.inputEl.addEventListener("blur", () => {
+					// Restore an abandoned-empty field: onChange skips empty
+					// values (transient while retyping), so settings still
+					// hold the last valid id — put it back into the visible
+					// field. Settings are unchanged, so no commit is needed.
+					// Fall through to the preset-collision check: the
+					// committed id may still be a reserved preset id (typed,
+					// committed, then emptied before this blur).
+					if (text.getValue().trim().length === 0) {
+						const currentId =
+							this.plugin.settings.customAgents[index]?.id;
+						if (currentId) {
+							text.setValue(currentId);
+						}
+					}
 					const committed =
 						this.plugin.settings.customAgents[index]?.id;
 					if (
