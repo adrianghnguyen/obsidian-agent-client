@@ -32,6 +32,7 @@ import {
 import { AgentClientSettingTab } from "./ui/SettingsTab";
 import { AcpClient } from "./acp/acp-client";
 import {
+	absorbCustomAgents,
 	normalizeCustomAgent,
 	ensureUniqueCustomAgentIds,
 	normalizePresetAgents,
@@ -1355,6 +1356,19 @@ export default class AgentClientPlugin extends Plugin {
 		const D = DEFAULT_SETTINGS;
 		let migratedSecrets = false;
 
+		// Docs-advised custom agents (e.g. the OpenCode recipe our docs
+		// carried before the preset existed) migrate into their new preset
+		// entries. Must run before ensureUniqueCustomAgentIds renames the
+		// colliding custom to "{id}-2".
+		const absorption = absorbCustomAgents(raw, PRESET_AGENTS);
+		raw.customAgents = absorption.customAgents;
+		raw.presetAgents = absorption.presetAgents;
+		for (const entry of absorption.absorbed) {
+			new Notice(
+				`[Agent Client] ${entry.displayName} is now a preset agent — your custom agent settings were migrated.`,
+			);
+		}
+
 		// Extract settings sub-objects
 		const re = obj(raw.exportSettings) ?? {};
 		const rd = obj(raw.displaySettings) ?? {};
@@ -1545,7 +1559,7 @@ export default class AgentClientPlugin extends Plugin {
 		this.ensureAtLeastOneEnabled();
 		this.ensureDefaultAgentId();
 
-		if (migratedSecrets) {
+		if (migratedSecrets || absorption.absorbed.length > 0) {
 			await this.saveSettings();
 		}
 	}

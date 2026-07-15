@@ -58,6 +58,9 @@ function makeSettings(
 				args: ["--experimental-acp"],
 			}),
 			"mistral-vibe": preset("mistral-vibe", "Mistral Vibe", "vibe-acp"),
+			opencode: preset("opencode", "OpenCode", "opencode", {
+				args: ["acp"],
+			}),
 		},
 		customAgents: [],
 		defaultAgentId: "",
@@ -66,7 +69,7 @@ function makeSettings(
 }
 
 describe("getAvailableAgentsFromSettings", () => {
-	it("enumerates the four presets in order, then customs", () => {
+	it("enumerates the presets in registry order, then customs", () => {
 		const settings = makeSettings({
 			customAgents: [custom("my-custom", "My Custom")],
 		});
@@ -75,6 +78,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			{ id: "codex-acp", displayName: "Codex" },
 			{ id: "gemini-cli", displayName: "Gemini CLI" },
 			{ id: "mistral-vibe", displayName: "Mistral Vibe" },
+			{ id: "opencode", displayName: "OpenCode" },
 			{ id: "my-custom", displayName: "My Custom" },
 		]);
 	});
@@ -104,6 +108,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			"claude-code-acp",
 			"gemini-cli",
 			"mistral-vibe",
+			"opencode",
 			"my-custom",
 		]);
 	});
@@ -122,6 +127,7 @@ describe("getAllAgentsFromSettings", () => {
 			{ id: "codex-acp", displayName: "Codex" },
 			{ id: "gemini-cli", displayName: "Gemini CLI" },
 			{ id: "mistral-vibe", displayName: "Mistral Vibe" },
+			{ id: "opencode", displayName: "OpenCode" },
 			{ id: "off-custom", displayName: "Off Custom" },
 		]);
 	});
@@ -188,15 +194,15 @@ describe("findAgentSettings", () => {
 
 	it("does not let a preserved unknown presetAgents entry shadow a same-id custom", () => {
 		const settings = makeSettings({
-			customAgents: [custom("opencode", "My OpenCode")],
+			customAgents: [custom("future-preset", "My Future Agent")],
 		});
-		settings.presetAgents.opencode = preset(
-			"opencode",
+		settings.presetAgents["future-preset"] = preset(
+			"future-preset",
 			"Stale Synced Entry",
-			"opencode",
+			"future-preset",
 		);
-		expect(findAgentSettings(settings, "opencode")?.displayName).toBe(
-			"My OpenCode",
+		expect(findAgentSettings(settings, "future-preset")?.displayName).toBe(
+			"My Future Agent",
 		);
 	});
 

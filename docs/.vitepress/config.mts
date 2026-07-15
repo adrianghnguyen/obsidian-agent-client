@@ -60,6 +60,7 @@ export default defineConfig({
           { text: "Codex", link: "/agent-setup/codex" },
           { text: "Gemini CLI", link: "/agent-setup/gemini-cli" },
           { text: "Mistral Vibe", link: "/agent-setup/mistral-vibe" },
+          { text: "OpenCode", link: "/agent-setup/opencode" },
           { text: "Custom Agents", link: "/agent-setup/custom-agents" },
         ],
       },

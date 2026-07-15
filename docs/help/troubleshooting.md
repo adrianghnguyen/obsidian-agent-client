@@ -56,6 +56,9 @@ The agent requires authentication before processing requests.
 - Open **Settings → Agent Client → Preset agents → Mistral Vibe → API key**, click **Link...**, and link or create a secret. See [Mistral Vibe Setup](/agent-setup/mistral-vibe#authentication).
 - Or run `vibe` in Terminal first to authenticate with your Mistral account
 
+**For OpenCode:**
+- Run `opencode` in Terminal and use the `/connect` command to configure a provider (there is no API key field in the plugin). See [OpenCode Setup](/agent-setup/opencode#authentication).
+
 ### "No Authentication Methods" error
 
 The agent didn't provide authentication options.
