@@ -192,6 +192,21 @@ export const PRESET_AGENTS: readonly PresetAgentDefinition[] = [
 		},
 		docsPage: "mistral-vibe",
 	},
+	{
+		presetId: "opencode",
+		defaultDisplayName: "OpenCode",
+		defaultCommand: "opencode",
+		defaultArgs: ["acp"],
+		installHint: {
+			default: "curl -fsSL https://opencode.ai/install | bash",
+			nativeWindows: "npm install -g opencode-ai",
+		},
+		settingsCopy: {
+			pathDesc:
+				'Command name or path to opencode. Use just "opencode" to let the login shell resolve it, or enter an absolute path.',
+		},
+		docsPage: "opencode",
+	},
 ];
 
 /**
