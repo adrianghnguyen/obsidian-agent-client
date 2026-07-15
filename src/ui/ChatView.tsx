@@ -331,6 +331,14 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	 * ChatPanel as a prop change and its mount-init guard re-initializes.
 	 */
 	private renderPanel(): void {
+		// Any render supersedes the pending fallback mount: cancel it so it
+		// cannot fire a redundant re-render after setState already mounted
+		// the panel (on the normal path the timer always loses this race —
+		// the setState chain is microtasks, the timer a macrotask).
+		if (this.mountFallbackTimer !== null) {
+			window.clearTimeout(this.mountFallbackTimer);
+			this.mountFallbackTimer = null;
+		}
 		if (!this.root) {
 			const container = this.containerEl.children[1];
 			container.empty();
