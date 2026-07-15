@@ -54,7 +54,7 @@ function AgentButtonBlockComponent({
 			});
 		} catch (error) {
 			console.error("[Agent Client] runPromptInChat failed:", error);
-			new Notice("Failed to open chat with prompt.");
+			new Notice("[Agent Client] Failed to open chat with prompt.");
 		}
 	}, [
 		plugin,

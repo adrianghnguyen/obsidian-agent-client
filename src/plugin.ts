@@ -771,11 +771,28 @@ export default class AgentClientPlugin extends Plugin {
 	openNewFloatingChat(
 		initialExpanded = false,
 		initialPosition?: { x: number; y: number },
-	): void {
+		initialAgentId?: string,
+	): FloatingViewContainer | null {
+		// Single choke point for the setting: commands, the floating button,
+		// and the onload bootstrap are already gated upstream, but agent
+		// buttons and the in-window "new window" action are not. A window
+		// created while the feature is off becomes unreachable after a
+		// minimize (the button and every floating command are hidden or
+		// disabled with the setting), so refuse creation outright.
+		if (!this.settings.enableFloatingChat) {
+			new Notice("[Agent Client] Floating chat is disabled in settings.");
+			return null;
+		}
 		// instanceId is just the counter (e.g., "0", "1", "2")
 		// FloatingViewContainer will create viewId as "floating-chat-{instanceId}"
 		const instanceId = String(this.floatingChatCounter++);
-		createFloatingChat(this, instanceId, initialExpanded, initialPosition);
+		return createFloatingChat(
+			this,
+			instanceId,
+			initialExpanded,
+			initialPosition,
+			initialAgentId,
+		);
 	}
 
 	findNearestEmbeddedChat(
@@ -1048,13 +1065,18 @@ export default class AgentClientPlugin extends Plugin {
 					? this.findNearestEmbeddedChat(sourcePath, lineStart)
 					: null;
 			if (!targetViewId) {
-				new Notice("No embedded chat block found in this note.");
+				new Notice(
+					"[Agent Client] No embedded chat block found in this note.",
+				);
 				return;
 			}
 		} else if (viewType === "floating") {
-			const counterBefore = this.floatingChatCounter;
-			this.openNewFloatingChat(true);
-			targetViewId = `floating-chat-${counterBefore}`;
+			const container = this.openNewFloatingChat(
+				true,
+				undefined,
+				agentId,
+			);
+			targetViewId = container?.viewId ?? null;
 		} else if (viewType === "editor-tab") {
 			const leaf = this.app.workspace.getLeaf("tab");
 			await leaf.setViewState({
