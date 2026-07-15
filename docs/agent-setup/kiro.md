@@ -62,7 +62,7 @@ kiro-cli login
 API keys are available on Kiro Pro and higher tiers:
 
 1. Generate a key at [app.kiro.dev](https://app.kiro.dev)
-2. Enter it in **Settings → Agent Client → Kiro → API key** (stored in Obsidian's Keychain)
+2. Enter it in **Settings → Agent Client → Preset agents → Kiro → API key** (stored in Obsidian's Keychain)
 
 A signed-in session takes precedence over the API key, so setting a key never breaks an existing login.
 
