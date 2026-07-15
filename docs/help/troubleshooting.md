@@ -59,6 +59,9 @@ The agent requires authentication before processing requests.
 **For OpenCode:**
 - Run `opencode` in Terminal and use the `/connect` command to configure a provider (there is no API key field in the plugin). See [OpenCode Setup](/agent-setup/opencode#authentication).
 
+**For Kiro:**
+- Run `kiro-cli login` in Terminal first to sign in, or link an API key (Kiro Pro and higher tiers) in **Settings → Agent Client → Preset agents → Kiro → API key**. See [Kiro Setup](/agent-setup/kiro#authentication).
+
 ### "No Authentication Methods" error
 
 The agent didn't provide authentication options.

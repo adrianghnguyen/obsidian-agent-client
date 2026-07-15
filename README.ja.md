@@ -16,7 +16,7 @@
   <a href="https://www.buymeacoffee.com/rait09" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="180" height="50" ></a>
 </p>
 
-AIエージェント（Claude Code、Codex、Gemini CLI、Mistral Vibe、OpenCode）をObsidianに直接統合。Vault内からAIアシスタントとチャットできます。
+AIエージェント（Claude Code、Codex、Gemini CLI、Mistral Vibe、OpenCode、Kiro）をObsidianに直接統合。Vault内からAIアシスタントとチャットできます。
 
 このプラグインは、Zed の [Agent Client Protocol (ACP)](https://github.com/agentclientprotocol/agent-client-protocol) で構築されています。
 
@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
 - **ノートメンション**: `@ノート名`でノートを参照（ノート内の `[[wikilink]]` の解決済みパスもエージェントに渡る）
 - **画像添付**: チャットに画像をペーストまたはドラッグ&ドロップ
 - **スラッシュコマンド**: エージェントが提供する`/`コマンドを使用
-- **マルチエージェント**: Claude Code、Codex、Gemini CLI、Mistral Vibe、OpenCode、カスタムエージェントを切り替え
+- **マルチエージェント**: Claude Code、Codex、Gemini CLI、Mistral Vibe、OpenCode、Kiro、カスタムエージェントを切り替え
 - **マルチセッション**: 複数のエージェントを別々のビューで同時実行
 - **フローティングチャット**: 素早くアクセスできる折りたたみ可能なチャットウィンドウ
 - **モード・モデル切り替え**: チャット画面からAIモデルやエージェントモードを変更
@@ -98,7 +98,8 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
 - [Gemini CLI](https://rait-09.github.io/obsidian-agent-client/agent-setup/gemini-cli.html)
 - [Mistral Vibe](https://rait-09.github.io/obsidian-agent-client/agent-setup/mistral-vibe.html)
 - [OpenCode](https://rait-09.github.io/obsidian-agent-client/agent-setup/opencode.html)
-- [カスタムエージェント](https://rait-09.github.io/obsidian-agent-client/agent-setup/custom-agents.html)（Qwen Code、Kiroなど）
+- [Kiro](https://rait-09.github.io/obsidian-agent-client/agent-setup/kiro.html)
+- [カスタムエージェント](https://rait-09.github.io/obsidian-agent-client/agent-setup/custom-agents.html)（Qwen Codeなど）
 
 **[ドキュメント全文](https://rait-09.github.io/obsidian-agent-client/)**
 

@@ -1,7 +1,7 @@
 # Agent Client Plugin - LLM Developer Guide
 
 ## Overview
-Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, custom agents) via ACP.
+Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, custom agents) via ACP.
 
 **Tech**: React 19, TypeScript, Obsidian API, Agent Client Protocol (ACP)
 
@@ -335,6 +335,7 @@ interface ISettingsAccess {
 - Gemini CLI: `@google/gemini-cli` (GEMINI_API_KEY)
 - Mistral Vibe: `mistral-vibe` (MISTRAL_API_KEY)
 - OpenCode: `opencode-ai` (CLI-managed auth, no API key env)
+- Kiro: `kiro-cli` install script (KIRO_API_KEY, optional)
 - Custom: Any ACP-compatible agent
 
 ---

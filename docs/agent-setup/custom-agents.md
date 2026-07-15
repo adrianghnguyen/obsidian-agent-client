@@ -4,7 +4,7 @@ You can use any agent that implements the [Agent Client Protocol (ACP)](https://
 
 ## Install and Configure
 
-1. Install your ACP-compatible agent (e.g., [Qwen Code](https://github.com/QwenLM/qwen-code), [Kiro](https://kiro.dev/)).
+1. Install your ACP-compatible agent (e.g., [Qwen Code](https://github.com/QwenLM/qwen-code)).
 
 2. Open **Settings → Agent Client** and scroll to **Custom Agents** section.
 
@@ -19,8 +19,8 @@ You can use any agent that implements the [Agent Client Protocol (ACP)](https://
 
 ## Configuration Examples
 
-::: tip OpenCode
-OpenCode is now a built-in preset — see [OpenCode Setup](./opencode). If you previously configured it here as a custom agent with the id `opencode`, your settings migrate to the preset automatically.
+::: tip OpenCode and Kiro
+OpenCode and Kiro are now built-in presets — see [OpenCode Setup](./opencode) and [Kiro Setup](./kiro). If you previously configured them here as custom agents (ids `opencode` / `kiro-cli`), your settings migrate to the presets automatically.
 :::
 
 ### Qwen Code
@@ -31,16 +31,6 @@ OpenCode is now a built-in preset — see [OpenCode Setup](./opencode). If you p
 | **Display name** | `Qwen Code` |
 | **Path** | `qwen` |
 | **Arguments** | `--experimental-acp` |
-| **Environment variables** | (optional) |
-
-### Kiro
-
-| Field | Value |
-|-------|-------|
-| **Agent ID** | `kiro-cli` |
-| **Display name** | `Kiro` |
-| **Path** | `kiro-cli` |
-| **Arguments** | `acp` |
 | **Environment variables** | (optional) |
 
 ## Authentication
