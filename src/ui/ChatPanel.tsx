@@ -342,13 +342,14 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// conversation before restoring it (prevents a restart loop).
 	const persistRestartedRef = useRef(false);
 	// Gate the mount-init session-creation effect: run on first mount, then
-	// re-run ONLY when the resolved agent identity actually changes. The
-	// sidebar mounts after Obsidian delivers its view state (ChatView.
-	// renderPanel), so initialAgentId is normally static — but a late
-	// setState after the fallback mount can still change it, and keying on
-	// the agent ignores agentCwd-driven agent.createSession reference churn,
-	// which is what caused the persist-restore re-spawn race. A bare
-	// run-once boolean would break both paths.
+	// re-run ONLY when an explicit directive (embedded config pin or the
+	// view state's initialAgentId) names a different agent than the last
+	// launch. The sidebar mounts after Obsidian delivers its view state
+	// (ChatView.renderPanel), so initialAgentId is normally static — but a
+	// late setState after the fallback mount can still change it, and the
+	// guard must keep ignoring agentCwd-driven agent.createSession reference
+	// churn (the persist-restore re-spawn race). A bare run-once boolean
+	// would break the late-setState path.
 	const hasInitializedRef = useRef(false);
 	const lastInitAgentRef = useRef<string | undefined>(undefined);
 
@@ -760,24 +761,27 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// ============================================================
 	// Initialize session on mount
 	useEffect(() => {
-		// Resolve the effective agent BEFORE comparing, so the guard always
-		// keys on a concrete id. The sidebar now mounts after its view state
-		// arrives, but this stays as a defense layer: if the fallback mount
-		// ran first (setState never arrived or arrived late), the first run
-		// sees undefined here, and a later setState delivering an id that
-		// resolves to the same default must compare equal — otherwise it
-		// would re-run createSession and kill the first process
-		// mid-initialize ("ACP connection closed").
-		const resolvedAgent =
-			config?.agent ||
-			initialAgentId ||
-			getDefaultAgentId(plugin.settingsService.getSnapshot());
+		// Only an explicit directive — the embedded config pin or the view
+		// state's initialAgentId — may re-run init after mount, and only
+		// when it names a different agent than the one this effect last
+		// launched. The ambient default is resolved once, at launch; it must
+		// NOT be re-resolved for the comparison, or a settings change (new
+		// or disabled default agent) would turn an unrelated effect re-run —
+		// agentCwd churn from restoring a session in another directory —
+		// into a rogue createSession that kills the live session. The
+		// directive comparison still covers the fallback-mount path: a late
+		// setState delivering the id the default already resolved to
+		// compares equal to lastInitAgentRef and is skipped.
+		const directive = config?.agent || initialAgentId;
 		if (
 			hasInitializedRef.current &&
-			lastInitAgentRef.current === resolvedAgent
+			(!directive || directive === lastInitAgentRef.current)
 		) {
 			return;
 		}
+		const resolvedAgent =
+			directive ||
+			getDefaultAgentId(plugin.settingsService.getSnapshot());
 		hasInitializedRef.current = true;
 		lastInitAgentRef.current = resolvedAgent;
 		logger.log("[Debug] Starting connection setup via useSession...");
