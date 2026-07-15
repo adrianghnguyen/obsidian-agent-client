@@ -342,11 +342,13 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// conversation before restoring it (prevents a restart loop).
 	const persistRestartedRef = useRef(false);
 	// Gate the mount-init session-creation effect: run on first mount, then
-	// re-run ONLY when the resolved agent identity actually changes (e.g. the
-	// sidebar's onAgentIdRestored late-applies a persisted agent). A bare
-	// run-once boolean would break that restoration path; keying on the agent
-	// still ignores agentCwd-driven agent.createSession reference churn, which
-	// is what caused the persist-restore re-spawn race.
+	// re-run ONLY when the resolved agent identity actually changes. The
+	// sidebar mounts after Obsidian delivers its view state (ChatView.
+	// renderPanel), so initialAgentId is normally static — but a late
+	// setState after the fallback mount can still change it, and keying on
+	// the agent ignores agentCwd-driven agent.createSession reference churn,
+	// which is what caused the persist-restore re-spawn race. A bare
+	// run-once boolean would break both paths.
 	const hasInitializedRef = useRef(false);
 	const lastInitAgentRef = useRef<string | undefined>(undefined);
 
@@ -758,14 +760,14 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// ============================================================
 	// Initialize session on mount
 	useEffect(() => {
-		// Resolve the effective agent BEFORE comparing: the sidebar's React
-		// root can mount before Obsidian's setState delivers initialAgentId,
-		// so the first run sees undefined and spawns the default agent. When
-		// the persisted id arrives a moment later and resolves to that same
-		// default, an unresolved comparison (undefined !== id) would re-run
-		// createSession and kill the first process mid-initialize — the
-		// "ACP connection closed" banner. Resolving both runs to a concrete
-		// id makes them comparable.
+		// Resolve the effective agent BEFORE comparing, so the guard always
+		// keys on a concrete id. The sidebar now mounts after its view state
+		// arrives, but this stays as a defense layer: if the fallback mount
+		// ran first (setState never arrived or arrived late), the first run
+		// sees undefined here, and a later setState delivering an id that
+		// resolves to the same default must compare equal — otherwise it
+		// would re-run createSession and kill the first process
+		// mid-initialize ("ACP connection closed").
 		const resolvedAgent =
 			config?.agent ||
 			initialAgentId ||
