@@ -149,15 +149,6 @@ If your plugin does not need CSS, delete this file.
 	text-decoration: underline;
 }
 
-/* ===== Settings Tab Custom Agent Block ===== */
-.agent-client-custom-agent {
-	padding: 16px;
-	margin-bottom: 24px;
-	background-color: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-}
-
 /* ===== Settings Tab Collapsible Agent Sections ===== */
 .agent-client-agent-summary {
 	display: flex;
@@ -165,13 +156,6 @@ If your plugin does not need CSS, delete this file.
 	gap: var(--size-4-2);
 	padding: var(--size-4-2) 0;
 	border-top: 1px solid var(--background-modifier-border);
-}
-
-/* Inside the bordered custom-agent card the border-top double-lines with
-   the card border — drop it there. */
-.agent-client-custom-agent .agent-client-agent-summary {
-	border-top: none;
-	padding-top: 0;
 }
 
 /* Text-like button: the summary is a real <button> for keyboard/focus,
