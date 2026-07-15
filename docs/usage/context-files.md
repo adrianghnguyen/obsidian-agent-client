@@ -21,6 +21,7 @@ Each agent uses its own context file:
 | Gemini CLI | `GEMINI.md` |
 | Mistral Vibe | `AGENTS.md` |
 | OpenCode | `AGENTS.md` (falls back to `CLAUDE.md`) |
+| Kiro | `AGENTS.md` (also `.kiro/steering/*.md`) |
 
 Place the context file in your **vault root** to have the agent read it automatically.
 

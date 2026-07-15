@@ -276,6 +276,25 @@ describe("absorbCustomAgents", () => {
 		});
 	});
 
+	it("absorbs the docs-advised kiro-cli custom the same way", () => {
+		const kiroCustom = {
+			id: "kiro-cli",
+			displayName: "My Kiro",
+			command: "/opt/kiro-cli",
+			args: ["acp"],
+			env: [{ key: "KIRO_LOG_LEVEL", value: "debug" }],
+		};
+		const result = absorbCustomAgents(
+			{ customAgents: [kiroCustom] },
+			PRESET_AGENTS,
+		);
+		expect(result.absorbed).toEqual([
+			{ presetId: "kiro-cli", displayName: "Kiro" },
+		]);
+		expect(result.customAgents).toEqual([]);
+		expect(result.presetAgents["kiro-cli"]).toBe(kiroCustom);
+	});
+
 	it("skips when the preset already has a stored entry", () => {
 		const raw = {
 			presetAgents: { opencode: { command: "opencode" } },

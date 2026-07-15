@@ -61,6 +61,9 @@ function makeSettings(
 			opencode: preset("opencode", "OpenCode", "opencode", {
 				args: ["acp"],
 			}),
+			"kiro-cli": preset("kiro-cli", "Kiro", "kiro-cli", {
+				args: ["acp"],
+			}),
 		},
 		customAgents: [],
 		defaultAgentId: "",
@@ -79,6 +82,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			{ id: "gemini-cli", displayName: "Gemini CLI" },
 			{ id: "mistral-vibe", displayName: "Mistral Vibe" },
 			{ id: "opencode", displayName: "OpenCode" },
+			{ id: "kiro-cli", displayName: "Kiro" },
 			{ id: "my-custom", displayName: "My Custom" },
 		]);
 	});
@@ -109,6 +113,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			"gemini-cli",
 			"mistral-vibe",
 			"opencode",
+			"kiro-cli",
 			"my-custom",
 		]);
 	});
@@ -128,6 +133,7 @@ describe("getAllAgentsFromSettings", () => {
 			{ id: "gemini-cli", displayName: "Gemini CLI" },
 			{ id: "mistral-vibe", displayName: "Mistral Vibe" },
 			{ id: "opencode", displayName: "OpenCode" },
+			{ id: "kiro-cli", displayName: "Kiro" },
 			{ id: "off-custom", displayName: "Off Custom" },
 		]);
 	});
@@ -239,6 +245,7 @@ describe("buildAgentConfigWithApiKey", () => {
 		["codex-acp", "OPENAI_API_KEY"],
 		["gemini-cli", "GEMINI_API_KEY"],
 		["mistral-vibe", "MISTRAL_API_KEY"],
+		["kiro-cli", "KIRO_API_KEY"],
 	])("attaches the %s secret as %s", (agentId, envVarName) => {
 		const agentSettings = preset(agentId, "Name", "cmd", {
 			apiKeySecretId: "my-secret",

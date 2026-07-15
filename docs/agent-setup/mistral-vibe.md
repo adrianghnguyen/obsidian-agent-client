@@ -65,7 +65,7 @@ vibe
 If you prefer to use an API key for authentication:
 
 1. Get your API key from the [Mistral Console](https://console.mistral.ai/)
-2. Enter the API key in **Settings → Agent Client → Mistral Vibe → API key**
+2. Enter the API key in **Settings → Agent Client → Preset agents → Mistral Vibe → API key**
 
 ::: tip If the key isn't picked up
 If authentication still fails, set the key on the Vibe side instead: run `vibe --setup` in your terminal and configure your API key (it's stored in `~/.vibe/.env`). Then leave the **API key field empty** in Agent Client.

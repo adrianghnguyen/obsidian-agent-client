@@ -61,6 +61,7 @@ export default defineConfig({
           { text: "Gemini CLI", link: "/agent-setup/gemini-cli" },
           { text: "Mistral Vibe", link: "/agent-setup/mistral-vibe" },
           { text: "OpenCode", link: "/agent-setup/opencode" },
+          { text: "Kiro", link: "/agent-setup/kiro" },
           { text: "Custom Agents", link: "/agent-setup/custom-agents" },
         ],
       },
