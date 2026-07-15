@@ -1261,29 +1261,32 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			});
 		}
 
-		new Setting(containerEl).addButton((button) => {
-			button
-				.setButtonText("Add custom agent")
-				.setCta()
-				.onClick(async () => {
-					const newId = this.generateCustomAgentId();
-					const newDisplayName =
-						this.generateCustomAgentDisplayName();
-					this.plugin.settings.customAgents.push({
-						id: newId,
-						displayName: newDisplayName,
-						command: "",
-						args: [],
-						env: [],
+		new Setting(containerEl)
+			.setName("New custom agent")
+			.setDesc("Register any ACP-compatible agent.")
+			.addButton((button) => {
+				button
+					.setButtonText("Add custom agent")
+					.setCta()
+					.onClick(async () => {
+						const newId = this.generateCustomAgentId();
+						const newDisplayName =
+							this.generateCustomAgentDisplayName();
+						this.plugin.settings.customAgents.push({
+							id: newId,
+							displayName: newDisplayName,
+							command: "",
+							args: [],
+							env: [],
+						});
+						// Open the new agent's section so it can be configured
+						// right away.
+						this.openSections.add(`custom:${newId}`);
+						this.plugin.ensureDefaultAgentId();
+						await this.flushSettings();
+						this.renderContent();
 					});
-					// Open the new agent's section so it can be configured
-					// right away.
-					this.openSections.add(`custom:${newId}`);
-					this.plugin.ensureDefaultAgentId();
-					await this.flushSettings();
-					this.renderContent();
-				});
-		});
+			});
 	}
 
 	private renderCustomAgent(
