@@ -10,13 +10,14 @@ Agent Client supports multiple AI agents through the [Agent Client Protocol (ACP
 | [Codex](./codex) | OpenAI | `@zed-industries/codex-acp` |
 | [Gemini CLI](./gemini-cli) | Google | `@google/gemini-cli` |
 | [Mistral Vibe](./mistral-vibe) | Mistral AI | `mistral-vibe` |
+| [OpenCode](./opencode) | Multi-provider | `opencode-ai` |
 | [Custom Agents](./custom-agents) | Various | Any ACP-compatible agent |
 
 ## Common Setup Steps
 
 All agents follow a similar setup pattern:
 
-1. **Install the agent** — see each agent's setup page for the exact command (npm for Claude Code / Codex / Gemini CLI; `curl` on macOS/Linux or `uv` on Windows for Mistral Vibe)
+1. **Install the agent** — see each agent's setup page for the exact command (npm for Claude Code / Codex / Gemini CLI; `curl` on macOS/Linux or `uv` on Windows for Mistral Vibe; `curl` or npm for OpenCode)
 2. **Set up authentication** (API key or account login)
 
 The plugin resolves bare command names through your login shell's PATH, so path configuration is often not needed. If the agent is not found automatically, use `which` (macOS/Linux) or `where.exe` (Windows) to find the path and configure it in Settings → Agent Client.

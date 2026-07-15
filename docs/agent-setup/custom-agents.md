@@ -4,7 +4,7 @@ You can use any agent that implements the [Agent Client Protocol (ACP)](https://
 
 ## Install and Configure
 
-1. Install your ACP-compatible agent (e.g., [OpenCode](https://github.com/anomalyco/opencode), [Qwen Code](https://github.com/QwenLM/qwen-code), [Kiro](https://kiro.dev/)).
+1. Install your ACP-compatible agent (e.g., [Qwen Code](https://github.com/QwenLM/qwen-code), [Kiro](https://kiro.dev/)).
 
 2. Open **Settings → Agent Client** and scroll to **Custom Agents** section.
 
@@ -13,21 +13,15 @@ You can use any agent that implements the [Agent Client Protocol (ACP)](https://
 4. Configure the agent:
    - **Agent ID**: Unique identifier (e.g., `my-agent`)
    - **Display name**: Name shown in menus (e.g., `My Agent`)
-   - **Path**: Command name or absolute path to the agent executable. The command name alone (e.g., `opencode`) works in many cases. If the agent is not found automatically, set the full path, or click **Auto-detect**.
+   - **Path**: Command name or absolute path to the agent executable. The command name alone (e.g., `qwen`) works in many cases. If the agent is not found automatically, set the full path, or click **Auto-detect**.
    - **Arguments**: Command-line arguments, one per line (if required)
    - **Environment variables**: `KEY=VALUE` pairs, one per line (if required)
 
 ## Configuration Examples
 
-### OpenCode
-
-| Field | Value |
-|-------|-------|
-| **Agent ID** | `opencode` |
-| **Display name** | `OpenCode` |
-| **Path** | `opencode` |
-| **Arguments** | `acp` |
-| **Environment variables** | (optional) |
+::: tip OpenCode
+OpenCode is now a built-in preset — see [OpenCode Setup](./opencode). If you previously configured it here as a custom agent with the id `opencode`, your settings migrate to the preset automatically.
+:::
 
 ### Qwen Code
 
