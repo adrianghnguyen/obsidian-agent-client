@@ -76,6 +76,17 @@ export interface PresetAgentDefinition {
 	/** data.json 旧形式 top-level command-path key (claude / gemini only). */
 	legacyCommandPathKey?: string;
 	apiKey?: PresetAgentApiKey;
+	/**
+	 * Custom-agent id this preset absorbs on first load (one-shot migration).
+	 * Set ONLY for presets whose id our docs historically advised as a
+	 * custom-agent recipe — those customs are docs-followers by near
+	 * certainty, so adopting their settings preserves what the id meant
+	 * (fence pins, saved sessions, default agent). Deliberately NOT a
+	 * generic custom-id==presetId rule: customs colliding with the original
+	 * four preset ids are dead weight under preset-first resolution, and
+	 * absorbing them would overwrite live preset settings.
+	 */
+	absorbsCustomAgentId?: string;
 	installHint: PresetAgentInstallHint;
 	settingsCopy: PresetAgentSettingsCopy;
 	/** Page name under docs/agent-setup/ (for setup-guide references). */
@@ -197,6 +208,7 @@ export const PRESET_AGENTS: readonly PresetAgentDefinition[] = [
 		defaultDisplayName: "OpenCode",
 		defaultCommand: "opencode",
 		defaultArgs: ["acp"],
+		absorbsCustomAgentId: "opencode",
 		installHint: {
 			default: "curl -fsSL https://opencode.ai/install | bash",
 			nativeWindows: "npm install -g opencode-ai",

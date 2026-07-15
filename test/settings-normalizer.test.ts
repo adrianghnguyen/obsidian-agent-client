@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+	absorbCustomAgents,
 	normalizePresetAgents,
 	defaultPresetAgentSettings,
 	normalizeCustomAgent,
@@ -232,6 +233,106 @@ describe("ensureUniqueCustomAgentIds with reserved ids", () => {
 			PRESET_IDS,
 		);
 		expect(result.map((a) => a.id)).toEqual(["dup", "dup-2"]);
+	});
+});
+
+describe("absorbCustomAgents", () => {
+	const docsAdvisedCustom = {
+		id: "opencode",
+		displayName: "My OpenCode",
+		command: "/opt/opencode",
+		args: ["acp", "--verbose"],
+		env: [{ key: "FOO", value: "bar" }],
+		enabled: false,
+	};
+
+	it("adopts the docs-advised custom as the preset's raw source", () => {
+		const raw = {
+			customAgents: [docsAdvisedCustom, { id: "my-agent" }],
+		};
+		const result = absorbCustomAgents(raw, PRESET_AGENTS);
+
+		expect(result.absorbed).toEqual([
+			{ presetId: "opencode", displayName: "OpenCode" },
+		]);
+		expect(result.customAgents).toEqual([{ id: "my-agent" }]);
+		expect(result.presetAgents.opencode).toBe(docsAdvisedCustom);
+
+		// The adopted entry goes through the usual preset normalization:
+		// id force-synced, apiKeySecretId defaulted, values preserved.
+		const normalized = normalizePresetAgents(
+			{ presetAgents: result.presetAgents },
+			PRESET_AGENTS,
+			noMigration,
+		);
+		expect(normalized.opencode).toEqual({
+			id: "opencode",
+			displayName: "My OpenCode",
+			apiKeySecretId: "",
+			command: "/opt/opencode",
+			args: ["acp", "--verbose"],
+			env: [{ key: "FOO", value: "bar" }],
+			enabled: false,
+		});
+	});
+
+	it("skips when the preset already has a stored entry", () => {
+		const raw = {
+			presetAgents: { opencode: { command: "opencode" } },
+			customAgents: [docsAdvisedCustom],
+		};
+		const result = absorbCustomAgents(raw, PRESET_AGENTS);
+		// The colliding custom is left for the "{id}-2" rename instead.
+		expect(result.absorbed).toEqual([]);
+		expect(result.customAgents).toEqual([docsAdvisedCustom]);
+		expect(result.presetAgents.opencode).toEqual({ command: "opencode" });
+	});
+
+	it("is a no-op without a matching custom", () => {
+		const raw = { customAgents: [{ id: "my-agent" }] };
+		const result = absorbCustomAgents(raw, PRESET_AGENTS);
+		expect(result.absorbed).toEqual([]);
+		expect(result.customAgents).toEqual([{ id: "my-agent" }]);
+	});
+
+	it("never absorbs into presets without the declaration", () => {
+		const raw = {
+			customAgents: [{ id: "mistral-vibe", command: "x" }],
+		};
+		const result = absorbCustomAgents(raw, PRESET_AGENTS);
+		expect(result.absorbed).toEqual([]);
+		expect(result.customAgents).toHaveLength(1);
+	});
+
+	it("is idempotent across a save round-trip", () => {
+		const first = absorbCustomAgents(
+			{ customAgents: [docsAdvisedCustom] },
+			PRESET_AGENTS,
+		);
+		expect(first.absorbed).toHaveLength(1);
+
+		const second = absorbCustomAgents(
+			{
+				customAgents: first.customAgents,
+				presetAgents: first.presetAgents,
+			},
+			PRESET_AGENTS,
+		);
+		expect(second.absorbed).toEqual([]);
+		expect(second.presetAgents.opencode).toBe(docsAdvisedCustom);
+	});
+
+	it("backfills empty absorbed args to the registry default", () => {
+		const result = absorbCustomAgents(
+			{ customAgents: [{ id: "opencode", command: "opencode", args: [] }] },
+			PRESET_AGENTS,
+		);
+		const normalized = normalizePresetAgents(
+			{ presetAgents: result.presetAgents },
+			PRESET_AGENTS,
+			noMigration,
+		);
+		expect(normalized.opencode.args).toEqual(["acp"]);
 	});
 });
 

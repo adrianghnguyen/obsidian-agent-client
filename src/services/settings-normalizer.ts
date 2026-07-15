@@ -206,6 +206,57 @@ export type ApiKeyMigrator = (args: {
 	legacyPlain: string;
 }) => string;
 
+/** One absorption performed by absorbCustomAgents (drives the Notice + save). */
+export interface AbsorbedCustomAgent {
+	presetId: string;
+	displayName: string;
+}
+
+/**
+ * Absorb docs-advised custom agents into their new preset entries.
+ *
+ * Runs BEFORE custom-agent normalization: ensureUniqueCustomAgentIds would
+ * otherwise rename the colliding custom to "{id}-2", orphaning the user's
+ * settings while their pins and saved sessions silently retarget a fresh
+ * default preset. Only presets declaring `absorbsCustomAgentId` participate,
+ * and only while `raw.presetAgents` has no entry for them yet — the
+ * post-migration save writes one, which makes this a run-once migration.
+ * The matched custom becomes the preset's raw source (normalizePresetAgents
+ * then applies the usual sanitization) and is removed from customAgents.
+ */
+export const absorbCustomAgents = (
+	raw: Record<string, unknown>,
+	registry: readonly PresetAgentDefinition[],
+): {
+	customAgents: unknown[];
+	presetAgents: Record<string, unknown>;
+	absorbed: AbsorbedCustomAgent[];
+} => {
+	const customAgents: unknown[] = Array.isArray(raw.customAgents)
+		? [...(raw.customAgents as unknown[])]
+		: [];
+	const presetAgents = { ...(obj(raw.presetAgents) ?? {}) };
+	const absorbed: AbsorbedCustomAgent[] = [];
+
+	for (const def of registry) {
+		if (!def.absorbsCustomAgentId) continue;
+		if (obj(presetAgents[def.presetId])) continue;
+		const index = customAgents.findIndex(
+			(candidate) =>
+				str(obj(candidate)?.id, "") === def.absorbsCustomAgentId,
+		);
+		if (index === -1) continue;
+		const [entry] = customAgents.splice(index, 1);
+		presetAgents[def.presetId] = entry;
+		absorbed.push({
+			presetId: def.presetId,
+			displayName: def.defaultDisplayName,
+		});
+	}
+
+	return { customAgents, presetAgents, absorbed };
+};
+
 /** Registry defaults as a fresh user-settings entry (no user overrides). */
 export const defaultPresetAgentSettings = (
 	def: PresetAgentDefinition,
