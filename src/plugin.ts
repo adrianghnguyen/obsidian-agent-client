@@ -1065,7 +1065,9 @@ export default class AgentClientPlugin extends Plugin {
 					? this.findNearestEmbeddedChat(sourcePath, lineStart)
 					: null;
 			if (!targetViewId) {
-				new Notice("No embedded chat block found in this note.");
+				new Notice(
+					"[Agent Client] No embedded chat block found in this note.",
+				);
 				return;
 			}
 		} else if (viewType === "floating") {
