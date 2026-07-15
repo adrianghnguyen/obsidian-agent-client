@@ -13,7 +13,10 @@ import {
 import type { AttachedFile, ChatInputState, ChatMessage } from "../types/chat";
 import type { NoteMetadata } from "../services/vault-service";
 import { isSameDirectory } from "../utils/platform";
-import { computeSessionTitle } from "../services/session-helpers";
+import {
+	computeSessionTitle,
+	getDefaultAgentId,
+} from "../services/session-helpers";
 import { useHistoryModal } from "../hooks/useHistoryModal";
 import { useChatActions } from "../hooks/useChatActions";
 import { ChangeDirectoryModal } from "./ChangeDirectoryModal";
@@ -755,7 +758,18 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// ============================================================
 	// Initialize session on mount
 	useEffect(() => {
-		const resolvedAgent = config?.agent || initialAgentId;
+		// Resolve the effective agent BEFORE comparing: the sidebar's React
+		// root can mount before Obsidian's setState delivers initialAgentId,
+		// so the first run sees undefined and spawns the default agent. When
+		// the persisted id arrives a moment later and resolves to that same
+		// default, an unresolved comparison (undefined !== id) would re-run
+		// createSession and kill the first process mid-initialize — the
+		// "ACP connection closed" banner. Resolving both runs to a concrete
+		// id makes them comparable.
+		const resolvedAgent =
+			config?.agent ||
+			initialAgentId ||
+			getDefaultAgentId(plugin.settingsService.getSnapshot());
 		if (
 			hasInitializedRef.current &&
 			lastInitAgentRef.current === resolvedAgent
