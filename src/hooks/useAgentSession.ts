@@ -107,6 +107,14 @@ export function useAgentSession(
 	const sessionRef = useRef(session);
 	sessionRef.current = session;
 
+	// Generation counter for createSession: a run superseded by a newer call
+	// must not paint its late result — success or failure — over the newer
+	// attempt (mirrors useAgentMessages' generationRef, #200). Without this,
+	// the superseded run's rejection ("ACP connection closed" after its
+	// process is killed by the newer initialize) lands AFTER the newer run
+	// cleared errorInfo, leaving a stale error banner over a working session.
+	const createGenerationRef = useRef(0);
+
 	// ============================================================
 	// Session Update Handler (session-level only)
 	// ============================================================
@@ -167,6 +175,7 @@ export function useAgentSession(
 
 	const createSession = useCallback(
 		async (overrideAgentId?: string, overrideCwd?: string) => {
+			const generation = ++createGenerationRef.current;
 			const effectiveCwd = overrideCwd || workingDirectory;
 			const settings = settingsAccess.getSnapshot();
 			const agentId = overrideAgentId || getDefaultAgentId(settings);
@@ -261,6 +270,11 @@ export function useAgentSession(
 					finalModes = restored.modes;
 				}
 
+				// Superseded by a newer createSession — its state is already
+				// authoritative; discard this run's result.
+				if (generation !== createGenerationRef.current) {
+					return;
+				}
 				setSession((prev) => ({
 					...prev,
 					sessionId: sessionResult.sessionId,
@@ -280,6 +294,9 @@ export function useAgentSession(
 					lastActivityAt: new Date(),
 				}));
 			} catch (error) {
+				if (generation !== createGenerationRef.current) {
+					return;
+				}
 				setSession((prev) => ({ ...prev, state: "error" }));
 				setErrorInfo({
 					title: "Session Creation Failed",
