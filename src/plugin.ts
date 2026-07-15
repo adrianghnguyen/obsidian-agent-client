@@ -771,11 +771,18 @@ export default class AgentClientPlugin extends Plugin {
 	openNewFloatingChat(
 		initialExpanded = false,
 		initialPosition?: { x: number; y: number },
-	): void {
+		initialAgentId?: string,
+	): FloatingViewContainer {
 		// instanceId is just the counter (e.g., "0", "1", "2")
 		// FloatingViewContainer will create viewId as "floating-chat-{instanceId}"
 		const instanceId = String(this.floatingChatCounter++);
-		createFloatingChat(this, instanceId, initialExpanded, initialPosition);
+		return createFloatingChat(
+			this,
+			instanceId,
+			initialExpanded,
+			initialPosition,
+			initialAgentId,
+		);
 	}
 
 	findNearestEmbeddedChat(
@@ -1052,9 +1059,12 @@ export default class AgentClientPlugin extends Plugin {
 				return;
 			}
 		} else if (viewType === "floating") {
-			const counterBefore = this.floatingChatCounter;
-			this.openNewFloatingChat(true);
-			targetViewId = `floating-chat-${counterBefore}`;
+			const container = this.openNewFloatingChat(
+				true,
+				undefined,
+				agentId,
+			);
+			targetViewId = container.viewId;
 		} else if (viewType === "editor-tab") {
 			const leaf = this.app.workspace.getLeaf("tab");
 			await leaf.setViewState({
