@@ -54,7 +54,7 @@ opencode
 Credentials are stored in `~/.local/share/opencode/auth.json` and are picked up by the `opencode acp` process that Agent Client starts. You can also configure providers from the command line with `opencode auth login`.
 
 ::: tip Migrating from a custom agent
-If you previously set up OpenCode as a custom agent with the id `opencode` (as these docs once described), your settings are migrated to the preset automatically — pinned buttons and saved sessions keep working.
+If you previously set up OpenCode as a custom agent with the id `opencode` (as these docs once described), your settings are migrated to the preset automatically — saved sessions keep working.
 :::
 
 ## Verify Setup
