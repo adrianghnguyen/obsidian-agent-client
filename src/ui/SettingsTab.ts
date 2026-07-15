@@ -1291,12 +1291,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		agent: CustomAgentSettings,
 		index: number,
 	) {
-		const blockEl = containerEl.createDiv({
-			cls: "agent-client-custom-agent",
-		});
-
 		this.renderCollapsibleAgentSection(
-			blockEl,
+			containerEl,
 			`custom:${agent.id}`,
 			agent.displayName || agent.id,
 			{
