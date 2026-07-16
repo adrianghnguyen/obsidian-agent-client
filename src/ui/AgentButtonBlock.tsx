@@ -6,6 +6,7 @@ import { Notice } from "obsidian";
 import type AgentClientPlugin from "../plugin";
 import type { AgentButtonBlockConfig } from "../utils/agent-block-parser";
 import { findAgentSettings } from "../services/session-helpers";
+import { LucideIcon } from "./shared/IconButton";
 
 interface AgentButtonBlockProps {
 	plugin: AgentClientPlugin;
@@ -73,6 +74,10 @@ function AgentButtonBlockComponent({
 				className="agent-client-button-block-button mod-cta"
 				onClick={() => void handleClick()}
 			>
+				<LucideIcon
+					name="bot-message-square"
+					className="agent-client-button-block-icon"
+				/>
 				<span className="agent-client-button-block-text">
 					{config.text}
 				</span>
