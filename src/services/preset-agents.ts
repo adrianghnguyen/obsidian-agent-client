@@ -71,9 +71,9 @@ export interface PresetAgentDefinition {
 	 * presets with non-empty defaults the args are effectively unclearable).
 	 */
 	defaultArgs: string[];
-	/** data.json 旧形式 per-agent sub-object key (original four presets only). */
+	/** Legacy data.json per-agent sub-object key (original four presets only). */
 	legacySettingsKey?: "claude" | "codex" | "gemini" | "mistralVibe";
-	/** data.json 旧形式 top-level command-path key (claude / gemini only). */
+	/** Legacy data.json top-level command-path key (claude / gemini only). */
 	legacyCommandPathKey?: string;
 	apiKey?: PresetAgentApiKey;
 	/**
