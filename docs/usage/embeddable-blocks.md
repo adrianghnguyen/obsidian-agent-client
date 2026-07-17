@@ -137,7 +137,7 @@ autoSend: true
 | `embedded` | `embed`, `embeddable` | The nearest embedded chat block in the same note |
 
 ::: tip How `viewType: embedded` finds its target
-`embedded` does not open a new view — it delivers the prompt to the nearest **existing** chat block in the same note (looking above the button first, then below). If the note contains no embedded chat block, a notice is shown and nothing opens.
+`embedded` does not open a new view — it delivers the prompt to the nearest **existing** chat block in the same note (looking above the button first, then below), scrolling to the block and focusing its input. If the note contains no embedded chat block, a notice is shown and nothing opens.
 :::
 
 ## Validation and Warnings {#validation-and-warnings}

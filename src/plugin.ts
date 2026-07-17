@@ -1071,6 +1071,7 @@ export default class AgentClientPlugin extends Plugin {
 				);
 				return;
 			}
+			this.viewRegistry.get(targetViewId)?.focus();
 		} else if (viewType === "floating") {
 			const container = this.openNewFloatingChat(
 				true,
