@@ -708,6 +708,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			agentCwd,
 			handleNewChatInDirectory,
 			handleOpenSettings,
+			session.sessionId,
 		],
 	);
 
