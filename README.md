@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="README.ja.md">日本語はこちら</a>
+  <a href="https://github.com/RAIT-09/obsidian-agent-client/blob/master/README.ja.md">日本語はこちら</a>
 </p>
 
 <p align="center">
@@ -20,33 +20,71 @@
   <a href="https://www.buymeacoffee.com/rait09" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="180" height="50" ></a>
 </p>
 
-Bring AI agents (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro) directly into Obsidian. Chat with your AI assistant right from your vault.
+Chat with Claude Code, Codex, Gemini CLI, and any ACP agent right in Obsidian — mention your notes with `@` and let the agent read and edit them in your vault. No copy-paste.
 
-Built on [Agent Client Protocol (ACP)](https://github.com/agentclientprotocol/agent-client-protocol) by Zed.
+MCP servers, Agent Skills, slash commands, permission prompts — whatever your agent can do, it works here out of the box.
 
-https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
+Built on the [Agent Client Protocol (ACP)](https://github.com/agentclientprotocol/agent-client-protocol) by Zed.
+
+![Chat with an agent in the sidebar, right next to your notes](https://raw.githubusercontent.com/RAIT-09/obsidian-agent-client/master/docs/public/images/readme-hero-sidebar.webp)
+
+## Turn Your Vault into a Front End for Your Agents
+
+**Side by side.** Run several agents at once — in sidebar tabs, editor tabs, or floating windows — each with its own session and model. Broadcast a prompt to all of them, or cycle focus with a hotkey.
+
+![Three agents running side by side in editor tabs](https://raw.githubusercontent.com/RAIT-09/obsidian-agent-client/master/docs/public/images/readme-multi-session.webp)
+
+**Any folder.** Point a chat at any directory with *New chat in directory* — a code project, a writing project, wherever your agent normally works. The agent picks up that folder's context files and project configuration, and you can still hand it vault notes with `@` mentions.
+
+**In your notes.** Embed a live chat inside any note with a code block — pin an agent, and let the conversation survive restarts with `persist`. Or add one-click agent buttons that fire a prepared prompt.
+
+**Mission control.** The Session Manager lists every open conversation across sidebar, tabs, floating windows, and notes, with live status icons — including "waiting for permission". Click any entry to jump straight there.
+
+**Any ACP agent.** Six presets — Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro — plus any ACP-compatible agent as a custom entry. New agent ships ACP support tomorrow? Add it as a custom entry — no plugin update needed.
 
 ## Features
 
-- **Note Mentions**: Reference your notes with `@notename` syntax; the agent also sees resolved paths for `[[wikilinks]]` inside them
-- **Image Attachments**: Paste or drag-and-drop images into the chat
-- **Slash Commands**: Use `/` commands provided by your agent
-- **Multi-Agent Support**: Switch between Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, and custom agents
-- **Multi-Session**: Run multiple agents simultaneously in separate views
-- **Floating Chat**: A persistent, collapsible chat window for quick access
-- **Mode & Model Switching**: Change AI models and agent modes from the chat
-- **Session History**: Resume or fork previous conversations
-- **Chat Export**: Save conversations as Markdown notes
-- **Terminal Integration**: Let agents execute commands and return results
-- **MCP Support**: Agents use their configured MCP servers — no extra setup needed in the plugin
+- **Note Mentions**: Reference notes with `@` — fuzzy search over names, paths, and aliases. The active note is auto-mentioned, down to the exact lines you selected
+- **Obsidian-Ready Answers**: Agents are instructed to reply with `[[wikilinks]]`, `$LaTeX$`, and clean Markdown tables (configurable)
+- **Wikilink Context**: `[[links]]` inside mentioned notes are surfaced as paths so the agent can decide which ones to read
+- **MCP & Skills**: Agents use the MCP servers and skills they already have — nothing to configure in the plugin
+- **Slash Commands**: Your agent's `/` commands, with inline argument hints
+- **Images & Files**: Paste or drag-and-drop into the chat
+- **Modes, Models & Config**: Switch them mid-session from the input toolbar, with a context-usage indicator
+- **Visible Edits**: Note edits show up as word-level diffs in the chat — you see exactly what changed
+- **Permission Prompts**: Approve or reject each agent action — from the banner or with a hotkey. Auto-allow is opt-in
+- **Session History**: Conversations are saved locally — resume or fork past sessions (agent-dependent)
+- **Chat Export**: Save conversations as Markdown notes with frontmatter, manually or automatically
+- **Terminal Integration**: Agents run commands with live output in the chat
+- **Floating Chat**: Draggable chat windows independent of the workspace — they remember their size and position
+- **WSL Mode**: Run agents inside WSL on Windows
 
 ## Installation
-
-### From Community Plugins (Recommended)
 
 1. Open **Settings → Community Plugins → Browse**
 2. Search for **"Agent Client"**
 3. Click **Install**, then **Enable**
+
+## Get Started
+
+1. Install and authenticate an agent, following its setup guide:
+
+   [Claude Code](https://rait-09.github.io/obsidian-agent-client/agent-setup/claude-code.html) · [Codex](https://rait-09.github.io/obsidian-agent-client/agent-setup/codex.html) · [Gemini CLI](https://rait-09.github.io/obsidian-agent-client/agent-setup/gemini-cli.html) · [Mistral Vibe](https://rait-09.github.io/obsidian-agent-client/agent-setup/mistral-vibe.html) · [OpenCode](https://rait-09.github.io/obsidian-agent-client/agent-setup/opencode.html) · [Kiro](https://rait-09.github.io/obsidian-agent-client/agent-setup/kiro.html) · [Custom Agents](https://rait-09.github.io/obsidian-agent-client/agent-setup/custom-agents.html)
+
+2. Open **Settings → Agent Client** and check the agent's path — **Auto-detect** usually finds it
+3. Click the robot icon in the ribbon and start chatting
+
+**[Full Documentation](https://rait-09.github.io/obsidian-agent-client/)**
+
+## Security & Permissions
+
+Agent Client is a desktop-only plugin. It launches your locally installed agents as child processes and lets them run terminal commands — that is the core of what it does. The filesystem is only probed read-only for the **Auto-detect** button; all note reading and writing goes through Obsidian's vault API.
+
+Keep in mind that **the agents themselves have the same full system access they have in a terminal**. The plugin surfaces every permission request so you can approve or reject each action; **Auto-allow permissions** (off by default) skips those prompts entirely — enable it only if you understand the implications.
+
+API keys are stored in Obsidian's Keychain, never as plain text. What leaves your machine is what you send to your agent's provider: your messages, mentioned notes, and attachments.
+
+## Other Ways to Install
 
 ### Via BRAT (Pre-release Versions)
 
@@ -63,50 +101,6 @@ To try pre-release versions before they are published to Community Plugins:
 2. Place them in `VaultFolder/.obsidian/plugins/agent-client/`
 3. Enable the plugin in **Settings → Community Plugins**
 
-## Quick Start
-
-Open a terminal (Terminal on macOS/Linux, PowerShell on Windows) and run the following commands.
-
-1. **Install an agent and its ACP adapter** (e.g., Claude Code):
-   ```bash
-   curl -fsSL https://claude.ai/install.sh | bash   # Install Claude Code
-   npm install -g @agentclientprotocol/claude-agent-acp   # Install ACP adapter
-   ```
-
-2. **Login** (skip if using API key):
-   ```bash
-   claude
-   ```
-   Follow the prompts to authenticate with your Anthropic account.
-
-3. **Find the paths**:
-   ```bash
-   which node   # macOS/Linux
-   which claude-agent-acp
-
-   where.exe node   # Windows
-   where.exe claude-agent-acp
-   ```
-
-4. **Configure** in **Settings → Agent Client**:
-   - **Node.js path**: e.g., `/usr/local/bin/node`
-   - **Preset agents → Claude Code → Path**: e.g., `/usr/local/bin/claude-agent-acp` (not `claude`)
-   - **API key**: Add your key, or leave empty if logged in via CLI
-
-5. **Start chatting**: Click the robot icon in the ribbon
-
-### Setup Guides
-
-- [Claude Code](https://rait-09.github.io/obsidian-agent-client/agent-setup/claude-code.html)
-- [Codex](https://rait-09.github.io/obsidian-agent-client/agent-setup/codex.html)
-- [Gemini CLI](https://rait-09.github.io/obsidian-agent-client/agent-setup/gemini-cli.html)
-- [Mistral Vibe](https://rait-09.github.io/obsidian-agent-client/agent-setup/mistral-vibe.html)
-- [OpenCode](https://rait-09.github.io/obsidian-agent-client/agent-setup/opencode.html)
-- [Kiro](https://rait-09.github.io/obsidian-agent-client/agent-setup/kiro.html)
-- [Custom Agents](https://rait-09.github.io/obsidian-agent-client/agent-setup/custom-agents.html) (Qwen Code, etc.)
-
-**[Full Documentation](https://rait-09.github.io/obsidian-agent-client/)**
-
 ## Development
 
 ```bash
@@ -121,8 +115,12 @@ npm run build
 
 ## License
 
-Apache License 2.0 - see [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](https://github.com/RAIT-09/obsidian-agent-client/blob/master/LICENSE) for details.
 
-## Star History
+## Contributors
 
-[![Star History Chart](https://api.star-history.com/svg?repos=RAIT-09/obsidian-agent-client&type=Date)](https://www.star-history.com/#RAIT-09/obsidian-agent-client&Date)
+Thanks to everyone who has contributed!
+
+<a href="https://github.com/RAIT-09/obsidian-agent-client/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=RAIT-09/obsidian-agent-client" alt="Contributors" />
+</a>
