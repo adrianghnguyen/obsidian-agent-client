@@ -117,7 +117,7 @@ npm run build
 
 Apache License 2.0 - 詳細は [LICENSE](https://github.com/RAIT-09/obsidian-agent-client/blob/master/LICENSE) を参照。
 
-## Contributors
+## コントリビューター
 
 コントリビュートしてくださった皆さんに感謝します！
 
