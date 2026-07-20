@@ -62,6 +62,9 @@ The agent requires authentication before processing requests.
 **For Kiro:**
 - Run `kiro-cli login` in Terminal first to sign in, or link an API key (Kiro Pro and higher tiers) in **Settings → Agent Client → Preset agents → Kiro → API key**. See [Kiro Setup](/agent-setup/kiro#authentication).
 
+**For Hermes Agent:**
+- Run `hermes model` in Terminal to configure a provider (there is no API key field in the plugin). See [Hermes Agent Setup](/agent-setup/hermes#authentication).
+
 ### "No Authentication Methods" error
 
 The agent didn't provide authentication options.

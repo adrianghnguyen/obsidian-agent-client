@@ -6,7 +6,7 @@ This page documents which Agent Client Protocol (ACP) features are supported by 
 
 The [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) is an open standard for communication between AI agents and client applications. It defines how clients send prompts, receive responses, handle permissions, and manage sessions.
 
-Agent Client implements ACP as a **client**, communicating with ACP-compatible agents like Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, and Kiro.
+Agent Client implements ACP as a **client**, communicating with ACP-compatible agents like Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, and Hermes Agent.
 
 ## Methods
 
