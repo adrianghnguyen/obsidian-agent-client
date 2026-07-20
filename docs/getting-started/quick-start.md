@@ -14,6 +14,7 @@ Agent Client supports multiple AI agents. Choose one to start:
 | **[Mistral Vibe](/agent-setup/mistral-vibe)** | Mistral AI | with built-in ACP support (`vibe-acp`) |
 | **[OpenCode](/agent-setup/opencode)** | Multi-provider | with built-in ACP support (`opencode acp`) |
 | **[Kiro](/agent-setup/kiro)** | AWS | with built-in ACP support (`kiro-cli acp`) |
+| **[Hermes Agent](/agent-setup/hermes)** | Multi-provider | with built-in ACP support (`hermes acp`) |
 | **[Custom](/agent-setup/custom-agents)** | Various | [Any ACP-compatible agent](https://agentclientprotocol.com/overview/agents) (e.g., Qwen Code) |
 
 ## Step 2: Install and Configure the Agent
@@ -26,6 +27,7 @@ Follow the setup guide for your chosen agent:
 - [Mistral Vibe Setup](/agent-setup/mistral-vibe)
 - [OpenCode Setup](/agent-setup/opencode)
 - [Kiro Setup](/agent-setup/kiro)
+- [Hermes Agent Setup](/agent-setup/hermes)
 - [Custom Agents](/agent-setup/custom-agents)
 
 Each guide covers installation, path configuration, and authentication.

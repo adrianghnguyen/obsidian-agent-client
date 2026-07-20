@@ -62,6 +62,7 @@ export default defineConfig({
           { text: "Mistral Vibe", link: "/agent-setup/mistral-vibe" },
           { text: "OpenCode", link: "/agent-setup/opencode" },
           { text: "Kiro", link: "/agent-setup/kiro" },
+          { text: "Hermes Agent", link: "/agent-setup/hermes" },
           { text: "Custom Agents", link: "/agent-setup/custom-agents" },
         ],
       },

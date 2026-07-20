@@ -64,6 +64,9 @@ function makeSettings(
 			"kiro-cli": preset("kiro-cli", "Kiro", "kiro-cli", {
 				args: ["acp"],
 			}),
+			"hermes-agent": preset("hermes-agent", "Hermes Agent", "hermes", {
+				args: ["acp"],
+			}),
 		},
 		customAgents: [],
 		defaultAgentId: "",
@@ -83,6 +86,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			{ id: "mistral-vibe", displayName: "Mistral Vibe" },
 			{ id: "opencode", displayName: "OpenCode" },
 			{ id: "kiro-cli", displayName: "Kiro" },
+			{ id: "hermes-agent", displayName: "Hermes Agent" },
 			{ id: "my-custom", displayName: "My Custom" },
 		]);
 	});
@@ -114,6 +118,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			"mistral-vibe",
 			"opencode",
 			"kiro-cli",
+			"hermes-agent",
 			"my-custom",
 		]);
 	});
@@ -134,6 +139,7 @@ describe("getAllAgentsFromSettings", () => {
 			{ id: "mistral-vibe", displayName: "Mistral Vibe" },
 			{ id: "opencode", displayName: "OpenCode" },
 			{ id: "kiro-cli", displayName: "Kiro" },
+			{ id: "hermes-agent", displayName: "Hermes Agent" },
 			{ id: "off-custom", displayName: "Off Custom" },
 		]);
 	});
