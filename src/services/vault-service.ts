@@ -116,6 +116,22 @@ export interface IVaultAccess {
 }
 
 /**
+ * Normalize a frontmatter `aliases` value into a string array.
+ *
+ * Frontmatter is user-controlled YAML: `aliases` may be a string, an array,
+ * or — via malformed YAML (e.g. a trailing colon turning an entry into an
+ * object) — anything else. Non-string and empty-string values are dropped so
+ * downstream consumers (fuzzy search, NoteMetadata) only ever see usable
+ * strings (#354).
+ */
+function normalizeFrontmatterAliases(value: unknown): string[] {
+	const list = Array.isArray(value) ? value : [value];
+	return list.filter(
+		(a): a is string => typeof a === "string" && a.length > 0,
+	);
+}
+
+/**
  * Unified vault service for note access, fuzzy search, and selection tracking.
  *
  * Implements IVaultAccess port by wrapping Obsidian's Vault API,
@@ -237,17 +253,11 @@ export class VaultService implements IVaultAccess, IWikilinkResolver {
 				const path = file.path;
 				const fileCache =
 					this.plugin.app.metadataCache.getFileCache(file);
-				const aliases = fileCache?.frontmatter?.aliases as
-					| string[]
-					| string
-					| undefined;
-				const aliasArray: string[] = Array.isArray(aliases)
-					? aliases
-					: aliases
-						? [aliases]
-						: [];
+				const aliases = normalizeFrontmatterAliases(
+					fileCache?.frontmatter?.aliases,
+				);
 
-				const searchFields = [basename, path, ...aliasArray.filter((a): a is string => typeof a === 'string')];
+				const searchFields = [basename, path, ...aliases];
 				let bestScore = -Infinity;
 
 				for (const field of searchFields) {
@@ -553,10 +563,9 @@ export class VaultService implements IVaultAccess, IWikilinkResolver {
 	 */
 	private convertToMetadata(file: TFile): NoteMetadata {
 		const cache = this.plugin.app.metadataCache.getFileCache(file);
-		const aliases = cache?.frontmatter?.aliases as
-			| string[]
-			| string
-			| undefined;
+		const aliases = normalizeFrontmatterAliases(
+			cache?.frontmatter?.aliases,
+		);
 
 		return {
 			path: file.path,
@@ -564,11 +573,7 @@ export class VaultService implements IVaultAccess, IWikilinkResolver {
 			extension: file.extension,
 			created: file.stat.ctime,
 			modified: file.stat.mtime,
-			aliases: Array.isArray(aliases)
-				? aliases.filter((a) => typeof a === 'string')
-				: aliases
-					? [aliases]
-					: undefined,
+			aliases: aliases.length > 0 ? aliases : undefined,
 		};
 	}
 }
