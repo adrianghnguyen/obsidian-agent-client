@@ -120,12 +120,15 @@ export interface IVaultAccess {
  *
  * Frontmatter is user-controlled YAML: `aliases` may be a string, an array,
  * or — via malformed YAML (e.g. a trailing colon turning an entry into an
- * object) — anything else. Non-string values are dropped so downstream
- * consumers (fuzzy search, NoteMetadata) only ever see strings (#354).
+ * object) — anything else. Non-string and empty-string values are dropped so
+ * downstream consumers (fuzzy search, NoteMetadata) only ever see usable
+ * strings (#354).
  */
 function normalizeFrontmatterAliases(value: unknown): string[] {
-	const list = Array.isArray(value) ? value : value ? [value] : [];
-	return list.filter((a): a is string => typeof a === "string");
+	const list = Array.isArray(value) ? value : [value];
+	return list.filter(
+		(a): a is string => typeof a === "string" && a.length > 0,
+	);
 }
 
 /**
