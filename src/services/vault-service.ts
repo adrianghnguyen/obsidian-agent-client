@@ -247,7 +247,7 @@ export class VaultService implements IVaultAccess, IWikilinkResolver {
 						? [aliases]
 						: [];
 
-				const searchFields = [basename, path, ...aliasArray];
+				const searchFields = [basename, path, ...aliasArray.filter((a): a is string => typeof a === 'string')];
 				let bestScore = -Infinity;
 
 				for (const field of searchFields) {
@@ -565,7 +565,7 @@ export class VaultService implements IVaultAccess, IWikilinkResolver {
 			created: file.stat.ctime,
 			modified: file.stat.mtime,
 			aliases: Array.isArray(aliases)
-				? aliases
+				? aliases.filter((a) => typeof a === 'string')
 				: aliases
 					? [aliases]
 					: undefined,
