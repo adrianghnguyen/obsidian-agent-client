@@ -7,7 +7,7 @@ Agent Client supports multiple AI agents through the [Agent Client Protocol (ACP
 | Agent | Provider | Package |
 |-------|----------|---------|
 | [Claude Code](./claude-code) | Anthropic | `@agentclientprotocol/claude-agent-acp` |
-| [Codex](./codex) | OpenAI | `@zed-industries/codex-acp` |
+| [Codex](./codex) | OpenAI | `@agentclientprotocol/codex-acp` |
 | [Gemini CLI](./gemini-cli) | Google | `@google/gemini-cli` |
 | [Mistral Vibe](./mistral-vibe) | Mistral AI | `mistral-vibe` |
 | [OpenCode](./opencode) | Multi-provider | `opencode-ai` |

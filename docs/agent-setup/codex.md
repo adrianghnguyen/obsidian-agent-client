@@ -9,8 +9,16 @@ Open a terminal (Terminal on macOS/Linux, PowerShell on Windows) and run the fol
 1. Install codex-acp:
 
 ```bash
-npm install -g @zed-industries/codex-acp
+npm install -g @agentclientprotocol/codex-acp
 ```
+
+::: tip Migrating from @zed-industries/codex-acp
+The previous package is deprecated on npm and replaced by `@agentclientprotocol/codex-acp`. If you installed it, remove it first so the two packages don't conflict over the same `codex-acp` command:
+
+```bash
+npm uninstall -g @zed-industries/codex-acp
+```
+:::
 
 2. Find the installation path:
 

@@ -441,6 +441,10 @@ export class AcpClient {
 			this.logger.log(
 				`[AcpClient] ✅ Connected to agent (protocol v${initResult.protocolVersion})`,
 			);
+			// Adapters differ in the name/version they report (e.g. the
+			// codex-acp package move kept the bin name) — surface it so
+			// update-checker behavior can be verified from the debug log.
+			this.logger.log("[AcpClient] Agent info:", initResult.agentInfo);
 
 			this.isInitializedFlag = true;
 			this.currentAgentId = config.id;
