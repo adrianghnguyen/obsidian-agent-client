@@ -8,15 +8,19 @@ A dedicated sidebar view that lists all open chat sessions with live status, so 
 
 ## Overview
 
-The Session Manager shows every chat view (sidebar and floating) currently open, with:
+The Session Manager shows every chat view currently open — sidebar, floating, and [embedded chat blocks](/usage/embeddable-blocks) — with:
 
 - **Session title** — derived from the first message, or the saved title if you renamed it
-- **Agent name** — which agent the session is using
+- **Agent name** — which agent the session is using. Embedded chat blocks are tagged with an `embedded` badge
 - **Status icon** — live indicator of what the session is doing right now
 - **Focus highlight** — the currently focused chat view is marked as active
 
 ::: tip
 This is especially useful when you have many chat views open and want to see which one is generating, awaiting permission, or idle.
+:::
+
+::: info Embedded chats come and go with their note
+An embedded chat is listed only while its host note is open and the block is rendered. Closing the note removes the entry from this list — the conversation itself stays available in [Session History](/usage/session-history).
 :::
 
 ## Opening the Session Manager
@@ -47,7 +51,7 @@ Each session entry shows an icon reflecting its current state:
 
 ### Switch to a Session
 
-Click any session entry to focus that chat view. If the view is in the sidebar, Obsidian reveals it. If it is a floating window, it is brought to the front.
+Click any session entry to focus that chat view. Sidebar views are revealed by Obsidian, floating windows are brought to the front, and embedded chat blocks bring their host note forward, scroll to the block, and focus the chat input.
 
 ### Session Menu
 
@@ -61,6 +65,8 @@ Click the **⋮** (more) button on the right of any session entry, or right-clic
 |--------|-------------|
 | **Rename** | Edit the session title. The new title is shown both in the Session Manager and on the chat view's tab |
 | **Close** | Close the chat view (the underlying session remains in History) |
+
+For embedded chat blocks, only **Rename** is offered. There is no **Close** action — the view is owned by the code block in its host note, so close the note (or remove the block) instead.
 
 ::: tip
 Renaming is also available from the chat header (**⋮** menu → **Rename session**) and from [Session History](/usage/session-history).

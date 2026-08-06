@@ -75,8 +75,11 @@ export function useChatActions(
 	suggestions: UseSuggestionsReturn,
 	session: ChatSession,
 	messages: ChatMessage[],
-	settings: AgentClientPluginSettings,
+	// Only windowsWslMode is read reactively here; exportSettings are read
+	// live from plugin.settings. Narrow so ChatPanel can pass a settings slice.
+	settings: Pick<AgentClientPluginSettings, "windowsWslMode">,
 	vaultPath: string,
+	persistentEmbedId?: string,
 ): UseChatActionsReturn {
 	const logger = getLogger();
 
@@ -192,6 +195,7 @@ export function useChatActions(
 				await sessionHistory.saveSessionLocally(
 					session.sessionId,
 					content,
+					persistentEmbedId,
 				);
 				logger.log(
 					`[ChatPanel] Session saved locally: ${session.sessionId}`,
@@ -204,6 +208,7 @@ export function useChatActions(
 			messages.length,
 			session.sessionId,
 			sessionHistory.saveSessionLocally,
+			persistentEmbedId,
 			logger,
 			suggestions.mentions.activeNote,
 			suggestions.mentions.isAutoMentionDisabled,

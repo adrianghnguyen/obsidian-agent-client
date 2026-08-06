@@ -1,7 +1,7 @@
 /**
  * Agent Update Checker
  *
- * Checks built-in agent ACP adapters for:
+ * Checks preset agent ACP adapters for:
  * 1. Package migration — deprecated packages that have been renamed
  * 2. Version updates — newer versions available on npm
  *
@@ -45,17 +45,55 @@ export interface AgentUpdateNotification {
 const KNOWN_AGENT_PACKAGES: Readonly<Record<string, string>> = {
 	"@agentclientprotocol/claude-agent-acp":
 		"@agentclientprotocol/claude-agent-acp",
-	"codex-acp": "@zed-industries/codex-acp",
+	"codex-acp": "@agentclientprotocol/codex-acp",
+	"@agentclientprotocol/codex-acp": "@agentclientprotocol/codex-acp",
 };
 
 /**
- * Deprecated agentInfo.name → replacement npm package name.
- * Used to detect users still running old/renamed packages.
+ * A deprecated adapter package and its replacement.
+ *
+ * `name` is the agentInfo.name the deprecated adapter reports — not always
+ * the npm package name (codex-acp reports its unscoped bin name), so the
+ * uninstall target is carried separately as `oldPackage`.
  */
-const DEPRECATED_PACKAGES: Readonly<Record<string, string>> = {
-	"@zed-industries/claude-code-acp": "@agentclientprotocol/claude-agent-acp",
-	"@zed-industries/claude-agent-acp": "@agentclientprotocol/claude-agent-acp",
-};
+interface DeprecationRule {
+	/** agentInfo.name reported by the deprecated adapter. */
+	name: string;
+	/** npm package the user should uninstall. */
+	oldPackage: string;
+	/** npm package that replaces it. */
+	replacement: string;
+	/**
+	 * Only versions strictly below this are deprecated. Needed when the old
+	 * and new adapters report the SAME name (codex-acp kept its bin name
+	 * across the package move): the old package never published this
+	 * version, so the boundary tells them apart. Undefined = deprecated at
+	 * every version.
+	 */
+	onlyBelow?: string;
+}
+
+const DEPRECATION_RULES: readonly DeprecationRule[] = [
+	{
+		name: "@zed-industries/claude-code-acp",
+		oldPackage: "@zed-industries/claude-code-acp",
+		replacement: "@agentclientprotocol/claude-agent-acp",
+	},
+	{
+		name: "@zed-industries/claude-agent-acp",
+		oldPackage: "@zed-industries/claude-agent-acp",
+		replacement: "@agentclientprotocol/claude-agent-acp",
+	},
+	{
+		// @zed-industries/codex-acp → @agentclientprotocol/codex-acp (#380).
+		// Both adapters report "codex-acp"; the old package topped out at
+		// 0.16.0 and never published 1.x, so < 1.0.0 identifies it.
+		name: "codex-acp",
+		oldPackage: "@zed-industries/codex-acp",
+		replacement: "@agentclientprotocol/codex-acp",
+		onlyBelow: "1.0.0",
+	},
+];
 
 // ============================================================================
 // Public API
@@ -75,13 +113,13 @@ export async function checkAgentUpdate(agentInfo: {
 	version?: string;
 }): Promise<AgentUpdateNotification | null> {
 	// 1. Check for deprecated package (migration takes priority)
-	const replacement = DEPRECATED_PACKAGES[agentInfo.name];
-	if (replacement) {
+	const rule = DEPRECATION_RULES.find((r) => r.name === agentInfo.name);
+	if (rule && isDeprecatedVersion(agentInfo.version, rule.onlyBelow)) {
 		return {
 			variant: "info",
 			title: "Package Migration Required",
-			message: `"${agentInfo.name}" has been renamed to "${replacement}".\nRun the following in your terminal:`,
-			suggestion: `npm uninstall -g ${agentInfo.name} && npm install -g ${replacement}`,
+			message: `"${rule.oldPackage}" has been renamed to "${rule.replacement}".\nRun the following in your terminal:`,
+			suggestion: `npm uninstall -g ${rule.oldPackage} && npm install -g ${rule.replacement}`,
 		};
 	}
 
@@ -125,4 +163,22 @@ async function fetchLatestVersion(packageName: string): Promise<string | null> {
 	});
 	const data = response.json as { version?: string };
 	return data.version ? (semver.clean(data.version) ?? null) : null;
+}
+
+/**
+ * Whether a reported version falls under a rule's `onlyBelow` boundary.
+ * No boundary = always deprecated. With a boundary, an absent or non-semver
+ * version is NOT treated as deprecated — we only notify when the version
+ * proves the adapter is the old package.
+ */
+function isDeprecatedVersion(
+	version: string | undefined,
+	onlyBelow: string | undefined,
+): boolean {
+	if (!onlyBelow) return true;
+	return (
+		version !== undefined &&
+		semver.valid(version) !== null &&
+		semver.lt(version, onlyBelow)
+	);
 }

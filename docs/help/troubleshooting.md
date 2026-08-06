@@ -42,15 +42,28 @@ The agent executable cannot be found at the specified path.
 The agent requires authentication before processing requests.
 
 **For Claude Code:**
-- **API key**: Open **Settings → Agent Client → Built-in agents → Claude Code → API key**, click **Link...**, and link or create a secret. See [Claude Code Setup](/agent-setup/claude-code#authentication).
+- **API key**: Open **Settings → Agent Client → Preset agents → Claude Code → API key**, click **Link...**, and link or create a secret. See [Claude Code Setup](/agent-setup/claude-code#authentication).
 - **Account login**: Run `claude` in Terminal first and complete the login flow
 
 **For Codex:**
-- Open **Settings → Agent Client → Built-in agents → Codex → API key**, click **Link...**, and link or create a secret. See [Codex Setup](/agent-setup/codex#authentication).
+- Open **Settings → Agent Client → Preset agents → Codex → API key**, click **Link...**, and link or create a secret. See [Codex Setup](/agent-setup/codex#authentication).
 
 **For Gemini CLI:**
-- Open **Settings → Agent Client → Built-in agents → Gemini CLI → API key**, click **Link...**, and link or create a secret. See [Gemini CLI Setup](/agent-setup/gemini-cli#authentication).
+- Open **Settings → Agent Client → Preset agents → Gemini CLI → API key**, click **Link...**, and link or create a secret. See [Gemini CLI Setup](/agent-setup/gemini-cli#authentication).
 - Or run `gemini` in Terminal first to authenticate with your Google account
+
+**For Mistral Vibe:**
+- Open **Settings → Agent Client → Preset agents → Mistral Vibe → API key**, click **Link...**, and link or create a secret. See [Mistral Vibe Setup](/agent-setup/mistral-vibe#authentication).
+- Or run `vibe` in Terminal first to authenticate with your Mistral account
+
+**For OpenCode:**
+- Run `opencode` in Terminal and use the `/connect` command to configure a provider (there is no API key field in the plugin). See [OpenCode Setup](/agent-setup/opencode#authentication).
+
+**For Kiro:**
+- Run `kiro-cli login` in Terminal first to sign in, or link an API key (Kiro Pro and higher tiers) in **Settings → Agent Client → Preset agents → Kiro → API key**. See [Kiro Setup](/agent-setup/kiro#authentication).
+
+**For Hermes Agent:**
+- Run `hermes model` in Terminal to configure a provider (there is no API key field in the plugin). See [Hermes Agent Setup](/agent-setup/hermes#authentication).
 
 ### "No Authentication Methods" error
 
@@ -83,6 +96,10 @@ The agent connected but couldn't create a session.
 1. Click **New Chat** (+ button in header) to create a fresh session
 2. Check if your vault path contains special characters that might cause issues
 3. Reload the plugin
+
+### An agent is missing from the agent lists
+
+If an agent doesn't appear in the switch menu, the default-agent dropdown, or the command palette, its **Enabled** toggle is probably off. Go to **Settings → Agent Client**, find the agent's section, and turn **Enabled** back on.
 
 ### "Agent Not Found" error
 

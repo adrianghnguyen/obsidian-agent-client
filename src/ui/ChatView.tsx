@@ -5,7 +5,7 @@ import type {
 	SessionStatus,
 } from "../services/view-registry";
 import * as React from "react";
-const { useState, useEffect, useMemo, useCallback } = React;
+const { useMemo, useCallback } = React;
 import { createRoot, Root } from "react-dom/client";
 
 import type AgentClientPlugin from "../plugin";
@@ -35,13 +35,6 @@ function ChatComponent({
 	viewId: string;
 }) {
 	// ============================================================
-	// Agent ID State (synced with Obsidian view state)
-	// ============================================================
-	const [restoredAgentId, setRestoredAgentId] = useState<string | undefined>(
-		view.getInitialAgentId() ?? undefined,
-	);
-
-	// ============================================================
 	// Context Value
 	// ============================================================
 	const contextValue = useMemo(
@@ -53,17 +46,6 @@ function ChatComponent({
 		}),
 		[plugin, view.acpClient, view.vaultService],
 	);
-
-	// ============================================================
-	// Agent ID Restoration (ChatView-specific)
-	// Subscribe to agentId restoration from Obsidian's setState
-	// ============================================================
-	useEffect(() => {
-		const unsubscribe = view.onAgentIdRestored((agentId) => {
-			setRestoredAgentId(agentId);
-		});
-		return unsubscribe;
-	}, [view]);
 
 	// Stable so ChatPanel's title-update effect deps are value-stable.
 	const handleSessionTitleChanged = useCallback(
@@ -79,7 +61,11 @@ function ChatComponent({
 			<ChatPanel
 				variant="sidebar"
 				viewId={viewId}
-				initialAgentId={restoredAgentId}
+				// Read directly: the panel mounts only after setState has
+				// delivered the view state (ChatView.renderPanel), and any
+				// later setState re-renders this component, so the prop stays
+				// current without a subscription.
+				initialAgentId={view.getInitialAgentId() ?? undefined}
 				viewHost={view}
 				onRegisterCallbacks={(callbacks) =>
 					view.setCallbacks(callbacks)
@@ -106,9 +92,8 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	readonly viewType: ChatViewType = "sidebar";
 	/** Initial agent ID passed via state (for openNewChatViewWithAgent) */
 	private initialAgentId: string | null = null;
-	/** Callbacks to notify React when agentId is restored from workspace state */
-	private agentIdRestoredCallbacks: Set<(agentId: string) => void> =
-		new Set();
+	/** Fallback timer: mounts with defaults if setState never arrives. */
+	private mountFallbackTimer: number | null = null;
 
 	// Services owned by this class (lifecycle managed here)
 	/** @internal Exposed to ChatComponent for context creation */
@@ -153,22 +138,18 @@ export class ChatView extends ItemView implements IChatViewContainer {
 
 	/**
 	 * Restore the view state from persistence.
-	 * Notifies React when agentId is restored so it can re-create the session.
+	 * Mounts the React tree on the first call — the panel must not render
+	 * before the view's state (which agent to launch) is known, or it would
+	 * spawn the default agent and immediately kill it when the persisted id
+	 * arrives. Later calls re-render so the panel picks up a changed id.
 	 */
 	async setState(
 		state: ChatViewState,
 		result: { history: boolean },
 	): Promise<void> {
-		const previousAgentId = this.initialAgentId;
 		this.initialAgentId = state.initialAgentId ?? null;
 		await super.setState(state, result);
-
-		// Notify React when agentId is restored and differs from previous value
-		if (this.initialAgentId && this.initialAgentId !== previousAgentId) {
-			this.agentIdRestoredCallbacks.forEach((cb) =>
-				cb(this.initialAgentId!),
-			);
-		}
+		this.renderPanel();
 	}
 
 	/**
@@ -187,18 +168,6 @@ export class ChatView extends ItemView implements IChatViewContainer {
 		this.initialAgentId = agentId;
 		// Request workspace to save the updated state
 		this.app.workspace.requestSaveLayout();
-	}
-
-	/**
-	 * Register a callback to be notified when agentId is restored from workspace state.
-	 * Used by React components to sync with Obsidian's setState lifecycle.
-	 * @returns Unsubscribe function
-	 */
-	onAgentIdRestored(callback: (agentId: string) => void): () => void {
-		this.agentIdRestoredCallbacks.add(callback);
-		return () => {
-			this.agentIdRestoredCallbacks.delete(callback);
-		};
 	}
 
 	// ============================================================
@@ -335,14 +304,46 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	}
 
 	onOpen() {
-		const container = this.containerEl.children[1];
-		container.empty();
-
 		// Create services owned by this class
 		this.acpClient = this.plugin.getOrCreateAcpClient(this.viewId);
 		this.vaultService = new VaultService(this.plugin);
 
-		this.root = createRoot(container);
+		// Register with plugin's view registry
+		this.plugin.viewRegistry.register(this);
+
+		// Do NOT mount yet: Obsidian delivers the view state via setState()
+		// during setViewState, and the panel must know which agent to launch
+		// before it renders (mounting early spawns the default agent and
+		// kills it when the persisted id arrives a moment later). The timer
+		// is a safety net for any open path that skips setState — it mounts
+		// with defaults, degrading to the pre-state-driven behavior.
+		this.mountFallbackTimer = window.setTimeout(() => {
+			this.renderPanel();
+		}, 0);
+
+		return Promise.resolve();
+	}
+
+	/**
+	 * Mount (first call) or re-render (later calls) the React tree.
+	 * Re-rendering the same element makes ChatComponent re-read
+	 * getInitialAgentId(), so a setState that changes the agent flows into
+	 * ChatPanel as a prop change and its mount-init guard re-initializes.
+	 */
+	private renderPanel(): void {
+		// Any render supersedes the pending fallback mount: cancel it so it
+		// cannot fire a redundant re-render after setState already mounted
+		// the panel (on the normal path the timer always loses this race —
+		// the setState chain is microtasks, the timer a macrotask).
+		if (this.mountFallbackTimer !== null) {
+			window.clearTimeout(this.mountFallbackTimer);
+			this.mountFallbackTimer = null;
+		}
+		if (!this.root) {
+			const container = this.containerEl.children[1];
+			container.empty();
+			this.root = createRoot(container);
+		}
 		this.root.render(
 			<ChatComponent
 				plugin={this.plugin}
@@ -350,15 +351,16 @@ export class ChatView extends ItemView implements IChatViewContainer {
 				viewId={this.viewId}
 			/>,
 		);
-
-		// Register with plugin's view registry
-		this.plugin.viewRegistry.register(this);
-
-		return Promise.resolve();
 	}
 
 	async onClose(): Promise<void> {
 		this.logger.log("[ChatView] onClose() called");
+
+		// Cancel a pending fallback mount (view closed within the tick).
+		if (this.mountFallbackTimer !== null) {
+			window.clearTimeout(this.mountFallbackTimer);
+			this.mountFallbackTimer = null;
+		}
 
 		// Unregister from plugin's view registry
 		this.plugin.viewRegistry.unregister(this.viewId);

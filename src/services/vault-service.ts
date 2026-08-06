@@ -17,6 +17,12 @@ import {
 import { EditorView } from "@codemirror/view";
 import { Compartment, StateEffect } from "@codemirror/state";
 import { getLogger, Logger } from "../utils/logger";
+import {
+	getNoteWikiLinks,
+	type IWikilinkResolver,
+	type LinkedNoteMetadata,
+	type LineRange,
+} from "../utils/wikilink-resolver";
 
 // ============================================================================
 // Port Types (from vault-access.port.ts)
@@ -110,13 +116,29 @@ export interface IVaultAccess {
 }
 
 /**
+ * Normalize a frontmatter `aliases` value into a string array.
+ *
+ * Frontmatter is user-controlled YAML: `aliases` may be a string, an array,
+ * or — via malformed YAML (e.g. a trailing colon turning an entry into an
+ * object) — anything else. Non-string and empty-string values are dropped so
+ * downstream consumers (fuzzy search, NoteMetadata) only ever see usable
+ * strings (#354).
+ */
+function normalizeFrontmatterAliases(value: unknown): string[] {
+	const list = Array.isArray(value) ? value : [value];
+	return list.filter(
+		(a): a is string => typeof a === "string" && a.length > 0,
+	);
+}
+
+/**
  * Unified vault service for note access, fuzzy search, and selection tracking.
  *
  * Implements IVaultAccess port by wrapping Obsidian's Vault API,
  * providing built-in fuzzy search (formerly NoteMentionService),
  * and tracking editor selection state.
  */
-export class VaultService implements IVaultAccess {
+export class VaultService implements IVaultAccess, IWikilinkResolver {
 	private files: TFile[] = [];
 	private lastBuild = 0;
 	private logger: Logger;
@@ -231,17 +253,11 @@ export class VaultService implements IVaultAccess {
 				const path = file.path;
 				const fileCache =
 					this.plugin.app.metadataCache.getFileCache(file);
-				const aliases = fileCache?.frontmatter?.aliases as
-					| string[]
-					| string
-					| undefined;
-				const aliasArray: string[] = Array.isArray(aliases)
-					? aliases
-					: aliases
-						? [aliases]
-						: [];
+				const aliases = normalizeFrontmatterAliases(
+					fileCache?.frontmatter?.aliases,
+				);
 
-				const searchFields = [basename, path, ...aliasArray];
+				const searchFields = [basename, path, ...aliases];
 				let bestScore = -Infinity;
 
 				for (const field of searchFields) {
@@ -296,6 +312,17 @@ export class VaultService implements IVaultAccess {
 		return Promise.resolve(
 			this.files.map((file) => this.convertToMetadata(file)),
 		);
+	}
+
+	// ========================================================================
+	// IWikilinkResolver Implementation
+	// ========================================================================
+
+	getNoteWikiLinks(
+		notePath: string,
+		lineRange?: LineRange,
+	): LinkedNoteMetadata[] {
+		return getNoteWikiLinks(this.plugin.app, notePath, lineRange);
 	}
 
 	// ========================================================================
@@ -494,7 +521,10 @@ export class VaultService implements IVaultAccess {
 			try {
 				listener();
 			} catch (error) {
-				getLogger().error("[VaultService] Selection listener error", error);
+				getLogger().error(
+					"[VaultService] Selection listener error",
+					error,
+				);
 			}
 		}
 	}
@@ -533,10 +563,9 @@ export class VaultService implements IVaultAccess {
 	 */
 	private convertToMetadata(file: TFile): NoteMetadata {
 		const cache = this.plugin.app.metadataCache.getFileCache(file);
-		const aliases = cache?.frontmatter?.aliases as
-			| string[]
-			| string
-			| undefined;
+		const aliases = normalizeFrontmatterAliases(
+			cache?.frontmatter?.aliases,
+		);
 
 		return {
 			path: file.path,
@@ -544,11 +573,7 @@ export class VaultService implements IVaultAccess {
 			extension: file.extension,
 			created: file.stat.ctime,
 			modified: file.stat.mtime,
-			aliases: Array.isArray(aliases)
-				? aliases
-				: aliases
-					? [aliases]
-					: undefined,
+			aliases: aliases.length > 0 ? aliases : undefined,
 		};
 	}
 }

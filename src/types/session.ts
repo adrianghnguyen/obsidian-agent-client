@@ -159,7 +159,7 @@ export interface ChatSession {
 	/** Current state of the session */
 	state: SessionState;
 
-	/** ID of the active agent (claude, gemini, or custom agent ID) */
+	/** ID of the active agent (a preset agent ID such as "claude-code-acp", or a custom agent ID) */
 	agentId: string;
 
 	/** Display name of the agent at session creation time */
@@ -557,6 +557,14 @@ export interface SavedSessionInfo {
 	cwd: string;
 	/** Human-readable session title (first 50 chars of first user message) */
 	title?: string;
+	/**
+	 * Device-neutral id of the embedded block this session belongs to. Used to
+	 * RESTORE the block's latest conversation: getSavedSessionByEmbedId returns
+	 * the newest embedId match. Sessions are NOT deduped or deleted by embedId —
+	 * a block's conversations accumulate in Session History like any other
+	 * session and stay recoverable. Device-local; never written into note content.
+	 */
+	embedId?: string;
 	/** ISO 8601 timestamp of session creation */
 	createdAt: string;
 	/** ISO 8601 timestamp of last activity */

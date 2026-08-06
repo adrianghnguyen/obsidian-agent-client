@@ -196,17 +196,20 @@ export class AcpClient {
 
 		// Resolve API key secret just before spawn so the latest value is used.
 		// Custom agents don't set config.apiKey and inject keys via env directly.
+		// Skip empty values (e.g. the secret was deleted from the Keychain):
+		// exporting ANTHROPIC_API_KEY="" etc. can break account-based logins.
 		if (config.apiKey) {
-			const secretValue =
-				this.plugin.app.secretStorage.getSecret(
-					config.apiKey.secretId,
-				) ?? "";
-			baseEnv[config.apiKey.envVarName] = secretValue;
+			const secretValue = this.plugin.app.secretStorage.getSecret(
+				config.apiKey.secretId,
+			);
+			if (secretValue) {
+				baseEnv[config.apiKey.envVarName] = secretValue;
+			}
 		}
 
 		// In WSL mode, forward the configured env var NAMES into WSL via WSLENV
 		// (Windows env vars are otherwise invisible to the Linux agent process,
-		// so the plugin's API key field would have no effect in WSL). Built-in
+		// so the plugin's API key field would have no effect in WSL). Preset
 		// agents resolve the API key into baseEnv above — not into config.env —
 		// so its var name must be added explicitly, or the key would never cross
 		// into WSL. Must run AFTER the secret is injected into baseEnv. (#312)
@@ -416,25 +419,32 @@ export class AcpClient {
 		try {
 			this.logger.log("[AcpClient] Starting ACP initialization...");
 
-			const initResult = await this.connection.agent.request("initialize", {
-				protocolVersion: acp.PROTOCOL_VERSION,
-				clientCapabilities: {
-					fs: {
-						readTextFile: false,
-						writeTextFile: false,
+			const initResult = await this.connection.agent.request(
+				"initialize",
+				{
+					protocolVersion: acp.PROTOCOL_VERSION,
+					clientCapabilities: {
+						fs: {
+							readTextFile: false,
+							writeTextFile: false,
+						},
+						terminal: true,
 					},
-					terminal: true,
+					clientInfo: {
+						name: "obsidian-agent-client",
+						title: "Agent Client for Obsidian",
+						version: this.plugin.manifest.version,
+					},
 				},
-				clientInfo: {
-					name: "obsidian-agent-client",
-					title: "Agent Client for Obsidian",
-					version: this.plugin.manifest.version,
-				},
-			});
+			);
 
 			this.logger.log(
 				`[AcpClient] ✅ Connected to agent (protocol v${initResult.protocolVersion})`,
 			);
+			// Adapters differ in the name/version they report (e.g. the
+			// codex-acp package move kept the bin name) — surface it so
+			// update-checker behavior can be verified from the debug log.
+			this.logger.log("[AcpClient] Agent info:", initResult.agentInfo);
 
 			this.isInitializedFlag = true;
 			this.currentAgentId = config.id;
@@ -547,10 +557,13 @@ export class AcpClient {
 				`[AcpClient] Sending prompt with ${content.length} content blocks`,
 			);
 
-			const promptResult = await connection.agent.request("session/prompt", {
-				sessionId: sessionId,
-				prompt: acpContent,
-			});
+			const promptResult = await connection.agent.request(
+				"session/prompt",
+				{
+					sessionId: sessionId,
+					prompt: acpContent,
+				},
+			);
 
 			this.logger.log(
 				`[AcpClient] Agent completed with: ${promptResult.stopReason}`,

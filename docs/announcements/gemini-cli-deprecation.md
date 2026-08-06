@@ -54,9 +54,9 @@ This plugin works with any agent that speaks the Agent Client Protocol (ACP). If
 
 ## What about Antigravity CLI?
 
-Google's replacement, **Antigravity CLI**, does **not currently support ACP** (there is no `--experimental-acp` mode), so this plugin **cannot connect to it as a built-in agent yet**. Antigravity CLI is also not open source.
+Google's replacement, **Antigravity CLI**, does **not currently support ACP** (there is no `--experimental-acp` mode), so this plugin **cannot connect to it as a preset agent yet**. Antigravity CLI is also not open source.
 
-If Google adds ACP support — or if an adapter built on the **Antigravity SDK** emerges (similar to how `claude-agent-acp` is built on the Claude Agent SDK rather than wrapping the CLI) — built-in support will be reconsidered. For Google's own migration steps, see the [Antigravity CLI migration guide](https://antigravity.google/docs/gcli-migration).
+If Google adds ACP support — or if an adapter built on the **Antigravity SDK** emerges (similar to how `claude-agent-acp` is built on the Claude Agent SDK rather than wrapping the CLI) — adding it as a preset will be reconsidered. For Google's own migration steps, see the [Antigravity CLI migration guide](https://antigravity.google/docs/gcli-migration).
 
 A community ACP bridge, [`agy-acp`](https://github.com/openabdev/openab/tree/main/agy-acp), does exist and can be added as a [custom agent](/agent-setup/custom-agents). It works as a minimal text chat only — streaming, tool calls, and diffs don't come through — so it's an escape hatch rather than a full replacement.
 
