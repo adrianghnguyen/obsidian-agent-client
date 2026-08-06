@@ -331,7 +331,7 @@ interface ISettingsAccess {
 
 **Agents**:
 - Claude Code: `@agentclientprotocol/claude-agent-acp` (ANTHROPIC_API_KEY)
-- Codex: `@zed-industries/codex-acp` (OPENAI_API_KEY)
+- Codex: `@agentclientprotocol/codex-acp` (OPENAI_API_KEY)
 - Gemini CLI: `@google/gemini-cli` (GEMINI_API_KEY)
 - Mistral Vibe: `mistral-vibe` (MISTRAL_API_KEY)
 - OpenCode: `opencode-ai` (CLI-managed auth, no API key env)
