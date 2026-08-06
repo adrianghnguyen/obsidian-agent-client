@@ -9,6 +9,7 @@
  *   `src/utils/paths.ts`. Tests mutate these to exercise platform branches.
  * - `parseYaml`: YAML parser used by `src/utils/agent-block-parser.ts`,
  *   delegated to the `yaml` package.
+ * - `requestUrl`: network stand-in that always rejects (see below).
  */
 
 import { parse as parseYamlImpl } from "yaml";
@@ -53,4 +54,13 @@ export function parseLinktext(linktext: string): {
 	const hash = linktext.indexOf("#");
 	if (hash === -1) return { path: linktext, subpath: "" };
 	return { path: linktext.slice(0, hash), subpath: linktext.slice(hash) };
+}
+
+/**
+ * Network stand-in. Always rejects: unit tests must not reach the npm
+ * registry, and update-checker treats a network failure as "no result",
+ * which keeps version-check paths deterministic in tests.
+ */
+export function requestUrl(): Promise<never> {
+	return Promise.reject(new Error("requestUrl is not available in tests"));
 }

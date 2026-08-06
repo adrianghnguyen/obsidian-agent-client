@@ -138,7 +138,7 @@ export const PRESET_AGENTS: readonly PresetAgentDefinition[] = [
 			},
 		},
 		installHint: {
-			default: "npm install -g @zed-industries/codex-acp@latest",
+			default: "npm install -g @agentclientprotocol/codex-acp@latest",
 		},
 		settingsCopy: {
 			pathDesc:
