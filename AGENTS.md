@@ -1,3 +1,17 @@
+# Fork notes (adrianghnguyen)
+
+This working copy is the **fork**, not the parent. Day-to-day push/PR targets `origin` (`adrianghnguyen/obsidian-agent-client`). `upstream` is `RAIT-09/obsidian-agent-client` (permanent). Parent default branch is `master`.
+
+`gh` may resolve to upstream. Pass `--repo adrianghnguyen/obsidian-agent-client` for fork PRs/API. Do not open routine feature PRs against RAIT-09 unless asked.
+
+Deploy vault path: `C:\Obsidian\.obsidian\plugins\agent-client\` (plugin id `agent-client`). Finish bar: `.cursor/rules/deploy-and-verify.mdc`. Copy `main.js`, `manifest.json`, `styles.css` then `obsidian plugin:reload id=agent-client vault=Obsidian`. Do not touch vault `data.json` or `sessions/`. Community Update overwrites the fork build.
+
+Upstream sync: merge on `sync/upstream-<version>` (not rebase) from `upstream/master`, then ff-merge to `master`, push origin, deploy, delete temp branch. Prefer upstream for ACP/session/adapter core; prefer fork for local UX once it exists; ask on ambiguous overlaps.
+
+Vault catalog: `Notes/obsidian plugin tweaks.md`. Skill: `.agents/skills/obsidian-plugin-tweaks/SKILL.md` (vault).
+
+---
+
 # Agent Client Plugin - LLM Developer Guide
 
 ## Overview
