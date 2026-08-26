@@ -6,7 +6,9 @@ This working copy is the **fork**, not the parent. Day-to-day push/PR targets `o
 
 Deploy vault path: `C:\Obsidian\.obsidian\plugins\agent-client\` (plugin id `agent-client`). Finish bar: `.cursor/rules/deploy-and-verify.mdc`. Copy `main.js`, `manifest.json`, `styles.css` then `obsidian plugin:reload id=agent-client vault=Obsidian`. Do not touch vault `data.json` or `sessions/`. Community Update overwrites the fork build.
 
-**Debug mode:** the plugin has a `debugMode` setting (Settings → Agent Client → Developer Settings → **Debug Mode**). Turn it on when diagnosing ACP spawn/init, floating chat, or session issues — Logger output (`[AcpClient]`, `[AcpHandler]`, etc.) only appears with DevTools open while this flag is enabled. Prefer enabling it over guessing from opaque UI errors. **Also enable it when deploying new versions** to the vault (after copy + reload) so you can confirm the new build loads and catch spawn/init regressions in the console.
+**Debug mode:** the plugin has a `debugMode` setting (Settings → Agent Client → Developer Settings → **Debug Mode**). Turn it on when diagnosing ACP spawn/init, floating chat, or session issues — Logger output (`[AcpClient]`, `[AcpHandler]`, etc.) only appears with DevTools open while this flag is enabled. Prefer enabling it over guessing from opaque UI errors.
+
+**Deploy flow:** after copy + reload, **enable Debug Mode** for verification, then **turn it off before finishing** the task (leave the user’s vault without debug logging left on).
 
 Upstream sync: merge on `sync/upstream-<version>` (not rebase) from `upstream/master`, then ff-merge to `master`, push origin, deploy, delete temp branch. Prefer upstream for ACP/session/adapter core; prefer fork for local UX once it exists; ask on ambiguous overlaps.
 
@@ -345,6 +347,7 @@ interface ISettingsAccess {
 1. Settings → Agent Client → Developer Settings → **Debug Mode** ON (`debugMode` in settings / `data.json`)
 2. Open DevTools (Cmd+Option+I / Ctrl+Shift+I)
 3. Filter logs: `[AcpClient]`, `[AcpHandler]`, `[PermissionManager]`, `[VaultService]`
+4. After deploy verification (or when diagnosis is done), turn **Debug Mode OFF** — do not leave it enabled in the vault.
 
 Use this when ACP connection or spawn fails — console lines like `[AcpClient] Prepared spawn command:` and `[AcpClient] Initialization Error:` are gated on debug mode.
 
