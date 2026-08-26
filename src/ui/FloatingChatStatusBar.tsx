@@ -77,8 +77,7 @@ export class FloatingChatStatusBar {
 	}
 
 	private syncVisibility(): void {
-		const visible =
-			this.plugin.settings.floatingChatEntry === "status-bar";
+		const visible = this.plugin.settings.floatingChatEntry === "status-bar";
 		this.statusBarEl?.toggleClass("is-hidden", !visible);
 		if (!visible) this.hidePopover();
 	}
@@ -164,30 +163,28 @@ export class FloatingChatStatusBar {
 		const anchor = this.statusBarEl.getBoundingClientRect();
 		const popover = this.popoverEl;
 		const margin = 8;
+		const gap = 6;
 		const width = Math.min(280, window.innerWidth - margin * 2);
 
-		// Measure after first paint so height is available
-		popover.addClass("is-positioning");
-		const height = popover.getBoundingClientRect().height || 160;
-		popover.removeClass("is-positioning");
-
+		// Prefer aligning to the icon; clamp so the panel stays on-screen.
 		let left = anchor.left + anchor.width / 2 - width / 2;
 		left = Math.max(
 			margin,
 			Math.min(left, window.innerWidth - width - margin),
 		);
 
-		let top = anchor.top - height - 6;
-		if (top < margin) {
-			top = Math.min(
-				anchor.bottom + 6,
-				window.innerHeight - height - margin,
-			);
-		}
+		// Always open above the status bar (same pattern as the FAB instance menu).
+		// Pin with `bottom` so we never need content height before React paints,
+		// and never flip below the status bar into clipped / off-screen space.
+		const bottom = window.innerHeight - anchor.top + gap;
+		const maxHeight = Math.max(80, anchor.top - margin - gap);
 
 		popover.style.setProperty("width", `${width}px`);
 		popover.style.setProperty("left", `${left}px`);
-		popover.style.setProperty("top", `${top}px`);
+		popover.style.setProperty("right", "auto");
+		popover.style.setProperty("top", "auto");
+		popover.style.setProperty("bottom", `${bottom}px`);
+		popover.style.setProperty("max-height", `${maxHeight}px`);
 	}
 
 	private hidePopover(): void {
