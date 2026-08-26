@@ -273,7 +273,11 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 		return this.containerEl.contains(activeDocument.activeElement);
 	}
 
-	// Embedded blocks have no collapsed state.
+	// Embedded blocks have no collapsed state — always expanded.
+	isExpanded(): boolean {
+		return true;
+	}
+
 	expand(): void {}
 
 	collapse(): void {}

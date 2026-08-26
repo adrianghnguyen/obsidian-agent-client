@@ -195,6 +195,10 @@ export class FloatingViewContainer implements IChatViewContainer {
 		);
 	}
 
+	isExpanded(): boolean {
+		return this.isExpandedState;
+	}
+
 	expand(): void {
 		if (!this.isExpandedState) {
 			this.isExpandedState = true;

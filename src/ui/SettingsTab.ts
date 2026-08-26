@@ -468,6 +468,21 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("One-key toggle")
+			.setDesc(
+				"When on, the Toggle floating chat command opens or minimizes with the same hotkey. Turn off to use separate Open and Minimize hotkeys.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.floatingChatOneKeyToggle)
+					.onChange(async (value) => {
+						await this.plugin.settingsService.updateSettings({
+							floatingChatOneKeyToggle: value,
+						});
+					}),
+			);
+
+		new Setting(containerEl)
 			.setName("Floating button image")
 			.setDesc(
 				"URL or path to an image for the floating button. Leave empty for default icon.",
