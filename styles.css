@@ -484,7 +484,12 @@ If your plugin does not need CSS, delete this file.
 	background-color: var(--background-secondary);
 	font-size: 12px;
 	font-weight: 600;
-	user-select: text;
+	cursor: pointer;
+	user-select: none;
+}
+
+.agent-client-plan-document-header:hover {
+	background-color: var(--background-modifier-hover);
 }
 
 .agent-client-plan-document-icon svg {
@@ -506,6 +511,18 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 	font-weight: 400;
 	font-size: 11px;
+}
+
+.agent-client-plan-document-chevron {
+	flex: 0 0 auto;
+	margin-left: auto;
+	opacity: 0.7;
+}
+
+.agent-client-plan-document-chevron svg {
+	width: 14px;
+	height: 14px;
+	display: block;
 }
 
 .agent-client-plan-document-body {

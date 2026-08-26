@@ -277,12 +277,27 @@ function PlanDocumentBlock({
 	plugin,
 	path,
 }: PlanDocumentBlockProps) {
+	// Expanded by default so Plan mode is readable without an extra click;
+	// header toggles collapse so long plans can be tucked away.
+	const [isExpanded, setIsExpanded] = useState(true);
 	if (!markdown.trim()) return null;
 	const showEmojis = plugin.settings.displaySettings.showEmojis;
 
 	return (
 		<div className="agent-client-plan-document">
-			<div className="agent-client-plan-document-header">
+			<div
+				className="agent-client-plan-document-header"
+				role="button"
+				tabIndex={0}
+				aria-expanded={isExpanded}
+				onClick={() => setIsExpanded((v) => !v)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						setIsExpanded((v) => !v);
+					}
+				}}
+			>
 				{showEmojis && (
 					<LucideIcon
 						name="file-text"
@@ -297,10 +312,16 @@ function PlanDocumentBlock({
 						{path.replace(/\\/g, "/").split("/").pop()}
 					</span>
 				)}
+				<LucideIcon
+					name={isExpanded ? "chevron-down" : "chevron-right"}
+					className="agent-client-plan-document-chevron"
+				/>
 			</div>
-			<div className="agent-client-plan-document-body">
-				<MarkdownRenderer text={markdown} plugin={plugin} />
-			</div>
+			{isExpanded && (
+				<div className="agent-client-plan-document-body">
+					<MarkdownRenderer text={markdown} plugin={plugin} />
+				</div>
+			)}
 		</div>
 	);
 }
