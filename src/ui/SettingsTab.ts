@@ -438,26 +438,32 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName("Floating chat").setHeading();
 
 		new Setting(containerEl)
-			.setName("Enable floating chat")
+			.setName("Floating chat")
 			.setDesc(
-				"Enable the floating chat button and draggable chat windows.",
+				"Choose how to open floating chat: floating button, status bar, or commands only.",
 			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableFloatingChat)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("off", "Off")
+					.addOption("button", "Floating button")
+					.addOption("status-bar", "Status bar")
+					.addOption("commands", "Commands only")
+					.setValue(this.plugin.settings.floatingChatEntry)
 					.onChange(async (value) => {
-						const wasEnabled =
-							this.plugin.settings.enableFloatingChat;
+						const next = value as
+							| "off"
+							| "button"
+							| "status-bar"
+							| "commands";
+						const wasEnabled = this.plugin.isFloatingChatEnabled();
 						await this.plugin.settingsService.updateSettings({
-							enableFloatingChat: value,
+							floatingChatEntry: next,
 						});
 
-						// Handle dynamic toggle of floating chat
-						if (value && !wasEnabled) {
-							// Turning ON: create floating chat instance
+						const isEnabled = next !== "off";
+						if (isEnabled && !wasEnabled) {
 							this.plugin.openNewFloatingChat();
-						} else if (!value && wasEnabled) {
-							// Turning OFF: close all floating chat instances
+						} else if (!isEnabled && wasEnabled) {
 							const instances =
 								this.plugin.getFloatingChatInstances();
 							for (const instanceId of instances) {
@@ -476,7 +482,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.enableFloatingChatTabs)
-					.setDisabled(!this.plugin.settings.enableFloatingChat)
+					.setDisabled(!this.plugin.isFloatingChatEnabled())
 					.onChange(async (value) => {
 						await this.plugin.settingsService.updateSettings({
 							enableFloatingChatTabs: value,
@@ -492,7 +498,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.floatingChatOneKeyToggle)
-					.setDisabled(!this.plugin.settings.enableFloatingChat)
+					.setDisabled(!this.plugin.isFloatingChatEnabled())
 					.onChange(async (value) => {
 						await this.plugin.settingsService.updateSettings({
 							floatingChatOneKeyToggle: value,
@@ -503,12 +509,15 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Floating button image")
 			.setDesc(
-				"URL or path to an image for the floating button. Leave empty for default icon.",
+				"URL or path to an image for the floating button. Leave empty for default icon. Only applies when Floating chat is set to Floating button.",
 			)
 			.addText((text) =>
 				text
 					.setPlaceholder("https://example.com/avatar.png")
 					.setValue(this.plugin.settings.floatingButtonImage)
+					.setDisabled(
+						this.plugin.settings.floatingChatEntry !== "button",
+					)
 					.onChange(async (value) => {
 						await this.plugin.settingsService.updateSettings({
 							floatingButtonImage: value.trim(),

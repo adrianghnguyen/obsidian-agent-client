@@ -1307,16 +1307,16 @@ function FloatingTabbedShellComponent({
 							</div>
 						);
 					})}
+					<HeaderButton
+						iconName="plus"
+						tooltip="Open new tab"
+						className="agent-client-floating-tab-add"
+						onClick={(e) => {
+							e.stopPropagation();
+							onOpenNewTab();
+						}}
+					/>
 				</div>
-				<HeaderButton
-					iconName="plus"
-					tooltip="Open new tab"
-					className="agent-client-floating-tab-add"
-					onClick={(e) => {
-						e.stopPropagation();
-						onOpenNewTab();
-					}}
-				/>
 				<div className="agent-client-floating-tab-bar-actions">
 					<HeaderButton
 						iconName="more-vertical"
