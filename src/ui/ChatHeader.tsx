@@ -79,6 +79,8 @@ export interface FloatingHeaderProps {
 	onMinimize?: () => void;
 	/** Callback to close and terminate window (floating only) */
 	onClose?: () => void;
+	/** When true, More / minimize / close render elsewhere (tab bar). */
+	hideWindowControls?: boolean;
 }
 
 /**
@@ -226,6 +228,7 @@ function FloatingHeader({
 	onShowMenu,
 	onMinimize,
 	onClose,
+	hideWindowControls,
 }: FloatingHeaderProps) {
 	// Refs for agent dropdown
 	const agentDropdownRef = useRef<HTMLDivElement>(null);
@@ -319,24 +322,29 @@ function FloatingHeader({
 				</p>
 			)}
 			<div className="agent-client-inline-header-actions">
-				<HeaderButton
-					iconName="more-vertical"
-					tooltip="More"
-					onClick={onShowMenu}
-				/>
-				{onMinimize && (
-					<HeaderButton
-						iconName="minimize-2"
-						tooltip="Minimize"
-						onClick={onMinimize}
-					/>
-				)}
-				{onClose && (
-					<HeaderButton
-						iconName="x"
-						tooltip="Close"
-						onClick={onClose}
-					/>
+				{!hideWindowControls && (
+					<>
+						<HeaderButton
+							iconName="more-vertical"
+							tooltip="More"
+							onClick={onShowMenu}
+						/>
+						{onMinimize && (
+							<HeaderButton
+								iconName="minimize-2"
+								tooltip="Minimize"
+								onClick={onMinimize}
+							/>
+						)}
+						{onClose && (
+							<HeaderButton
+								iconName="x"
+								tooltip="Close session"
+								className="agent-client-floating-close-session"
+								onClick={onClose}
+							/>
+						)}
+					</>
 				)}
 			</div>
 		</div>

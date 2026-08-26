@@ -6,9 +6,21 @@ This working copy is the **fork**, not the parent. Day-to-day push/PR targets `o
 
 Deploy vault path: `C:\Obsidian\.obsidian\plugins\agent-client\` (plugin id `agent-client`). Finish bar: `.cursor/rules/deploy-and-verify.mdc`. Copy `main.js`, `manifest.json`, `styles.css` then `obsidian plugin:reload id=agent-client vault=Obsidian`. Do not touch vault `data.json` or `sessions/`. Community Update overwrites the fork build.
 
+**Debug mode:** the plugin has a `debugMode` setting (Settings → Agent Client → Developer Settings → **Debug Mode**). Turn it on when diagnosing ACP spawn/init, floating chat, or session issues — Logger output (`[AcpClient]`, `[AcpHandler]`, etc.) only appears with DevTools open while this flag is enabled. Prefer enabling it over guessing from opaque UI errors. **Also enable it when deploying new versions** to the vault (after copy + reload) so you can confirm the new build loads and catch spawn/init regressions in the console.
+
 Upstream sync: merge on `sync/upstream-<version>` (not rebase) from `upstream/master`, then ff-merge to `master`, push origin, deploy, delete temp branch. Prefer upstream for ACP/session/adapter core; prefer fork for local UX once it exists; ask on ambiguous overlaps.
 
 Vault catalog: `Notes/obsidian plugin tweaks.md`. Skill: `.agents/skills/obsidian-plugin-tweaks/SKILL.md` (vault).
+
+### Versioning and changelog (required on user-facing changes)
+
+When a change is user-facing (feature, fix, or behavior users will notice):
+
+1. **Bump** `manifest.json` `version` (and keep `package.json` `version` in sync). Use semver: patch for fixes, minor for features, major only for breaking changes.
+2. **Update** `CHANGELOG.md` with a short high-level bullet under that version — what the user gets, not commit/PR dumps or file lists.
+3. If `versions.json` needs the new version ↔ `minAppVersion` mapping, update it (or run the repo’s `npm version` / `version-bump.mjs` flow when doing a formal release).
+
+Do this in the same PR as the feature/fix. Skip version/changelog bumps for pure docs, refactors with no user-visible effect, or chore-only work unless asked.
 
 ---
 
@@ -330,9 +342,11 @@ interface ISettingsAccess {
 5. No routing needed in ChatPanel — useAgent handles dispatch internally
 
 ### Debug
-1. Settings → Developer Settings → Debug Mode ON
+1. Settings → Agent Client → Developer Settings → **Debug Mode** ON (`debugMode` in settings / `data.json`)
 2. Open DevTools (Cmd+Option+I / Ctrl+Shift+I)
 3. Filter logs: `[AcpClient]`, `[AcpHandler]`, `[PermissionManager]`, `[VaultService]`
+
+Use this when ACP connection or spawn fails — console lines like `[AcpClient] Prepared spawn command:` and `[AcpClient] Initialization Error:` are gated on debug mode.
 
 ## ACP Protocol
 
@@ -355,4 +369,4 @@ interface ISettingsAccess {
 
 ---
 
-**Last Updated**: April 2026 | **Architecture**: useAgent facade + sub-hooks | **Version**: 0.10.0-preview.1
+**Last Updated**: April 2026 | **Architecture**: useAgent facade + sub-hooks | **Version**: 0.13.0

@@ -28,10 +28,11 @@ interface HeaderButtonProps {
 	iconName: string;
 	tooltip: string;
 	onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+	className?: string;
 }
 
 export const HeaderButton = forwardRef<HTMLButtonElement, HeaderButtonProps>(
-	function HeaderButton({ iconName, tooltip, onClick }, ref) {
+	function HeaderButton({ iconName, tooltip, onClick, className }, ref) {
 		const buttonRef = useRef<HTMLButtonElement>(null);
 
 		// Expose the button ref to parent components
@@ -48,7 +49,12 @@ export const HeaderButton = forwardRef<HTMLButtonElement, HeaderButtonProps>(
 				ref={buttonRef}
 				title={tooltip}
 				onClick={onClick}
-				className="clickable-icon agent-client-header-button"
+				className={[
+					"clickable-icon agent-client-header-button",
+					className,
+				]
+					.filter(Boolean)
+					.join(" ")}
 			/>
 		);
 	},

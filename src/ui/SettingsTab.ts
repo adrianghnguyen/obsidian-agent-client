@@ -464,6 +464,23 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								this.plugin.closeFloatingChat(instanceId);
 							}
 						}
+						this.display();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Enable floating chat tabs")
+			.setDesc(
+				"Group multiple floating chats as tabs in one window. Focus next/previous still cycles each chat.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableFloatingChatTabs)
+					.setDisabled(!this.plugin.settings.enableFloatingChat)
+					.onChange(async (value) => {
+						await this.plugin.settingsService.updateSettings({
+							enableFloatingChatTabs: value,
+						});
 					}),
 			);
 
@@ -475,6 +492,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.floatingChatOneKeyToggle)
+					.setDisabled(!this.plugin.settings.enableFloatingChat)
 					.onChange(async (value) => {
 						await this.plugin.settingsService.updateSettings({
 							floatingChatOneKeyToggle: value,

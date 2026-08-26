@@ -113,6 +113,12 @@ export interface ChatPanelProps {
 	onMinimize?: () => void;
 	onClose?: () => void;
 	onOpenNewWindow?: () => void;
+	/** When true (tabbed floating), window chrome lives in the tab bar. */
+	floatingWindowControlsInTabBar?: boolean;
+	/** Registers the active panel's ⋮ menu handler with the tab bar shell. */
+	onRegisterShowMenu?: (
+		showMenu: ((e: React.MouseEvent<HTMLElement>) => void) | null,
+	) => void;
 	/** Mouse down handler for floating header drag area */
 	onFloatingHeaderMouseDown?: (e: React.MouseEvent) => void;
 	// Sidebar-specific: Obsidian view host for DOM event registration
@@ -205,6 +211,8 @@ export const ChatPanel = React.memo(function ChatPanel({
 	onMinimize,
 	onClose,
 	onOpenNewWindow,
+	floatingWindowControlsInTabBar,
+	onRegisterShowMenu,
 	onFloatingHeaderMouseDown,
 	viewHost: viewHostProp,
 	containerEl: containerElProp,
@@ -711,6 +719,18 @@ export const ChatPanel = React.memo(function ChatPanel({
 			session.sessionId,
 		],
 	);
+
+	useEffect(() => {
+		if (!floatingWindowControlsInTabBar) return;
+		onRegisterShowMenu?.(handleShowFloatingMenu);
+		return () => {
+			onRegisterShowMenu?.(null);
+		};
+	}, [
+		floatingWindowControlsInTabBar,
+		handleShowFloatingMenu,
+		onRegisterShowMenu,
+	]);
 
 	// ============================================================
 	// viewHost creation for child components
@@ -1422,6 +1442,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 				onShowMenu={handleShowFloatingMenu}
 				onMinimize={onMinimize}
 				onClose={onClose}
+				hideWindowControls={floatingWindowControlsInTabBar}
 			/>
 		) : (
 			// Embedded variant: hide the agent selector when the block pins an
