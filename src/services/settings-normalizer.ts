@@ -5,7 +5,11 @@
  * Used by plugin.ts (loadSettings) and SettingsTab.ts.
  */
 
-import type { AgentEnvVar, CustomAgentSettings } from "../plugin";
+import type {
+	AgentEnvVar,
+	CustomAgentSettings,
+	FloatingChatEntry,
+} from "../plugin";
 import type {
 	BaseAgentSettings,
 	PresetAgentUserSettings,
@@ -462,4 +466,44 @@ export function xyPoint(raw: unknown): { x: number; y: number } | null {
 	const o = obj(raw);
 	if (!o || typeof o.x !== "number" || typeof o.y !== "number") return null;
 	return { x: o.x, y: o.y };
+}
+
+export const FLOATING_CHAT_ENTRIES: FloatingChatEntry[] = [
+	"off",
+	"button",
+	"status-bar",
+	"commands",
+];
+
+/**
+ * Resolve floatingChatEntry from raw settings, migrating legacy
+ * enableFloatingChat / showFloatingButton booleans when needed.
+ */
+export function resolveFloatingChatEntry(
+	raw: Record<string, unknown>,
+	fallback: FloatingChatEntry = "off",
+): FloatingChatEntry {
+	if (
+		FLOATING_CHAT_ENTRIES.includes(
+			raw.floatingChatEntry as FloatingChatEntry,
+		)
+	) {
+		return raw.floatingChatEntry as FloatingChatEntry;
+	}
+	const legacyEnabled = bool(
+		raw.enableFloatingChat,
+		bool(raw.showFloatingButton, false),
+	);
+	return legacyEnabled ? "button" : fallback;
+}
+
+/** True when legacy floating toggles should be rewritten to floatingChatEntry. */
+export function needsFloatingChatEntryMigration(
+	raw: Record<string, unknown>,
+): boolean {
+	return (
+		typeof raw.floatingChatEntry !== "string" &&
+		(raw.enableFloatingChat !== undefined ||
+			raw.showFloatingButton !== undefined)
+	);
 }
