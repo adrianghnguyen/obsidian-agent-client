@@ -21,10 +21,16 @@ import {
 } from "./ui/SessionManagerView";
 import {
 	createFloatingChat,
+	createFloatingTabbedShell,
 	FloatingViewContainer,
+	FloatingTabContainer,
+	FloatingTabbedShell,
 } from "./ui/FloatingChatView";
 import { FloatingButtonContainer } from "./ui/FloatingButton";
-import { ChatViewRegistry } from "./services/view-registry";
+import {
+	ChatViewRegistry,
+	type IChatViewContainer,
+} from "./services/view-registry";
 import {
 	createSettingsService,
 	type SettingsService,
@@ -166,6 +172,8 @@ export interface AgentClientPluginSettings {
 	lastUsedConfigOptions: Record<string, Record<string, string>>;
 	// Floating chat settings
 	enableFloatingChat: boolean;
+	/** When true, new floating chats open as tabs in one window instead of separate windows. */
+	enableFloatingChatTabs: boolean;
 	/** When true, Toggle floating chat opens or minimizes with one hotkey. */
 	floatingChatOneKeyToggle: boolean;
 	floatingButtonImage: string;
@@ -223,6 +231,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	lastUsedModes: {},
 	lastUsedConfigOptions: {},
 	enableFloatingChat: false,
+	enableFloatingChatTabs: false,
 	floatingChatOneKeyToggle: true,
 	floatingButtonImage: "",
 	floatingWindowSize: { width: 400, height: 500 },
@@ -261,6 +270,8 @@ export default class AgentClientPlugin extends Plugin {
 	private _acpTeardownTimers = new Map<string, number>();
 	/** Floating button container (independent from chat view instances) */
 	private floatingButton: FloatingButtonContainer | null = null;
+	/** Shared shell when enableFloatingChatTabs is on (null when unused). */
+	private floatingTabbedShell: FloatingTabbedShell | null = null;
 	/** Counter for generating unique floating chat instance IDs */
 	private floatingChatCounter = 0;
 	/** Guards against concurrent embed-id injection for the same block. */
@@ -468,7 +479,13 @@ export default class AgentClientPlugin extends Plugin {
 		this.floatingButton?.unmount();
 		this.floatingButton = null;
 
-		// Unmount all floating chat instances via registry
+		// Unmount tabbed floating shell (unregisters all its tabs)
+		if (this.floatingTabbedShell) {
+			this.floatingTabbedShell.unmount();
+			this.floatingTabbedShell = null;
+		}
+
+		// Unmount all standalone floating chat instances via registry
 		for (const container of this.viewRegistry.getByType("floating")) {
 			if (container instanceof FloatingViewContainer) {
 				container.unmount();
@@ -780,14 +797,14 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	/**
-	 * Open a new floating chat window.
-	 * Each window is independent with its own session.
+	 * Open a new floating chat window (or tab when tabs mode is enabled).
+	 * Each chat is independent with its own session.
 	 */
 	openNewFloatingChat(
 		initialExpanded = false,
 		initialPosition?: { x: number; y: number },
 		initialAgentId?: string,
-	): FloatingViewContainer | null {
+	): IChatViewContainer | null {
 		// Single choke point for the setting: commands, the floating button,
 		// and the onload bootstrap are already gated upstream, but agent
 		// buttons and the in-window "new window" action are not. A window
@@ -798,9 +815,30 @@ export default class AgentClientPlugin extends Plugin {
 			new Notice("[Agent Client] Floating chat is disabled in settings.");
 			return null;
 		}
-		// instanceId is just the counter (e.g., "0", "1", "2")
-		// FloatingViewContainer will create viewId as "floating-chat-{instanceId}"
+
 		const instanceId = String(this.floatingChatCounter++);
+
+		if (this.settings.enableFloatingChatTabs) {
+			if (!this.floatingTabbedShell) {
+				const { shell, tab } = createFloatingTabbedShell(
+					this,
+					instanceId,
+					initialExpanded,
+					initialPosition,
+					initialAgentId,
+				);
+				this.floatingTabbedShell = shell;
+				return tab;
+			}
+			return this.floatingTabbedShell.addTab(
+				instanceId,
+				initialExpanded,
+				initialAgentId,
+			);
+		}
+
+		// Multi-window mode: FloatingViewContainer creates viewId as
+		// "floating-chat-{instanceId}"
 		return createFloatingChat(
 			this,
 			instanceId,
@@ -808,6 +846,15 @@ export default class AgentClientPlugin extends Plugin {
 			initialPosition,
 			initialAgentId,
 		);
+	}
+
+	/**
+	 * Called by FloatingTabbedShell when its last tab closes.
+	 */
+	clearFloatingTabbedShell(shell: FloatingTabbedShell): void {
+		if (this.floatingTabbedShell === shell) {
+			this.floatingTabbedShell = null;
+		}
 	}
 
 	findNearestEmbeddedChat(
@@ -842,12 +889,16 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	/**
-	 * Close a specific floating chat window.
+	 * Close a specific floating chat window or tab.
 	 * @param viewId - The viewId in "floating-chat-{id}" format (from getFloatingChatInstances())
 	 */
 	closeFloatingChat(viewId: string): void {
 		const container = this.viewRegistry.get(viewId);
-		if (container && container instanceof FloatingViewContainer) {
+		if (container instanceof FloatingTabContainer) {
+			container.closeContainer();
+			return;
+		}
+		if (container instanceof FloatingViewContainer) {
 			container.unmount();
 		}
 	}
@@ -1554,6 +1605,10 @@ export default class AgentClientPlugin extends Plugin {
 			enableFloatingChat: bool(
 				raw.enableFloatingChat,
 				bool(raw.showFloatingButton, D.enableFloatingChat),
+			),
+			enableFloatingChatTabs: bool(
+				raw.enableFloatingChatTabs,
+				D.enableFloatingChatTabs,
 			),
 			floatingChatOneKeyToggle: bool(
 				raw.floatingChatOneKeyToggle,
