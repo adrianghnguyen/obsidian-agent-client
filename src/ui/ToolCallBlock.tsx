@@ -1,5 +1,5 @@
 import * as React from "react";
-const { useState, useMemo } = React;
+const { useState, useMemo, useEffect } = React;
 import { FileSystemAdapter } from "obsidian";
 import type { MessageContent } from "../types/chat";
 import type { AcpClient } from "../acp/acp-client";
@@ -7,14 +7,22 @@ import type AgentClientPlugin from "../plugin";
 import { TerminalBlock } from "./TerminalBlock";
 import { PermissionBanner } from "./PermissionBanner";
 import { LucideIcon } from "./shared/IconButton";
+import { MarkdownRenderer } from "./shared/MarkdownRenderer";
 import { toRelativePath } from "../utils/paths";
+import {
+	extractPlanMarkdownBody,
+	findCursorPlanBySessionId,
+	isCreatePlanTool,
+	isCursorPlanPath,
+} from "../utils/cursor-plans";
 import * as Diff from "diff";
-// import { MarkdownRenderer } from "./shared/MarkdownRenderer";
 
 interface ToolCallBlockProps {
 	content: Extract<MessageContent, { type: "tool_call" }>;
 	plugin: AgentClientPlugin;
 	terminalClient?: AcpClient;
+	/** Active ACP session id — used to resolve Cursor plan files on disk */
+	sessionId?: string | null;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -26,6 +34,7 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 	content,
 	plugin,
 	terminalClient,
+	sessionId,
 	onApprovePermission,
 }: ToolCallBlockProps) {
 	const {
@@ -37,6 +46,42 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 		rawInput,
 		content: toolContent,
 	} = content;
+
+	const createPlan = isCreatePlanTool(title, rawInput);
+	const planDiffs = useMemo(
+		() =>
+			(toolContent ?? []).filter(
+				(item) =>
+					item.type === "diff" && isCursorPlanPath(item.path),
+			),
+		[toolContent],
+	);
+	const hasPlanDiff = planDiffs.length > 0;
+
+	// Cursor Create Plan often ships with empty tool content; the body lives
+	// in ~/.cursor/plans/*.plan.md tagged with the session id.
+	const [resolvedPlanMarkdown, setResolvedPlanMarkdown] = useState<
+		string | null
+	>(null);
+
+	useEffect(() => {
+		if (!createPlan || hasPlanDiff || !sessionId) {
+			setResolvedPlanMarkdown(null);
+			return;
+		}
+		let cancelled = false;
+		void findCursorPlanBySessionId(sessionId).then((file) => {
+			if (cancelled) return;
+			if (!file) {
+				setResolvedPlanMarkdown(null);
+				return;
+			}
+			setResolvedPlanMarkdown(extractPlanMarkdownBody(file.content));
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [createPlan, hasPlanDiff, sessionId, status]);
 
 	// Local state for selected option (for immediate UI feedback)
 	const [selectedOptionId, setSelectedOptionId] = useState<
@@ -149,6 +194,18 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 						);
 					}
 					if (item.type === "diff") {
+						if (isCursorPlanPath(item.path)) {
+							return (
+								<PlanDocumentBlock
+									key={index}
+									markdown={extractPlanMarkdownBody(
+										item.newText,
+									)}
+									plugin={plugin}
+									path={item.path}
+								/>
+							);
+						}
 						return (
 							<DiffRenderer
 								key={index}
@@ -168,6 +225,13 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 					return null;
 				})}
 
+			{createPlan && !hasPlanDiff && resolvedPlanMarkdown && (
+				<PlanDocumentBlock
+					markdown={resolvedPlanMarkdown}
+					plugin={plugin}
+				/>
+			)}
+
 			{/* Permission request section */}
 			{permissionRequest && (
 				<PermissionBanner
@@ -183,6 +247,49 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 		</div>
 	);
 });
+
+// ============================================================
+// Plan document (Cursor Plan mode)
+// ============================================================
+
+interface PlanDocumentBlockProps {
+	markdown: string;
+	plugin: AgentClientPlugin;
+	path?: string;
+}
+
+function PlanDocumentBlock({
+	markdown,
+	plugin,
+	path,
+}: PlanDocumentBlockProps) {
+	if (!markdown.trim()) return null;
+	const showEmojis = plugin.settings.displaySettings.showEmojis;
+
+	return (
+		<div className="agent-client-plan-document">
+			<div className="agent-client-plan-document-header">
+				{showEmojis && (
+					<LucideIcon
+						name="file-text"
+						className="agent-client-plan-document-icon"
+					/>
+				)}
+				<span className="agent-client-plan-document-title">
+					Plan document
+				</span>
+				{path && (
+					<span className="agent-client-plan-document-path">
+						{path.replace(/\\/g, "/").split("/").pop()}
+					</span>
+				)}
+			</div>
+			<div className="agent-client-plan-document-body">
+				<MarkdownRenderer text={markdown} plugin={plugin} />
+			</div>
+		</div>
+	);
+}
 
 // ============================================================
 // Diff renderer component
