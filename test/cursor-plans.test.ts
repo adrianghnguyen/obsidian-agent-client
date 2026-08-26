@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { mkdtemp, writeFile, rm } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
 import {
 	extractPlanMarkdownBody,
+	findCursorPlanBySessionId,
 	isCreatePlanTool,
 	isCursorPlanPath,
 	planFileMatchesSession,
@@ -73,5 +77,50 @@ Body paragraph.
 		expect(extractPlanMarkdownBody("# Just a heading\n")).toBe(
 			"# Just a heading\n",
 		);
+	});
+});
+
+describe("findCursorPlanBySessionId", () => {
+	it("returns the newest matching plan file", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "cursor-plans-"));
+		const sessionId = "sess-abc-123";
+		try {
+			await writeFile(
+				join(dir, "older.plan.md"),
+				`<!-- ${sessionId} -->\n# Older\n`,
+				"utf8",
+			);
+			await new Promise((r) => setTimeout(r, 20));
+			await writeFile(
+				join(dir, "newer.plan.md"),
+				`<!-- ${sessionId} -->\n# Newer\n`,
+				"utf8",
+			);
+			await writeFile(
+				join(dir, "other.plan.md"),
+				`<!-- other-session -->\n# Other\n`,
+				"utf8",
+			);
+
+			const found = await findCursorPlanBySessionId(sessionId, dir);
+			expect(found?.path).toBe(join(dir, "newer.plan.md"));
+			expect(found?.content).toContain("# Newer");
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("returns null when no plan matches", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "cursor-plans-"));
+		try {
+			await writeFile(
+				join(dir, "x.plan.md"),
+				`<!-- other -->\n# X\n`,
+				"utf8",
+			);
+			expect(await findCursorPlanBySessionId("missing", dir)).toBeNull();
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
 	});
 });
