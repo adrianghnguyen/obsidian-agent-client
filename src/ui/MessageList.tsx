@@ -36,6 +36,8 @@ export interface MessageListProps {
 	view: IChatViewHost;
 	/** Terminal client for output polling */
 	terminalClient?: AcpClient;
+	/** Active ACP session id (Cursor plan file resolution) */
+	sessionId?: string | null;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -66,6 +68,7 @@ export function MessageList({
 	plugin,
 	view,
 	terminalClient,
+	sessionId,
 	onApprovePermission,
 	hasActivePermission,
 }: MessageListProps) {
@@ -272,6 +275,7 @@ export function MessageList({
 								message={message}
 								plugin={plugin}
 								terminalClient={terminalClient}
+								sessionId={sessionId}
 								onApprovePermission={onApprovePermission}
 							/>
 						</div>
