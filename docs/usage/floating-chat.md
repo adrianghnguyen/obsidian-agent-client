@@ -17,12 +17,23 @@ The Floating Chat provides a lightweight alternative to the sidebar chat view:
 - **Independent sessions** — each window or tab runs its own agent session
 
 ::: tip
-Enable the floating chat in **Settings → Agent Client → Floating chat → Enable floating chat**.
+Choose an entry mode under **Settings → Agent Client → Floating chat**.
 :::
 
-## Getting Started
+## Entry modes
 
-1. Enable **Enable floating chat** in settings
+| Mode | Floating windows + commands | Floating button | Status bar |
+|------|-----------------------------|-----------------|------------|
+| **Off** | No | No | No |
+| **Floating button** | Yes | Yes | No |
+| **Status bar** | Yes | No | Yes |
+| **Commands only** | Yes | No | No |
+
+Default: **Off**.
+
+### Floating button
+
+1. Set **Floating chat** to **Floating button**
 2. A floating button appears in the bottom-right corner
 3. Click the button to open a chat window
 4. Start chatting — the window works just like the sidebar chat
@@ -30,6 +41,17 @@ Enable the floating chat in **Settings → Agent Client → Floating chat → En
 <p align="center">
   <img src="/images/floating-chat-button.webp" alt="Floating button in the bottom-right corner" width="200" />
 </p>
+
+### Status bar
+
+1. Set **Floating chat** to **Status bar**
+2. A bot icon appears in Obsidian’s status bar
+3. **Click** the icon to toggle floating chat (same one-key open/minimize behavior as the Toggle command)
+4. **Hover** the icon to open a Session Manager popover listing active sessions — click a row to focus that session
+
+### Commands only
+
+Floating chat works through the command palette / hotkeys only — no floating button and no status-bar icon.
 
 ## Moving and Resizing
 
@@ -48,7 +70,7 @@ Open more than one floating chat window to run parallel conversations (default w
 
 ### Switching Between Windows
 
-When multiple windows exist, clicking the floating button shows an instance menu:
+When multiple windows exist and the entry mode is **Floating button**, clicking the floating button shows an instance menu:
 
 <p align="center">
   <img src="/images/floating-chat-instance-menu.webp" alt="Instance menu with multiple sessions listed" width="300" />
@@ -56,6 +78,8 @@ When multiple windows exist, clicking the floating button shows an instance menu
 
 - Click a session name to expand that window
 - Click **×** to close a session
+
+With **Status bar**, hover the status-bar icon and pick a session from the popover.
 
 ::: tip
 The focused floating window is always displayed in front of other floating windows.
@@ -66,7 +90,7 @@ The focused floating window is always displayed in front of other floating windo
 Enable **Enable floating chat tabs** under **Settings → Agent Client → Floating chat** to keep multiple independent chats in **one** floating window.
 
 - **"Open new floating chat view"** and the header **⋮** menu add a **tab** to the existing window (or create the window if none exists)
-- Use the tab strip to switch chats; **+** opens a new tab; **×** on a tab closes that chat
+- Use the tab strip to switch chats; **+** (left of the tabs) opens a new tab; **×** on a tab closes that chat
 - Header close closes the **active** tab; closing the last tab closes the window
 - Minimize hides the whole window while preserving every tab’s session
 
@@ -95,7 +119,7 @@ Customize the floating chat in **Settings → Agent Client → Floating chat**:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| **Enable floating chat** | Off | Enable the floating chat button and draggable chat windows |
+| **Floating chat** | Off | Entry mode: Off / Floating button / Status bar / Commands only |
 | **Enable floating chat tabs** | Off | Group multiple floating chats as tabs in one window |
 | **One-key toggle** | On | Same hotkey opens or minimizes the floating chat. Turn off to use separate Open and Minimize hotkeys |
-| **Floating button image** | Default icon | URL or vault path to a custom button image |
+| **Floating button image** | Default icon | URL or vault path to a custom button image (only when entry mode is Floating button) |

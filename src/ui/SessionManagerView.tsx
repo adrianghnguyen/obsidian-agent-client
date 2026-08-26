@@ -55,6 +55,7 @@ const SessionItem = React.memo(function SessionItem({
 	status,
 	title,
 	agentName,
+	onSelect,
 }: {
 	view: IChatViewContainer;
 	isFocused: boolean;
@@ -62,6 +63,7 @@ const SessionItem = React.memo(function SessionItem({
 	status: SessionStatus;
 	title: string;
 	agentName: string;
+	onSelect?: (viewId: string) => void;
 }) {
 	const moreRef = useRef<HTMLButtonElement>(null);
 
@@ -71,7 +73,10 @@ const SessionItem = React.memo(function SessionItem({
 
 	// `view` is stable for the same viewId (registry holds the same instance),
 	// so this callback is stable across renders — keeping React.memo effective.
-	const handleClick = useCallback(() => view.focus(), [view]);
+	const handleClick = useCallback(() => {
+		view.focus();
+		onSelect?.(view.viewId);
+	}, [view, onSelect]);
 
 	const showMenu = useCallback(
 		(position: { x: number; y: number }) => {
@@ -158,7 +163,13 @@ const SessionItem = React.memo(function SessionItem({
 	);
 });
 
-function SessionManagerComponent({ plugin }: { plugin: AgentClientPlugin }) {
+export function SessionManagerComponent({
+	plugin,
+	onSessionSelect,
+}: {
+	plugin: AgentClientPlugin;
+	onSessionSelect?: (viewId: string) => void;
+}) {
 	const { views, focusedId } = useSyncExternalStore(
 		plugin.viewRegistry.subscribe,
 		plugin.viewRegistry.getSnapshot,
@@ -187,6 +198,7 @@ function SessionManagerComponent({ plugin }: { plugin: AgentClientPlugin }) {
 					status={view.getSessionStatus()}
 					title={view.getSessionTitle()}
 					agentName={view.getDisplayName()}
+					onSelect={onSessionSelect}
 				/>
 			))}
 		</div>

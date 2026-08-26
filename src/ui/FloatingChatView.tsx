@@ -1271,6 +1271,15 @@ function FloatingTabbedShellComponent({
 				className="agent-client-floating-tab-bar"
 				onMouseDown={onMouseDown}
 			>
+				<HeaderButton
+					iconName="plus"
+					tooltip="Open new tab"
+					className="agent-client-floating-tab-add"
+					onClick={(e) => {
+						e.stopPropagation();
+						onOpenNewTab();
+					}}
+				/>
 				<div className="agent-client-floating-tab-list">
 					{tabs.map((tab) => {
 						const container = getTabContainer(tab.viewId);
@@ -1308,15 +1317,6 @@ function FloatingTabbedShellComponent({
 						);
 					})}
 				</div>
-				<HeaderButton
-					iconName="plus"
-					tooltip="Open new tab"
-					className="agent-client-floating-tab-add"
-					onClick={(e) => {
-						e.stopPropagation();
-						onOpenNewTab();
-					}}
-				/>
 				<div className="agent-client-floating-tab-bar-actions">
 					<HeaderButton
 						iconName="more-vertical"

@@ -2361,7 +2361,7 @@ If your plugin does not need CSS, delete this file.
 	height: 26px;
 	min-width: 26px;
 	min-height: 26px;
-	margin: 0 2px 4px 0;
+	margin: 0 4px 4px 2px;
 	padding: 0;
 	border-radius: 6px;
 	border: 1px solid transparent;
@@ -2508,6 +2508,44 @@ If your plugin does not need CSS, delete this file.
 .agent-client-floating-instance-menu-close:hover {
 	background-color: var(--background-modifier-hover) !important;
 	color: var(--interactive-accent);
+}
+
+/* ===== Floating chat status bar ===== */
+
+.agent-client-floating-status-bar {
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+}
+
+.agent-client-floating-status-bar.is-hidden {
+	display: none;
+}
+
+.agent-client-floating-status-bar-icon {
+	display: flex;
+	align-items: center;
+}
+
+.agent-client-floating-status-bar-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.agent-client-status-bar-session-popover {
+	position: fixed;
+	z-index: 1000;
+	max-height: min(360px, 50vh);
+	overflow-y: auto;
+	padding: 4px 0;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-s);
+}
+
+.agent-client-status-bar-session-popover.is-positioning {
+	visibility: hidden;
 }
 
 /* ===== Agent Selector (InlineHeader) ===== */
