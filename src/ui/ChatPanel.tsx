@@ -1485,6 +1485,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			plugin={plugin}
 			view={viewHost}
 			terminalClient={terminalClientRef.current}
+			sessionId={session.sessionId}
 			onApprovePermission={agent.approvePermission}
 			hasActivePermission={agent.hasActivePermission}
 		/>

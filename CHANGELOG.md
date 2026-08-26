@@ -2,6 +2,10 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## 0.13.3
+
+- Cursor Plan mode: show the full plan document in chat (not only the short todo checklist).
+
 ## 0.13.2
 
 - Tabbed floating chat: move the new-tab (+) control beside the tab strip.

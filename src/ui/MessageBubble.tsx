@@ -154,6 +154,7 @@ interface ContentBlockProps {
 	plugin: AgentClientPlugin;
 	messageRole?: "user" | "assistant";
 	terminalClient?: AcpClient;
+	sessionId?: string | null;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -166,6 +167,7 @@ function ContentBlock({
 	plugin,
 	messageRole,
 	terminalClient,
+	sessionId,
 	onApprovePermission,
 }: ContentBlockProps) {
 	switch (content.type) {
@@ -196,6 +198,7 @@ function ContentBlock({
 					content={content}
 					plugin={plugin}
 					terminalClient={terminalClient}
+					sessionId={sessionId}
 					onApprovePermission={onApprovePermission}
 				/>
 			);
@@ -287,6 +290,7 @@ export interface MessageBubbleProps {
 	message: ChatMessage;
 	plugin: AgentClientPlugin;
 	terminalClient?: AcpClient;
+	sessionId?: string | null;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -385,6 +389,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 	message,
 	plugin,
 	terminalClient,
+	sessionId,
 	onApprovePermission,
 }: MessageBubbleProps) {
 	const groups = groupContent(message.content);
@@ -408,6 +413,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 									plugin={plugin}
 									messageRole={message.role}
 									terminalClient={terminalClient}
+									sessionId={sessionId}
 									onApprovePermission={onApprovePermission}
 								/>
 							))}
@@ -422,6 +428,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 								plugin={plugin}
 								messageRole={message.role}
 								terminalClient={terminalClient}
+								sessionId={sessionId}
 								onApprovePermission={onApprovePermission}
 							/>
 						</div>

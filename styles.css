@@ -467,6 +467,61 @@ If your plugin does not need CSS, delete this file.
 	font-weight: bold;
 }
 
+/* Cursor Plan mode — full plan markdown body */
+.agent-client-plan-document {
+	margin-top: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	overflow: hidden;
+	max-width: 100%;
+}
+
+.agent-client-plan-document-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 10px;
+	background-color: var(--background-secondary);
+	font-size: 12px;
+	font-weight: 600;
+	user-select: text;
+}
+
+.agent-client-plan-document-icon svg {
+	width: 14px;
+	height: 14px;
+	display: block;
+}
+
+.agent-client-plan-document-title {
+	flex: 0 0 auto;
+}
+
+.agent-client-plan-document-path {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-muted);
+	font-weight: 400;
+	font-size: 11px;
+}
+
+.agent-client-plan-document-body {
+	padding: 8px 12px;
+	user-select: text;
+	overflow-wrap: break-word;
+	word-wrap: break-word;
+	word-break: break-word;
+	max-width: 100%;
+	font-size: var(--ac-chat-font-size);
+}
+
+.agent-client-plan-document-body .markdown-rendered {
+	user-select: text;
+}
+
 /* ===== Permission Request (vertical option list) ===== */
 /* Mirrors .agent-client-tool-call-diff: full-bleed block inside the
    tool call with a 1px border container. Kind colors live on the icon,
