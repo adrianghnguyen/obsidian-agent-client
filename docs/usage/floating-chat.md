@@ -65,13 +65,13 @@ The focused floating window is always displayed in front of other floating windo
 
 | Command | Description |
 |---------|-------------|
-| **Open floating chat view** | Open an existing floating window, or create one if none exist |
+| **Toggle floating chat view** | With **One-key toggle** on (default): open/expand if hidden, minimize if shown. With the setting off: open/expand only |
 | **Open new floating chat view** | Always create a new floating window |
-| **Minimize floating chat view** | Hide the focused floating window (session is preserved) |
+| **Minimize floating chat view** | Hide the focused floating window (session is preserved). Use with a separate hotkey when One-key toggle is off |
 | **Close floating chat view** | Close the focused floating window and end the session |
 
 ::: tip
-Assign keyboard shortcuts to these commands in **Settings → Hotkeys** for quick access.
+Assign keyboard shortcuts to these commands in **Settings → Hotkeys** for quick access. With One-key toggle on, bind a single hotkey to **Toggle floating chat view**.
 :::
 
 ## Configuration
@@ -81,4 +81,5 @@ Customize the floating chat in **Settings → Agent Client → Floating chat**:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | **Enable floating chat** | Off | Enable the floating chat button and draggable chat windows |
+| **One-key toggle** | On | Same hotkey opens or minimizes the floating chat. Turn off to use separate Open and Minimize hotkeys |
 | **Floating button image** | Default icon | URL or vault path to a custom button image |

@@ -102,6 +102,13 @@ export interface IChatViewContainer {
 	hasFocus(): boolean;
 
 	/**
+	 * Whether the view is currently expanded (visible).
+	 * Sidebar and embedded views are always expanded; floating views
+	 * report their show/hide state.
+	 */
+	isExpanded(): boolean;
+
+	/**
 	 * Expand the view if it's in a collapsed state.
 	 * For sidebar views, this is a no-op.
 	 * For floating views, this expands the window.

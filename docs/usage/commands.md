@@ -35,9 +35,9 @@ Control multiple chat views at once. See [Multi-Session Chat](/usage/multi-sessi
 
 | Command | Description |
 |---------|-------------|
-| **Open floating chat view** | Open an existing floating window, or create one if none exist |
+| **Toggle floating chat view** | With **One-key toggle** on (default): open/expand if hidden, minimize if shown. With the setting off: open/expand only |
 | **Open new floating chat view** | Always create a new floating window |
-| **Minimize floating chat view** | Hide the focused floating window (session is preserved) |
+| **Minimize floating chat view** | Hide the focused floating window (session is preserved). Use with a separate hotkey when One-key toggle is off |
 | **Close floating chat view** | Close the focused floating window and end the session |
 
 ## Agent Commands

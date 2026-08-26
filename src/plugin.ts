@@ -166,6 +166,8 @@ export interface AgentClientPluginSettings {
 	lastUsedConfigOptions: Record<string, Record<string, string>>;
 	// Floating chat settings
 	enableFloatingChat: boolean;
+	/** When true, Toggle floating chat opens or minimizes with one hotkey. */
+	floatingChatOneKeyToggle: boolean;
 	floatingButtonImage: string;
 	floatingWindowSize: { width: number; height: number };
 	floatingWindowPosition: { x: number; y: number } | null;
@@ -221,6 +223,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	lastUsedModes: {},
 	lastUsedConfigOptions: {},
 	enableFloatingChat: false,
+	floatingChatOneKeyToggle: true,
 	floatingButtonImage: "",
 	floatingWindowSize: { width: 400, height: 500 },
 	floatingWindowPosition: null,
@@ -343,24 +346,35 @@ export default class AgentClientPlugin extends Plugin {
 		// Floating chat window commands
 		this.addCommand({
 			id: "open-floating-chat-view",
-			name: "Open floating chat view",
+			name: "Toggle floating chat view",
 			checkCallback: (checking) => {
 				if (!this.settings.enableFloatingChat) return false;
 				if (checking) return true;
 				const instances = this.getFloatingChatInstances();
 				if (instances.length === 0) {
 					this.openNewFloatingChat(true);
-				} else if (instances.length === 1) {
-					this.expandFloatingChat(instances[0]);
+					return;
+				}
+				let targetId: string;
+				if (instances.length === 1) {
+					targetId = instances[0];
 				} else {
 					const focused = this.viewRegistry.getFocused();
 					if (focused && focused.viewType === "floating") {
-						focused.expand();
+						targetId = focused.viewId;
 					} else {
-						this.expandFloatingChat(
-							instances[instances.length - 1],
-						);
+						targetId = instances[instances.length - 1];
 					}
+				}
+				const target = this.viewRegistry.get(targetId);
+				if (!target) return;
+				if (
+					this.settings.floatingChatOneKeyToggle &&
+					target.isExpanded()
+				) {
+					target.collapse();
+				} else {
+					target.expand();
 				}
 			},
 		});
@@ -1540,6 +1554,10 @@ export default class AgentClientPlugin extends Plugin {
 			enableFloatingChat: bool(
 				raw.enableFloatingChat,
 				bool(raw.showFloatingButton, D.enableFloatingChat),
+			),
+			floatingChatOneKeyToggle: bool(
+				raw.floatingChatOneKeyToggle,
+				D.floatingChatOneKeyToggle,
 			),
 			floatingButtonImage: str(
 				raw.floatingButtonImage,
