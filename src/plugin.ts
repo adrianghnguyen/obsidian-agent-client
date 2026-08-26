@@ -55,6 +55,8 @@ import {
 	strRecord,
 	nestedStrRecord,
 	xyPoint,
+	resolveFloatingChatEntry,
+	needsFloatingChatEntryMigration,
 } from "./services/settings-normalizer";
 import { PRESET_AGENTS } from "./services/preset-agents";
 import {
@@ -1638,22 +1640,10 @@ export default class AgentClientPlugin extends Plugin {
 			lastUsedModes: strRecord(raw.lastUsedModes),
 			lastUsedConfigOptions: nestedStrRecord(raw.lastUsedConfigOptions),
 			// Migration: floatingChatEntry ← enableFloatingChat ← showFloatingButton
-			floatingChatEntry: (() => {
-				const valid: FloatingChatEntry[] = [
-					"off",
-					"button",
-					"status-bar",
-					"commands",
-				];
-				if (valid.includes(raw.floatingChatEntry as FloatingChatEntry)) {
-					return raw.floatingChatEntry as FloatingChatEntry;
-				}
-				const legacyEnabled = bool(
-					raw.enableFloatingChat,
-					bool(raw.showFloatingButton, false),
-				);
-				return legacyEnabled ? "button" : D.floatingChatEntry;
-			})(),
+			floatingChatEntry: resolveFloatingChatEntry(
+				raw,
+				D.floatingChatEntry,
+			),
 			enableFloatingChatTabs: bool(
 				raw.enableFloatingChatTabs,
 				D.enableFloatingChatTabs,
@@ -1681,15 +1671,10 @@ export default class AgentClientPlugin extends Plugin {
 		this.ensureAtLeastOneEnabled();
 		this.ensureDefaultAgentId();
 
-		const migratedFloatingChatEntry =
-			typeof raw.floatingChatEntry !== "string" &&
-			(raw.enableFloatingChat !== undefined ||
-				raw.showFloatingButton !== undefined);
-
 		if (
 			migratedSecrets ||
 			absorption.absorbed.length > 0 ||
-			migratedFloatingChatEntry
+			needsFloatingChatEntryMigration(raw)
 		) {
 			await this.saveSettings();
 		}
