@@ -27,6 +27,7 @@ import {
 	FloatingTabbedShell,
 } from "./ui/FloatingChatView";
 import { FloatingButtonContainer } from "./ui/FloatingButton";
+import { FloatingChatStatusBar } from "./ui/FloatingChatStatusBar";
 import {
 	ChatViewRegistry,
 	type IChatViewContainer,
@@ -105,6 +106,9 @@ export type ChatViewLocation =
 	| "editor-tab"
 	| "editor-split";
 
+/** How the floating chat UI is entered (FAB, status bar, commands, or off). */
+export type FloatingChatEntry = "off" | "button" | "status-bar" | "commands";
+
 export interface AgentClientPluginSettings {
 	/**
 	 * Per-preset user overrides, keyed by presetId (see
@@ -171,7 +175,14 @@ export interface AgentClientPluginSettings {
 	// Last used non-model/mode config options per agent (agentId → {optionId → value})
 	lastUsedConfigOptions: Record<string, Record<string, string>>;
 	// Floating chat settings
-	enableFloatingChat: boolean;
+	/**
+	 * How floating chat is entered from the UI:
+	 * - off: floating chat disabled
+	 * - button: floating action button (FAB)
+	 * - status-bar: status bar icon + Session Manager hover popover
+	 * - commands: commands only (no FAB / status bar)
+	 */
+	floatingChatEntry: FloatingChatEntry;
 	/** When true, new floating chats open as tabs in one window instead of separate windows. */
 	enableFloatingChatTabs: boolean;
 	/** When true, Toggle floating chat opens or minimizes with one hotkey. */
@@ -230,7 +241,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	lastUsedModels: {},
 	lastUsedModes: {},
 	lastUsedConfigOptions: {},
-	enableFloatingChat: false,
+	floatingChatEntry: "off",
 	enableFloatingChatTabs: false,
 	floatingChatOneKeyToggle: true,
 	floatingButtonImage: "",
@@ -270,6 +281,8 @@ export default class AgentClientPlugin extends Plugin {
 	private _acpTeardownTimers = new Map<string, number>();
 	/** Floating button container (independent from chat view instances) */
 	private floatingButton: FloatingButtonContainer | null = null;
+	/** Status-bar entry for floating chat (Session Manager hover popover) */
+	private floatingChatStatusBar: FloatingChatStatusBar | null = null;
 	/** Shared shell when enableFloatingChatTabs is on (null when unused). */
 	private floatingTabbedShell: FloatingTabbedShell | null = null;
 	/** Counter for generating unique floating chat instance IDs */
@@ -359,34 +372,9 @@ export default class AgentClientPlugin extends Plugin {
 			id: "open-floating-chat-view",
 			name: "Toggle floating chat view",
 			checkCallback: (checking) => {
-				if (!this.settings.enableFloatingChat) return false;
+				if (!this.isFloatingChatEnabled()) return false;
 				if (checking) return true;
-				const instances = this.getFloatingChatInstances();
-				if (instances.length === 0) {
-					this.openNewFloatingChat(true);
-					return;
-				}
-				let targetId: string;
-				if (instances.length === 1) {
-					targetId = instances[0];
-				} else {
-					const focused = this.viewRegistry.getFocused();
-					if (focused && focused.viewType === "floating") {
-						targetId = focused.viewId;
-					} else {
-						targetId = instances[instances.length - 1];
-					}
-				}
-				const target = this.viewRegistry.get(targetId);
-				if (!target) return;
-				if (
-					this.settings.floatingChatOneKeyToggle &&
-					target.isExpanded()
-				) {
-					target.collapse();
-				} else {
-					target.expand();
-				}
+				this.toggleFloatingChat();
 			},
 		});
 
@@ -394,7 +382,7 @@ export default class AgentClientPlugin extends Plugin {
 			id: "open-new-floating-chat-view",
 			name: "Open new floating chat view",
 			checkCallback: (checking) => {
-				if (!this.settings.enableFloatingChat) return false;
+				if (!this.isFloatingChatEnabled()) return false;
 				if (checking) return true;
 				this.openNewFloatingChat(true);
 			},
@@ -404,7 +392,7 @@ export default class AgentClientPlugin extends Plugin {
 			id: "minimize-floating-chat-view",
 			name: "Minimize floating chat view",
 			checkCallback: (checking) => {
-				if (!this.settings.enableFloatingChat) return false;
+				if (!this.isFloatingChatEnabled()) return false;
 				const focused = this.viewRegistry.getFocused();
 				if (!(focused && focused.viewType === "floating")) return false;
 				if (checking) return true;
@@ -416,7 +404,7 @@ export default class AgentClientPlugin extends Plugin {
 			id: "close-floating-chat-view",
 			name: "Close floating chat view",
 			checkCallback: (checking) => {
-				if (!this.settings.enableFloatingChat) return false;
+				if (!this.isFloatingChatEnabled()) return false;
 				const focused = this.viewRegistry.getFocused();
 				if (!(focused && focused.viewType === "floating")) return false;
 				if (checking) return true;
@@ -438,8 +426,12 @@ export default class AgentClientPlugin extends Plugin {
 		this.floatingButton = new FloatingButtonContainer(this);
 		this.floatingButton.mount();
 
+		// Status-bar entry (visibility controlled by floatingChatEntry)
+		this.floatingChatStatusBar = new FloatingChatStatusBar(this);
+		this.floatingChatStatusBar.mount();
+
 		// Mount initial floating chat instance only if enabled
-		if (this.settings.enableFloatingChat) {
+		if (this.isFloatingChatEnabled()) {
 			this.openNewFloatingChat();
 		}
 
@@ -478,6 +470,9 @@ export default class AgentClientPlugin extends Plugin {
 		// Unmount floating button
 		this.floatingButton?.unmount();
 		this.floatingButton = null;
+
+		this.floatingChatStatusBar?.unmount();
+		this.floatingChatStatusBar = null;
 
 		// Unmount tabbed floating shell (unregisters all its tabs)
 		if (this.floatingTabbedShell) {
@@ -811,7 +806,7 @@ export default class AgentClientPlugin extends Plugin {
 		// created while the feature is off becomes unreachable after a
 		// minimize (the button and every floating command are hidden or
 		// disabled with the setting), so refuse creation outright.
-		if (!this.settings.enableFloatingChat) {
+		if (!this.isFloatingChatEnabled()) {
 			new Notice("[Agent Client] Floating chat is disabled in settings.");
 			return null;
 		}
@@ -900,6 +895,47 @@ export default class AgentClientPlugin extends Plugin {
 		}
 		if (container instanceof FloatingViewContainer) {
 			container.unmount();
+		}
+	}
+
+	/**
+	 * Whether floating chat windows/commands are available (any entry mode except off).
+	 */
+	isFloatingChatEnabled(): boolean {
+		return this.settings.floatingChatEntry !== "off";
+	}
+
+	/**
+	 * Open/expand a floating chat, or minimize when one-key toggle applies.
+	 * Used by the Toggle command and the status-bar entry.
+	 */
+	toggleFloatingChat(): void {
+		if (!this.isFloatingChatEnabled()) return;
+
+		const instances = this.getFloatingChatInstances();
+		if (instances.length === 0) {
+			this.openNewFloatingChat(true);
+			return;
+		}
+
+		let targetId: string;
+		if (instances.length === 1) {
+			targetId = instances[0];
+		} else {
+			const focused = this.viewRegistry.getFocused();
+			if (focused && focused.viewType === "floating") {
+				targetId = focused.viewId;
+			} else {
+				targetId = instances[instances.length - 1];
+			}
+		}
+
+		const target = this.viewRegistry.get(targetId);
+		if (!target) return;
+		if (this.settings.floatingChatOneKeyToggle && target.isExpanded()) {
+			target.collapse();
+		} else {
+			target.expand();
 		}
 	}
 
@@ -1601,11 +1637,23 @@ export default class AgentClientPlugin extends Plugin {
 			lastUsedModels: strRecord(raw.lastUsedModels),
 			lastUsedModes: strRecord(raw.lastUsedModes),
 			lastUsedConfigOptions: nestedStrRecord(raw.lastUsedConfigOptions),
-			// Migration: enableFloatingChat ← showFloatingButton (old name)
-			enableFloatingChat: bool(
-				raw.enableFloatingChat,
-				bool(raw.showFloatingButton, D.enableFloatingChat),
-			),
+			// Migration: floatingChatEntry ← enableFloatingChat ← showFloatingButton
+			floatingChatEntry: (() => {
+				const valid: FloatingChatEntry[] = [
+					"off",
+					"button",
+					"status-bar",
+					"commands",
+				];
+				if (valid.includes(raw.floatingChatEntry as FloatingChatEntry)) {
+					return raw.floatingChatEntry as FloatingChatEntry;
+				}
+				const legacyEnabled = bool(
+					raw.enableFloatingChat,
+					bool(raw.showFloatingButton, false),
+				);
+				return legacyEnabled ? "button" : D.floatingChatEntry;
+			})(),
 			enableFloatingChatTabs: bool(
 				raw.enableFloatingChatTabs,
 				D.enableFloatingChatTabs,
@@ -1633,7 +1681,16 @@ export default class AgentClientPlugin extends Plugin {
 		this.ensureAtLeastOneEnabled();
 		this.ensureDefaultAgentId();
 
-		if (migratedSecrets || absorption.absorbed.length > 0) {
+		const migratedFloatingChatEntry =
+			typeof raw.floatingChatEntry !== "string" &&
+			(raw.enableFloatingChat !== undefined ||
+				raw.showFloatingButton !== undefined);
+
+		if (
+			migratedSecrets ||
+			absorption.absorbed.length > 0 ||
+			migratedFloatingChatEntry
+		) {
 			await this.saveSettings();
 		}
 	}

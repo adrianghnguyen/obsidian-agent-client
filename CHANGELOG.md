@@ -2,6 +2,11 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## 0.13.4
+
+- Floating chat entry modes: Off / Floating button / Status bar / Commands only (replaces the Enable floating chat toggle). Status-bar mode adds a click-to-toggle icon and hover Session Manager popover.
+- Tabbed floating chat: move the new-tab (+) control to the left of the tab strip.
+
 ## 0.13.3
 
 - Cursor Plan mode: show the full plan document in chat (not only the short todo checklist).

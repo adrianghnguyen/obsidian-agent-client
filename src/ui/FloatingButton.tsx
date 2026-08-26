@@ -248,7 +248,7 @@ function FloatingButtonComponent({ plugin }: FloatingButtonProps) {
 		};
 	}, [showInstanceMenu]);
 
-	if (!settings.enableFloatingChat) return null;
+	if (settings.floatingChatEntry !== "button") return null;
 
 	const buttonClassName = [
 		"agent-client-floating-button",
