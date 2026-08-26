@@ -70,14 +70,28 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 			return;
 		}
 		let cancelled = false;
-		void findCursorPlanBySessionId(sessionId).then((file) => {
-			if (cancelled) return;
-			if (!file) {
-				setResolvedPlanMarkdown(null);
-				return;
+		// Cursor may write the plan file slightly after the empty tool_call;
+		// retry a few times so the body still appears without a reload.
+		const delaysMs = [0, 250, 750, 1500];
+		const tryResolve = async () => {
+			for (const delay of delaysMs) {
+				if (cancelled) return;
+				if (delay > 0) {
+					await new Promise((r) => setTimeout(r, delay));
+				}
+				if (cancelled) return;
+				const file = await findCursorPlanBySessionId(sessionId);
+				if (cancelled) return;
+				if (file) {
+					setResolvedPlanMarkdown(
+						extractPlanMarkdownBody(file.content),
+					);
+					return;
+				}
 			}
-			setResolvedPlanMarkdown(extractPlanMarkdownBody(file.content));
-		});
+			if (!cancelled) setResolvedPlanMarkdown(null);
+		};
+		void tryResolve();
 		return () => {
 			cancelled = true;
 		};

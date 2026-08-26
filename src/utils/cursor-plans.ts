@@ -72,13 +72,17 @@ export interface CursorPlanFile {
 /**
  * Find the newest Cursor plan file whose header matches `sessionId`.
  * Returns null when the directory is missing or no match is found.
+ *
+ * @param sessionId - ACP session id embedded in the plan file HTML comment
+ * @param plansDir - Optional override (defaults to `~/.cursor/plans`)
  */
 export async function findCursorPlanBySessionId(
 	sessionId: string,
+	plansDir?: string,
 ): Promise<CursorPlanFile | null> {
 	if (!sessionId) return null;
 
-	const dir = getCursorPlansDir();
+	const dir = plansDir ?? getCursorPlansDir();
 	let names: string[];
 	try {
 		names = await readdir(dir);
