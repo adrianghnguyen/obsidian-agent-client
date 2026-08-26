@@ -5,7 +5,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## 0.13.4
 
 - Floating chat entry modes: Off / Floating button / Status bar / Commands only (replaces the Enable floating chat toggle). Status-bar mode adds a click-to-toggle icon and hover Session Manager popover.
-- Tabbed floating chat: move the new-tab (+) control to the left of the tab strip.
+- Tabbed floating chat: new-tab (+) sits to the right of the last tab in the strip.
 
 ## 0.13.3
 

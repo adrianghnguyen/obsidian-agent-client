@@ -90,7 +90,7 @@ The focused floating window is always displayed in front of other floating windo
 Enable **Enable floating chat tabs** under **Settings → Agent Client → Floating chat** to keep multiple independent chats in **one** floating window.
 
 - **"Open new floating chat view"** and the header **⋮** menu add a **tab** to the existing window (or create the window if none exists)
-- Use the tab strip to switch chats; **+** (left of the tabs) opens a new tab; **×** on a tab closes that chat
+- Use the tab strip to switch chats; **+** (right of the tabs) opens a new tab; **×** on a tab closes that chat
 - Header close closes the **active** tab; closing the last tab closes the window
 - Minimize hides the whole window while preserving every tab’s session
 
