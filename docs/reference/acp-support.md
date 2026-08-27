@@ -88,7 +88,7 @@ Content types the plugin can display in tool calls.
 |------|--------|-------|
 | `diff` | ✅ Supported | |
 | `terminal` | ✅ Supported | |
-| `content` | ❌ Not supported | |
+| `content` | ✅ Supported | Text and image blocks (subagent / tool output) |
 
 ## Client Capabilities
 
@@ -99,10 +99,13 @@ Capabilities advertised to agents during initialization.
 | `fs.readTextFile` | `false` |
 | `fs.writeTextFile` | `false` |
 | `terminal` | `true` |
+| `_meta["subagent-transcript"]` | `true` (Claude Code nested Agent/Task transcripts) |
 
 ::: info
 The plugin does not implement filesystem operations (`fs/read_text_file`, `fs/write_text_file`). Agents handle file operations through their own tools.
 :::
+
+ACP `session/prompt` is sequential: one prompt per session at a time. Nested/subagent work is shown in the current turn; it does not let you send a second prompt while the first is still running. Cursor `cursor/task` notifications are displayed as subagent tool calls.
 
 ## See Also
 

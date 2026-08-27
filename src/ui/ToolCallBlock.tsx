@@ -15,6 +15,10 @@ import {
 	isCreatePlanTool,
 	isCursorPlanPath,
 } from "../utils/cursor-plans";
+import {
+	isSubagentToolCall,
+	resolveToolCallTitle,
+} from "../services/tool-call-display";
 import * as Diff from "diff";
 
 interface ToolCallBlockProps {
@@ -23,6 +27,8 @@ interface ToolCallBlockProps {
 	terminalClient?: AcpClient;
 	/** Active ACP session id — used to resolve Cursor plan files on disk */
 	sessionId?: string | null;
+	/** Nested under a parent Agent/Task tool call */
+	nested?: boolean;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -35,6 +41,7 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 	plugin,
 	terminalClient,
 	sessionId,
+	nested = false,
 	onApprovePermission,
 }: ToolCallBlockProps) {
 	const {
@@ -45,14 +52,34 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 		locations,
 		rawInput,
 		content: toolContent,
+		nestedCalls,
+		subagent,
 	} = content;
+	const displayTitle = resolveToolCallTitle({
+		title,
+		kind,
+		rawInput,
+		subagent,
+	});
+	const subagentTask = isSubagentToolCall(content);
+	const childInFlight = (nestedCalls ?? []).some(
+		(child) => child.status === "in_progress" || child.status === "pending",
+	);
+	const [nestedExpanded, setNestedExpanded] = useState(
+		status === "in_progress" || status === "pending" || childInFlight,
+	);
+
+	useEffect(() => {
+		if (status === "in_progress" || status === "pending" || childInFlight) {
+			setNestedExpanded(true);
+		}
+	}, [status, childInFlight]);
 
 	const createPlan = isCreatePlanTool(title, rawInput);
 	const planDiffs = useMemo(
 		() =>
 			(toolContent ?? []).filter(
-				(item) =>
-					item.type === "diff" && isCursorPlanPath(item.path),
+				(item) => item.type === "diff" && isCursorPlanPath(item.path),
 			),
 		[toolContent],
 	);
@@ -143,12 +170,20 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 			case "switch_mode":
 				return "arrow-left-right";
 			default:
-				return "hammer";
+				return subagentTask ? "bot" : "hammer";
 		}
 	};
 
+	const wrapperClass = [
+		"agent-client-message-tool-call",
+		nested ? "agent-client-message-tool-call-nested" : "",
+		subagentTask ? "agent-client-message-tool-call-subagent" : "",
+	]
+		.filter(Boolean)
+		.join(" ");
+
 	return (
-		<div className="agent-client-message-tool-call">
+		<div className={wrapperClass}>
 			{/* Header */}
 			<div className="agent-client-message-tool-call-header">
 				<div className="agent-client-message-tool-call-title">
@@ -159,8 +194,13 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 						/>
 					)}
 					<span className="agent-client-message-tool-call-title-text">
-						{title}
+						{displayTitle}
 					</span>
+					{subagentTask && (
+						<span className="agent-client-message-tool-call-badge">
+							Subagent
+						</span>
+					)}
 					{status !== "completed" && (
 						<LucideIcon
 							name={status === "failed" ? "x" : "ellipsis"}
@@ -236,6 +276,34 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 							/>
 						);
 					}
+					if (item.type === "content") {
+						if (!item.text.trim()) return null;
+						return (
+							<div
+								key={index}
+								className="agent-client-tool-call-output"
+							>
+								<MarkdownRenderer
+									text={item.text}
+									plugin={plugin}
+								/>
+							</div>
+						);
+					}
+					if (item.type === "image") {
+						return (
+							<div
+								key={index}
+								className="agent-client-message-image"
+							>
+								<img
+									src={`data:${item.mimeType};base64,${item.data}`}
+									alt=""
+									className="agent-client-message-image-thumbnail"
+								/>
+							</div>
+						);
+					}
 					return null;
 				})}
 
@@ -244,6 +312,49 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 					markdown={resolvedPlanMarkdown}
 					plugin={plugin}
 				/>
+			)}
+
+			{nestedCalls && nestedCalls.length > 0 && (
+				<div className="agent-client-tool-call-nested">
+					<div
+						className="agent-client-tool-call-nested-header"
+						role="button"
+						tabIndex={0}
+						aria-expanded={nestedExpanded}
+						onClick={() => setNestedExpanded((v) => !v)}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault();
+								setNestedExpanded((v) => !v);
+							}
+						}}
+					>
+						<span>
+							{nestedCalls.length} nested{" "}
+							{nestedCalls.length === 1 ? "task" : "tasks"}
+						</span>
+						<LucideIcon
+							name={
+								nestedExpanded
+									? "chevron-down"
+									: "chevron-right"
+							}
+							className="agent-client-tool-call-nested-chevron"
+						/>
+					</div>
+					{nestedExpanded &&
+						nestedCalls.map((child) => (
+							<ToolCallBlock
+								key={child.toolCallId}
+								content={child}
+								plugin={plugin}
+								terminalClient={terminalClient}
+								sessionId={sessionId}
+								nested
+								onApprovePermission={onApprovePermission}
+							/>
+						))}
+				</div>
 			)}
 
 			{/* Permission request section */}
@@ -272,11 +383,7 @@ interface PlanDocumentBlockProps {
 	path?: string;
 }
 
-function PlanDocumentBlock({
-	markdown,
-	plugin,
-	path,
-}: PlanDocumentBlockProps) {
+function PlanDocumentBlock({ markdown, plugin, path }: PlanDocumentBlockProps) {
 	// Expanded by default so Plan mode is readable without an extra click;
 	// header toggles collapse so long plans can be tucked away.
 	const [isExpanded, setIsExpanded] = useState(true);

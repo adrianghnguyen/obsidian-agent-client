@@ -15,6 +15,16 @@ import { AcpTypeConverter } from "./type-converter";
 import { TerminalManager } from "./terminal-handler";
 import { PermissionManager } from "./permission-handler";
 import { AcpHandler } from "./acp-handler";
+import {
+	parseCursorTaskParams,
+	parseCursorCreatePlanParams,
+	parseCursorAskQuestionParams,
+	cursorTaskToToolCall,
+	cursorCreatePlanToToolCall,
+	cursorCompletedOutcome,
+	cursorAcceptedOutcome,
+	cursorSkippedOutcome,
+} from "./cursor-extensions";
 import { getLogger, Logger } from "../utils/logger";
 import type AgentClientPlugin from "../plugin";
 import {
@@ -413,6 +423,43 @@ export class AcpClient {
 			)
 			.onRequest("terminal/release", (ctx) =>
 				this.handler.releaseTerminal(ctx.params),
+			)
+			.onRequest("cursor/task", parseCursorTaskParams, (ctx) => {
+				this.emitCursorTask(ctx.params);
+				return cursorCompletedOutcome({
+					agentId: ctx.params.agentId,
+					durationMs: ctx.params.durationMs,
+				});
+			})
+			.onNotification("cursor/task", parseCursorTaskParams, (ctx) => {
+				this.emitCursorTask(ctx.params);
+			})
+			.onRequest(
+				"cursor/create_plan",
+				parseCursorCreatePlanParams,
+				(ctx) => {
+					this.emitCursorCreatePlan(ctx.params);
+					return cursorAcceptedOutcome();
+				},
+			)
+			.onNotification(
+				"cursor/create_plan",
+				parseCursorCreatePlanParams,
+				(ctx) => {
+					this.emitCursorCreatePlan(ctx.params);
+				},
+			)
+			.onRequest(
+				"cursor/ask_question",
+				parseCursorAskQuestionParams,
+				(_ctx) => {
+					this.logger.log(
+						"[AcpClient] cursor/ask_question skipped (no question UI)",
+					);
+					return cursorSkippedOutcome(
+						"This client does not present multiple-choice questions yet",
+					);
+				},
 			);
 		this.connection = app.connect(stream);
 
@@ -429,6 +476,14 @@ export class AcpClient {
 							writeTextFile: false,
 						},
 						terminal: true,
+						// Opt in so Claude Code forwards nested Agent/Task
+						// transcripts (parentToolUseId / subagent in _meta).
+						// Do NOT advertise native subagent sessions — those
+						// use a different sessionId and would be dropped by
+						// the current-session filter.
+						_meta: {
+							"subagent-transcript": true,
+						},
 					},
 					clientInfo: {
 						name: "obsidian-agent-client",
@@ -816,6 +871,34 @@ export class AcpClient {
 			);
 		}
 		return this.connection;
+	}
+
+	private emitCursorTask(
+		params: ReturnType<typeof parseCursorTaskParams>,
+	): void {
+		const sessionId = this.currentSessionId;
+		if (!sessionId) {
+			this.logger.log(
+				"[AcpClient] cursor/task with no active session; ignoring",
+			);
+			return;
+		}
+		this.handler.emitSessionUpdate(cursorTaskToToolCall(params, sessionId));
+	}
+
+	private emitCursorCreatePlan(
+		params: ReturnType<typeof parseCursorCreatePlanParams>,
+	): void {
+		const sessionId = this.currentSessionId;
+		if (!sessionId) {
+			this.logger.log(
+				"[AcpClient] cursor/create_plan with no active session; ignoring",
+			);
+			return;
+		}
+		this.handler.emitSessionUpdate(
+			cursorCreatePlanToToolCall(params, sessionId),
+		);
 	}
 
 	/**

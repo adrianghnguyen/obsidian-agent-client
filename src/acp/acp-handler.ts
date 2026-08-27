@@ -5,6 +5,8 @@ import { AcpTypeConverter } from "./type-converter";
 import type { PermissionManager } from "./permission-handler";
 import type { TerminalManager } from "./terminal-handler";
 import type { Logger } from "../utils/logger";
+import { extractToolCallMeta } from "./session-meta";
+import type { ToolKind } from "../types/chat";
 
 /**
  * Handles incoming ACP protocol events from the agent.
@@ -68,9 +70,15 @@ export class AcpHandler {
 		const update = params.update;
 		const sessionId = params.sessionId;
 		this.promptSessionUpdateCount++;
+		const meta = extractToolCallMeta(
+			params._meta,
+			"_meta" in update ? update._meta : undefined,
+		);
 		this.logger.log("[AcpHandler] sessionUpdate:", {
 			sessionId,
 			type: update.sessionUpdate,
+			parentToolUseId: meta.parentToolUseId,
+			subagent: meta.subagent,
 		});
 
 		switch (update.sessionUpdate) {
@@ -82,6 +90,10 @@ export class AcpHandler {
 						type: update.sessionUpdate,
 						sessionId,
 						text: update.content.text,
+						...(update.sessionUpdate !== "user_message_chunk" &&
+						meta.parentToolUseId
+							? { parentToolUseId: meta.parentToolUseId }
+							: {}),
 					});
 				}
 				break;
@@ -92,14 +104,19 @@ export class AcpHandler {
 					type: update.sessionUpdate,
 					sessionId,
 					toolCallId: update.toolCallId,
-					title: update.title ?? undefined,
+					title: update.title || meta.title || undefined,
 					status: update.status || "pending",
-					kind: update.kind ?? undefined,
+					kind: (update.kind as ToolKind | undefined) ?? undefined,
 					content: AcpTypeConverter.toToolCallContent(update.content),
 					locations: update.locations ?? undefined,
 					rawInput: update.rawInput as
 						| { [k: string]: unknown }
 						| undefined,
+					rawOutput: update.rawOutput as
+						| { [k: string]: unknown }
+						| undefined,
+					parentToolUseId: meta.parentToolUseId,
+					subagent: meta.subagent,
 				});
 				break;
 
@@ -156,6 +173,13 @@ export class AcpHandler {
 						update.configOptions,
 					),
 				});
+				break;
+
+			default:
+				this.logger.log(
+					"[AcpHandler] Ignoring unhandled sessionUpdate:",
+					(update as { sessionUpdate: string }).sessionUpdate,
+				);
 				break;
 		}
 		return Promise.resolve();
