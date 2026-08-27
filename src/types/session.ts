@@ -270,6 +270,8 @@ interface SessionUpdateBase {
 export interface AgentMessageChunk extends SessionUpdateBase {
 	type: "agent_message_chunk";
 	text: string;
+	/** When set, this chunk belongs to a nested/subagent tool call. */
+	parentToolUseId?: string;
 }
 
 /**
@@ -279,6 +281,8 @@ export interface AgentMessageChunk extends SessionUpdateBase {
 export interface AgentThoughtChunk extends SessionUpdateBase {
 	type: "agent_thought_chunk";
 	text: string;
+	/** When set, this thought belongs to a nested/subagent tool call. */
+	parentToolUseId?: string;
 }
 
 /**
@@ -303,6 +307,9 @@ export interface ToolCall extends SessionUpdateBase {
 	content?: ToolCallContent[];
 	locations?: ToolCallLocation[];
 	rawInput?: { [k: string]: unknown };
+	rawOutput?: { [k: string]: unknown };
+	parentToolUseId?: string;
+	subagent?: boolean;
 	permissionRequest?: {
 		requestId: string;
 		options: PermissionOption[];
@@ -326,6 +333,9 @@ export interface ToolCallUpdate extends SessionUpdateBase {
 	content?: ToolCallContent[];
 	locations?: ToolCallLocation[];
 	rawInput?: { [k: string]: unknown };
+	rawOutput?: { [k: string]: unknown };
+	parentToolUseId?: string;
+	subagent?: boolean;
 	permissionRequest?: {
 		requestId: string;
 		options: PermissionOption[];

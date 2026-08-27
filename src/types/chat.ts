@@ -44,9 +44,13 @@ export type ToolKind =
 
 /**
  * Content that can be included in a tool call result.
- * Currently supports diffs and terminal output.
+ * Maps ACP ToolCallContent: content blocks, diffs, and terminals.
  */
-export type ToolCallContent = DiffContent | TerminalContent;
+export type ToolCallContent =
+	| DiffContent
+	| TerminalContent
+	| TextBlockContent
+	| ImageBlockContent;
 
 /**
  * Represents a file modification with before/after content.
@@ -64,6 +68,25 @@ export interface DiffContent {
 export interface TerminalContent {
 	type: "terminal";
 	terminalId: string;
+}
+
+/**
+ * Standard ACP content block (text) produced by a tool call.
+ * This is the usual payload for Agent/Task (subagent) results.
+ */
+export interface TextBlockContent {
+	type: "content";
+	text: string;
+}
+
+/**
+ * Image produced by a tool call (ACP content block type "image").
+ */
+export interface ImageBlockContent {
+	type: "image";
+	data: string;
+	mimeType: string;
+	uri?: string;
 }
 
 // ============================================================================
@@ -107,6 +130,37 @@ export interface PlanEntry {
 	content: string;
 	status: "pending" | "in_progress" | "completed";
 	priority: "high" | "medium" | "low";
+}
+
+/**
+ * A tool call content block in a chat message.
+ *
+ * Nested Agent/Task (subagent) work is stored on the launching tool call
+ * via `nestedCalls` rather than as separate top-level messages.
+ */
+export interface ToolCallMessageContent {
+	type: "tool_call";
+	toolCallId: string;
+	title?: string | null;
+	status: ToolCallStatus;
+	kind?: ToolKind;
+	content?: ToolCallContent[];
+	locations?: ToolCallLocation[];
+	rawInput?: { [k: string]: unknown };
+	rawOutput?: { [k: string]: unknown };
+	/** Tool-use id of the Agent/Task call that spawned this call, if any. */
+	parentToolUseId?: string;
+	/** True when this call launches a nested/subagent transcript. */
+	subagent?: boolean;
+	/** Child tool calls attributed to this subagent launch. */
+	nestedCalls?: ToolCallMessageContent[];
+	permissionRequest?: {
+		requestId: string;
+		options: PermissionOption[];
+		selectedOptionId?: string;
+		isCancelled?: boolean;
+		isActive?: boolean;
+	};
 }
 
 /**
@@ -188,24 +242,7 @@ export type MessageContent =
 			mimeType?: string; // e.g., "application/pdf"
 			size?: number; // File size in bytes
 	  }
-	| {
-			type: "tool_call";
-			toolCallId: string;
-			title?: string | null;
-			status: ToolCallStatus;
-			kind?: ToolKind;
-			content?: ToolCallContent[];
-			locations?: ToolCallLocation[];
-			rawInput?: { [k: string]: unknown };
-			rawOutput?: { [k: string]: unknown };
-			permissionRequest?: {
-				requestId: string;
-				options: PermissionOption[];
-				selectedOptionId?: string;
-				isCancelled?: boolean;
-				isActive?: boolean;
-			};
-	  }
+	| ToolCallMessageContent
 	| {
 			type: "plan";
 			entries: PlanEntry[];

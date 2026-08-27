@@ -34,9 +34,8 @@ export class AcpTypeConverter {
 	/**
 	 * Convert ACP ToolCallContent to domain ToolCallContent.
 	 *
-	 * Filters out content types that are not supported by the domain model:
-	 * - Supports: "diff", "terminal"
-	 * - Ignores: "content" (not implemented in UI)
+	 * Supports: "diff", "terminal", "content" (text and image blocks).
+	 * Other content-block types (audio, resource) are skipped.
 	 *
 	 * @param acpContent - Tool call content from ACP protocol
 	 * @returns Domain model tool call content, or undefined if input is null/empty
@@ -74,8 +73,26 @@ export class AcpTypeConverter {
 					type: "terminal",
 					terminalId: item.terminalId,
 				});
+			} else if (item.type === "content") {
+				const block = item.content;
+				if (block.type === "text" && block.text) {
+					converted.push({
+						type: "content",
+						text: block.text,
+					});
+				} else if (
+					block.type === "image" &&
+					block.data &&
+					block.mimeType
+				) {
+					converted.push({
+						type: "image",
+						data: block.data,
+						mimeType: block.mimeType,
+						uri: block.uri ?? undefined,
+					});
+				}
 			}
-			// "content" type is intentionally ignored (not implemented in UI)
 		}
 
 		return converted.length > 0 ? converted : undefined;
