@@ -367,6 +367,7 @@ export default class AgentClientPlugin extends Plugin {
 		// Register agent-specific commands
 		this.registerAgentCommands();
 		this.registerPermissionCommands();
+		this.registerSessionModeCommands();
 		this.registerBroadcastCommands();
 
 		// Floating chat window commands
@@ -1351,6 +1352,30 @@ export default class AgentClientPlugin extends Plugin {
 			callback: () => {
 				this.app.workspace.trigger(
 					"agent-client:export-chat",
+					this.lastActiveChatViewId,
+				);
+			},
+		});
+	}
+
+	private registerSessionModeCommands(): void {
+		this.addCommand({
+			id: "cycle-session-mode",
+			name: "Cycle session mode",
+			callback: () => {
+				this.app.workspace.trigger(
+					"agent-client:cycle-session-mode",
+					this.lastActiveChatViewId,
+				);
+			},
+		});
+
+		this.addCommand({
+			id: "switch-session-mode",
+			name: "Switch session mode",
+			callback: () => {
+				this.app.workspace.trigger(
+					"agent-client:switch-session-mode",
 					this.lastActiveChatViewId,
 				);
 			},

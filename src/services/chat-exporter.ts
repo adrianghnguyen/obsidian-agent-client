@@ -378,12 +378,26 @@ session_id: ${sessionId}${tagsLine}
 
 		md += `**Status**: ${content.status}\n\n`;
 
-		// Only export diffs
+		if (content.subagent || (content.nestedCalls?.length ?? 0) > 0) {
+			md += `**Subagent**: yes\n\n`;
+		}
+
 		if (content.content && content.content.length > 0) {
 			for (const item of content.content) {
 				if (item.type === "diff") {
 					md += this.convertDiffToMarkdown(item);
+				} else if (item.type === "content") {
+					md += `${item.text}\n\n`;
+				} else if (item.type === "terminal") {
+					md += `Terminal: ${item.terminalId}\n\n`;
 				}
+			}
+		}
+
+		if (content.nestedCalls && content.nestedCalls.length > 0) {
+			md += `#### Nested tasks\n\n`;
+			for (const child of content.nestedCalls) {
+				md += this.convertToolCallToMarkdown(child);
 			}
 		}
 

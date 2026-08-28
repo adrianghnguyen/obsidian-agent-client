@@ -407,9 +407,58 @@ If your plugin does not need CSS, delete this file.
 	margin: 4px 0;
 }
 
-.agent-client-message-tool-call-command code {
-	font-family: var(--font-monospace);
+.agent-client-message-tool-call-nested {
+	margin-left: 12px;
+	margin-top: 8px;
+	border-left: 2px solid var(--interactive-accent);
+}
+
+.agent-client-message-tool-call-subagent {
+	border-color: var(--interactive-accent);
+}
+
+.agent-client-message-tool-call-badge {
+	flex-shrink: 0;
+	font-size: 0.75em;
+	font-weight: 500;
+	padding: 1px 6px;
+	border-radius: 4px;
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+}
+
+.agent-client-tool-call-output {
+	margin-top: 6px;
+	padding: 6px 8px;
+	border-radius: 4px;
+	background-color: var(--background-secondary);
+	max-height: 240px;
+	overflow: auto;
+	user-select: text;
+}
+
+.agent-client-tool-call-nested {
+	margin-top: 8px;
+}
+
+.agent-client-tool-call-nested-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	cursor: pointer;
+	color: var(--text-muted);
 	font-size: 0.9em;
+	user-select: none;
+}
+
+.agent-client-tool-call-nested-chevron {
+	flex-shrink: 0;
+}
+
+.agent-client-tool-call-nested-chevron svg {
+	width: 14px;
+	height: 14px;
 }
 
 /* Plan */

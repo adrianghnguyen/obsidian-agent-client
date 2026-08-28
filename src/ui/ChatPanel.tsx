@@ -27,6 +27,7 @@ import { getLogger } from "../utils/logger";
 
 // Adapter imports
 import type { AcpClient } from "../acp/acp-client";
+import type AgentClientPlugin from "../plugin";
 import type { AgentClientPluginSettings } from "../plugin";
 
 // Context imports
@@ -45,6 +46,13 @@ import {
 	type SessionModeState,
 	type SessionConfigOption,
 } from "../types/session";
+import {
+	listAdvertisedSessionModes,
+	getCurrentModeId,
+	nextAdvertisedMode,
+	type AdvertisedSessionMode,
+} from "../services/session-modes";
+import { SessionModeSuggestModal } from "./SessionModeModal";
 import { checkAgentUpdate } from "../services/update-checker";
 import type { SessionStatus } from "../services/view-registry";
 import { buildGeminiDeprecationNotice } from "../services/session-helpers";
@@ -188,6 +196,55 @@ function chatPanelSettingsEqual(
 		a.customAgents === b.customAgents &&
 		a.displaySettings.fontSize === b.displaySettings.fontSize
 	);
+}
+
+async function applyAdvertisedMode(
+	mode: AdvertisedSessionMode,
+	setMode: (modeId: string) => Promise<void>,
+	setConfigOption: (configId: string, value: string) => Promise<void>,
+): Promise<void> {
+	if (mode.source.type === "config") {
+		await setConfigOption(mode.source.configId, mode.id);
+	} else {
+		await setMode(mode.id);
+	}
+}
+
+async function applySessionModeCommand(
+	plugin: AgentClientPlugin,
+	action: "cycle" | "switch",
+	opts: {
+		modes?: SessionModeState;
+		configOptions?: SessionConfigOption[];
+		setMode: (modeId: string) => Promise<void>;
+		setConfigOption: (configId: string, value: string) => Promise<void>;
+	},
+): Promise<void> {
+	const listed = listAdvertisedSessionModes(opts.modes, opts.configOptions);
+	if (listed.length === 0) {
+		new Notice("[Agent Client] This session has no modes");
+		return;
+	}
+	const currentId = getCurrentModeId(listed, opts.modes, opts.configOptions);
+
+	if (action === "cycle") {
+		const next = nextAdvertisedMode(listed, currentId);
+		if (!next) {
+			new Notice("[Agent Client] This session has no other modes");
+			return;
+		}
+		await applyAdvertisedMode(next, opts.setMode, opts.setConfigOption);
+		new Notice(`[Agent Client] Mode: ${next.name}`);
+		return;
+	}
+
+	new SessionModeSuggestModal(plugin.app, listed, currentId, (mode) => {
+		void applyAdvertisedMode(mode, opts.setMode, opts.setConfigOption).then(
+			() => {
+				new Notice(`[Agent Client] Mode: ${mode.name}`);
+			},
+		);
+	}).open();
 }
 
 /**
@@ -1150,12 +1207,20 @@ export const ChatPanel = React.memo(function ChatPanel({
 	const rejectActivePermissionRef = useRef(agent.rejectActivePermission);
 	const handleStopGenerationRef = useRef(handleStopGeneration);
 	const handleExportChatRef = useRef(handleExportChat);
+	const handleSetModeRef = useRef(handleSetMode);
+	const handleSetConfigOptionRef = useRef(handleSetConfigOption);
+	const sessionModesRef = useRef(session.modes);
+	const sessionConfigOptionsRef = useRef(session.configOptions);
 	handleNewChatWithPersistRef.current = handleNewChatWithPersist;
 	handleNewChatRef.current = handleNewChat;
 	approveActivePermissionRef.current = agent.approveActivePermission;
 	rejectActivePermissionRef.current = agent.rejectActivePermission;
 	handleStopGenerationRef.current = handleStopGeneration;
 	handleExportChatRef.current = handleExportChat;
+	handleSetModeRef.current = handleSetMode;
+	handleSetConfigOptionRef.current = handleSetConfigOption;
+	sessionModesRef.current = session.modes;
+	sessionConfigOptionsRef.current = session.configOptions;
 
 	useEffect(() => {
 		const workspace = plugin.app.workspace;
@@ -1234,6 +1299,32 @@ export const ChatPanel = React.memo(function ChatPanel({
 				if (targetViewId && targetViewId !== viewId) return;
 				void handleExportChatRef.current();
 			}),
+
+			ws.on(
+				"agent-client:cycle-session-mode",
+				(targetViewId?: string) => {
+					if (targetViewId && targetViewId !== viewId) return;
+					void applySessionModeCommand(plugin, "cycle", {
+						modes: sessionModesRef.current,
+						configOptions: sessionConfigOptionsRef.current,
+						setMode: handleSetModeRef.current,
+						setConfigOption: handleSetConfigOptionRef.current,
+					});
+				},
+			),
+
+			ws.on(
+				"agent-client:switch-session-mode",
+				(targetViewId?: string) => {
+					if (targetViewId && targetViewId !== viewId) return;
+					void applySessionModeCommand(plugin, "switch", {
+						modes: sessionModesRef.current,
+						configOptions: sessionConfigOptionsRef.current,
+						setMode: handleSetModeRef.current,
+						setConfigOption: handleSetConfigOptionRef.current,
+					});
+				},
+			),
 		];
 
 		return () => {
