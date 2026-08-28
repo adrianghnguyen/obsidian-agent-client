@@ -9,6 +9,10 @@ import {
 	type SessionConfigOption,
 	type SessionConfigSelectGroup,
 } from "../types/session";
+import {
+	findModeConfigOption,
+	getSessionModePillClass,
+} from "../services/session-modes";
 
 // ============================================================================
 // ToolbarDropdown — themed dropdown using Obsidian's Menu
@@ -27,6 +31,7 @@ interface ToolbarDropdownProps {
 	currentValue: string | undefined;
 	onChange: (value: string) => void;
 	className?: string;
+	modePill?: boolean;
 }
 
 /**
@@ -41,6 +46,7 @@ function ToolbarDropdown({
 	currentValue,
 	onChange,
 	className,
+	modePill,
 }: ToolbarDropdownProps) {
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const chevronRef = useRef<HTMLSpanElement>(null);
@@ -80,16 +86,32 @@ function ToolbarDropdown({
 						.onClick(() => {
 							onChange(item.value);
 						});
+					if (modePill) {
+						const pillClass = getSessionModePillClass(item.value);
+						if (pillClass) {
+							menuItem.dom.classList.add(pillClass);
+						}
+					}
 				});
 			}
 
 			menu.showAtMouseEvent(e.nativeEvent);
 			buttonRef.current?.blur();
 		},
-		[items, currentValue, onChange],
+		[items, currentValue, onChange, title, modePill],
 	);
 
-	const wrapperClass = `agent-client-toolbar-dropdown${className ? ` ${className}` : ""}`;
+	const modePillClass =
+		modePill && currentValue
+			? getSessionModePillClass(currentValue)
+			: undefined;
+	const wrapperClass = [
+		"agent-client-toolbar-dropdown",
+		className,
+		modePillClass,
+	]
+		.filter(Boolean)
+		.join(" ");
 
 	return (
 		<button
@@ -284,6 +306,12 @@ export function InputToolbar({
 					);
 					const label = currentItem?.label ?? option.name;
 					const title = option.description ?? option.name;
+					const isModeOption =
+						option.category === "mode" ||
+						findModeConfigOption([option]) !== undefined;
+					const selectorClass = option.category
+						? `agent-client-config-selector-${option.category}`
+						: undefined;
 
 					return (
 						<ToolbarDropdown
@@ -295,11 +323,8 @@ export function InputToolbar({
 							onChange={(value) => {
 								onConfigOptionChange?.(option.id, value);
 							}}
-							className={
-								option.category
-									? `agent-client-config-selector-${option.category}`
-									: undefined
-							}
+							className={selectorClass}
+							modePill={isModeOption}
 						/>
 					);
 				})
@@ -318,6 +343,7 @@ export function InputToolbar({
 								items={modeItems}
 								currentValue={modes.currentModeId ?? undefined}
 								onChange={onModeChange}
+								modePill
 							/>
 						)}
 				</>

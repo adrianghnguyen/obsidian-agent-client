@@ -1211,6 +1211,80 @@ If your plugin does not need CSS, delete this file.
 	height: 12px;
 }
 
+/* Session mode pill tints (Plan = yellow, Ask = green; Agent stays default) */
+.agent-client-toolbar-dropdown.agent-client-mode-plan {
+	background-color: color-mix(
+		in srgb,
+		var(--color-yellow) 20%,
+		transparent
+	) !important;
+}
+
+.agent-client-toolbar-dropdown.agent-client-mode-plan:hover {
+	background-color: color-mix(
+		in srgb,
+		var(--color-yellow) 30%,
+		transparent
+	) !important;
+}
+
+.agent-client-toolbar-dropdown.agent-client-mode-ask {
+	background-color: color-mix(
+		in srgb,
+		var(--color-green) 20%,
+		transparent
+	) !important;
+}
+
+.agent-client-toolbar-dropdown.agent-client-mode-ask:hover {
+	background-color: color-mix(
+		in srgb,
+		var(--color-green) 30%,
+		transparent
+	) !important;
+}
+
+.agent-client-toolbar-dropdown.agent-client-mode-plan
+	.agent-client-toolbar-dropdown-label,
+.agent-client-toolbar-dropdown.agent-client-mode-ask
+	.agent-client-toolbar-dropdown-label {
+	color: var(--text-normal);
+}
+
+.menu-item.agent-client-mode-plan {
+	background-color: color-mix(
+		in srgb,
+		var(--color-yellow) 20%,
+		transparent
+	);
+}
+
+.menu-item.agent-client-mode-plan:hover,
+.menu-item.agent-client-mode-plan.is-selected {
+	background-color: color-mix(
+		in srgb,
+		var(--color-yellow) 30%,
+		transparent
+	);
+}
+
+.menu-item.agent-client-mode-ask {
+	background-color: color-mix(
+		in srgb,
+		var(--color-green) 20%,
+		transparent
+	);
+}
+
+.menu-item.agent-client-mode-ask:hover,
+.menu-item.agent-client-mode-ask.is-selected {
+	background-color: color-mix(
+		in srgb,
+		var(--color-green) 30%,
+		transparent
+	);
+}
+
 /* Context Usage Indicator */
 .agent-client-usage-indicator {
 	font-size: var(--font-smallest);

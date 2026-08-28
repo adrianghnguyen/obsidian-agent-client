@@ -4,6 +4,7 @@ import {
 	listAdvertisedSessionModes,
 	getCurrentModeId,
 	nextAdvertisedMode,
+	getSessionModePillClass,
 } from "../src/services/session-modes";
 import type {
 	SessionConfigOption,
@@ -106,5 +107,19 @@ describe("findModeConfigOption", () => {
 			options: [{ value: "code", name: "Code" }],
 		};
 		expect(findModeConfigOption([option])?.id).toBe("session_mode");
+	});
+});
+
+describe("getSessionModePillClass", () => {
+	it("returns plan and ask classes", () => {
+		expect(getSessionModePillClass("plan")).toBe("agent-client-mode-plan");
+		expect(getSessionModePillClass("Plan")).toBe("agent-client-mode-plan");
+		expect(getSessionModePillClass("ask")).toBe("agent-client-mode-ask");
+		expect(getSessionModePillClass("Ask")).toBe("agent-client-mode-ask");
+	});
+
+	it("returns undefined for agent and unknown modes", () => {
+		expect(getSessionModePillClass("agent")).toBeUndefined();
+		expect(getSessionModePillClass("build")).toBeUndefined();
 	});
 });

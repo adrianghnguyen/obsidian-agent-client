@@ -11,4 +11,9 @@ declare module "obsidian" {
 	interface Vault {
 		getConfig(key: string): unknown;
 	}
+
+	interface MenuItem {
+		/** Root element for this menu row (public at runtime). */
+		dom: HTMLElement;
+	}
 }

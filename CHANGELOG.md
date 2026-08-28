@@ -2,6 +2,10 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## 0.14.1
+
+- Session mode selector: Plan mode shows a soft yellow pill, Ask mode a soft green pill (Agent unchanged). Colors apply to the toolbar control and the mode picker menu.
+
 ## 0.14.0
 
 - Subagent / Agent / Task work shows in chat (title, status, output, nested tools) instead of disappearing.

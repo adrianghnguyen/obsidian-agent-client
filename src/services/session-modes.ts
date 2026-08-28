@@ -88,3 +88,11 @@ export function nextAdvertisedMode(
 	const nextIndex = index >= 0 ? (index + 1) % listed.length : 0;
 	return listed[nextIndex];
 }
+
+/** CSS class for tinted mode pill/menu styling (Plan = yellow, Ask = green). */
+export function getSessionModePillClass(modeId: string): string | undefined {
+	const normalized = modeId.toLowerCase();
+	if (normalized === "plan") return "agent-client-mode-plan";
+	if (normalized === "ask") return "agent-client-mode-ask";
+	return undefined;
+}
