@@ -1,5 +1,5 @@
 /**
- * Resolve advertised ACP session modes for commands (cycle / picker).
+ * Resolve advertised ACP session modes for the change-agent-mode command.
  *
  * Prefers a mode-like `configOptions` select (newer ACP API). Falls back to
  * legacy `session.modes` (`session/set_mode`). Does not hardcode Agent/Plan/Ask

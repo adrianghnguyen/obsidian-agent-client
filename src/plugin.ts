@@ -1360,26 +1360,31 @@ export default class AgentClientPlugin extends Plugin {
 
 	private registerSessionModeCommands(): void {
 		this.addCommand({
-			id: "cycle-session-mode",
-			name: "Cycle session mode",
-			callback: () => {
+			id: "change-agent-mode",
+			name: "Change agent mode",
+			checkCallback: (checking) => {
+				if (!this.isFloatingChatEnabled()) return false;
+				const targetId = this.resolveFloatingChatModeTargetId();
+				if (!targetId) return false;
+				if (checking) return true;
 				this.app.workspace.trigger(
-					"agent-client:cycle-session-mode",
-					this.lastActiveChatViewId,
+					"agent-client:change-agent-mode",
+					targetId,
 				);
 			},
 		});
+	}
 
-		this.addCommand({
-			id: "switch-session-mode",
-			name: "Switch session mode",
-			callback: () => {
-				this.app.workspace.trigger(
-					"agent-client:switch-session-mode",
-					this.lastActiveChatViewId,
-				);
-			},
-		});
+	/**
+	 * Which floating chat receives mode-cycle commands (focused tab, else last instance).
+	 */
+	private resolveFloatingChatModeTargetId(): string | null {
+		const instances = this.getFloatingChatInstances();
+		if (instances.length === 0) return null;
+		if (instances.length === 1) return instances[0];
+		const focused = this.viewRegistry.getFocused();
+		if (focused?.viewType === "floating") return focused.viewId;
+		return instances[instances.length - 1];
 	}
 
 	/**
