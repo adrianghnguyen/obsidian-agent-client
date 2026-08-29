@@ -11,42 +11,13 @@ import type {
 } from "../services/view-registry";
 import { addRenameSessionMenuItem } from "./EditTitleModal";
 import { useSettings } from "../hooks/useSettings";
+import { SessionStatusIcon } from "./shared/SessionStatusIcon";
 
 export const VIEW_TYPE_SESSION_MANAGER = "agent-client-session-manager";
 
 // ============================================================================
 // React Components
 // ============================================================================
-
-function SessionStatusIcon({ status }: { status: SessionStatus }) {
-	const iconRef = useRef<HTMLSpanElement>(null);
-
-	const iconName = ((s: SessionStatus): string => {
-		switch (s) {
-			case "ready":
-				return "circle-check";
-			case "busy":
-				return "loader";
-			case "permission":
-				return "shield-alert";
-			case "error":
-				return "circle-x";
-			case "disconnected":
-				return "circle-off";
-		}
-	})(status);
-
-	useEffect(() => {
-		if (iconRef.current) setIcon(iconRef.current, iconName);
-	}, [iconName]);
-
-	return (
-		<span
-			ref={iconRef}
-			className={`agent-client-session-status-icon agent-client-session-status-${status}`}
-		/>
-	);
-}
 
 const SessionItem = React.memo(function SessionItem({
 	view,

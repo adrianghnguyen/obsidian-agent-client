@@ -1,5 +1,6 @@
 import * as React from "react";
 const { useState, useRef, useEffect, useCallback, useMemo } = React;
+import { useSyncExternalStore } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 import type AgentClientPlugin from "../plugin";
@@ -16,6 +17,10 @@ import { ChatContextProvider } from "./ChatContext";
 // Component imports
 import { ChatPanel, type ChatPanelCallbacks } from "./ChatPanel";
 import { HeaderButton } from "./shared/IconButton";
+import {
+	SessionStatusIcon,
+	sessionStatusLabel,
+} from "./shared/SessionStatusIcon";
 
 // Service imports
 import { VaultService } from "../services/vault-service";
@@ -974,6 +979,12 @@ function FloatingTabbedShellComponent({
 	onRegisterApi,
 }: FloatingTabbedShellComponentProps) {
 	const settings = useSettings(plugin);
+	// Re-render tab strip when session status / titles change (same pattern as Session Manager).
+	useSyncExternalStore(
+		plugin.viewRegistry.subscribe,
+		plugin.viewRegistry.getSnapshot,
+		plugin.viewRegistry.getSnapshot,
+	);
 	const [isExpanded, setIsExpanded] = useState(initialExpanded);
 	const [tabs, setTabs] = useState<TabPanelSpec[]>([]);
 	const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -1278,6 +1289,8 @@ function FloatingTabbedShellComponent({
 							container?.getSessionTitle() ??
 							container?.getDisplayName() ??
 							"Chat";
+						const status =
+							container?.getSessionStatus() ?? "disconnected";
 						const isActive = tab.viewId === activeTabId;
 						return (
 							<div
@@ -1288,8 +1301,9 @@ function FloatingTabbedShellComponent({
 										: "agent-client-floating-tab"
 								}
 								onClick={() => handleSelectTab(tab.viewId)}
-								title={label}
+								title={`${label} — ${sessionStatusLabel(status)}`}
 							>
+								<SessionStatusIcon status={status} />
 								<span className="agent-client-floating-tab-label">
 									{label}
 								</span>
