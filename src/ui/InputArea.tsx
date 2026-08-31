@@ -17,6 +17,8 @@ import { SuggestionPopup } from "./SuggestionPopup";
 import { ErrorBanner } from "./ErrorBanner";
 import { AttachmentStrip } from "./shared/AttachmentStrip";
 import { InputToolbar } from "./InputToolbar";
+import type { TranscriptSink } from "../voice-input/types";
+import { VoiceTranscriptAccumulator } from "../voice-input/transcript-accumulation";
 import { getLogger } from "../utils/logger";
 import type { ErrorInfo } from "../types/errors";
 import type { AgentUpdateNotification } from "../services/update-checker";
@@ -752,12 +754,21 @@ export function InputArea({
 	]);
 
 	// Voice input
-	const voiceSinkRef = useRef<{
-		onInterim: (text: string) => void;
-		onFinal: (text: string) => void;
-		onError: (error: string) => void;
-	} | null>(null);
 	const [isVoiceListening, setIsVoiceListening] = useState(false);
+	// Accumulates streamed transcripts so each dictated segment appends to
+	// the prompt (and to earlier segments) instead of overwriting it.
+	const voiceAccumulatorRef = useRef(new VoiceTranscriptAccumulator());
+
+	const stopVoiceListening = useCallback(async () => {
+		const voiceInput = plugin.voiceInput;
+		if (!voiceInput) return;
+		if (!voiceInput.isListening) return;
+		const acc = voiceAccumulatorRef.current;
+		await voiceInput.stopListening();
+		// Drop any lingering interim preview; committed finals stay.
+		onInputChange(acc.discardInterim());
+		setIsVoiceListening(false);
+	}, [plugin, onInputChange]);
 
 	const handleToggleVoice = useCallback(() => {
 		const voiceInput = plugin.voiceInput;
@@ -770,26 +781,29 @@ export function InputArea({
 		}
 
 		if (voiceInput.isListening) {
-			void voiceInput.stopListening();
-			setIsVoiceListening(false);
+			void stopVoiceListening();
 		} else {
-			const sink = {
-				onInterim: (text: string) => {
-					onInputChange(text);
+			const acc = voiceAccumulatorRef.current;
+			acc.begin(inputValue);
+			const sink: TranscriptSink = {
+				onInterim: (text) => {
+					const preview = acc.applyInterim(text);
+					if (preview !== null) onInputChange(preview);
 				},
-				onFinal: (text: string) => {
-					onInputChange(text);
+				onFinal: (text) => {
+					const committed = acc.applyFinal(text);
+					if (committed !== null) onInputChange(committed);
 				},
-				onError: (error: string) => {
+				onError: (error) => {
+					onInputChange(acc.discardInterim());
 					new Notice("[Agent Client] Voice: " + error);
 					setIsVoiceListening(false);
 				},
 			};
-			voiceSinkRef.current = sink;
 			void voiceInput.startListening(sink);
 			setIsVoiceListening(true);
 		}
-	}, [plugin, onInputChange, isSessionReady]);
+	}, [plugin, inputValue, onInputChange, isSessionReady, stopVoiceListening]);
 
 	/**
 	 * Handle dropdown keyboard navigation.
