@@ -5,7 +5,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## 0.15.2
 
 - Voice input: flat mic button in the chat toolbar (matches the send button, no background), and while recording the icon switches to audio-lines in yellow with a soft pulse. Removed the duplicate status-bar mic — the toolbar button is now the single indicator.
-- Voice input: dictated speech now appends to the prompt (and to earlier dictated segments) instead of overwriting it; stopping or an error keeps everything finalized so far and clears only the live preview.
+- Voice input: dictated speech now appends to the prompt (and to earlier dictated segments) instead of overwriting it, with a space inserted between segments; stopping or an error keeps everything finalized so far and clears only the live preview.
 
 ## 0.15.1
 

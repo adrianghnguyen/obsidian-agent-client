@@ -32,22 +32,49 @@ describe("VoiceTranscriptAccumulator", () => {
 		expect(acc.applyFinal("this")).toBe("Explain this");
 	});
 
-	it("multiple segments append to each other", () => {
+	it("final appends with a boundary space when the prompt has no trailing space", () => {
+		const acc = new VoiceTranscriptAccumulator();
+		acc.begin("Explain");
+		expect(acc.applyInterim("this")).toBe("Explain this");
+		expect(acc.applyFinal("this")).toBe("Explain this");
+	});
+
+	it("multiple segments append to each other with a space at the seam", () => {
 		const acc = new VoiceTranscriptAccumulator();
 		acc.begin("");
 
 		expect(acc.applyInterim("first")).toBe("first");
 		expect(acc.applyFinal("first")).toBe("first");
 
-		expect(acc.applyInterim("second")).toBe("firstsecond");
-		expect(acc.applyFinal("second")).toBe("firstsecond");
+		expect(acc.applyInterim("second")).toBe("first second");
+		expect(acc.applyFinal("second")).toBe("first second");
+	});
+
+	it("does not double-space when a segment already ends with punctuation and space", () => {
+		const acc = new VoiceTranscriptAccumulator();
+		acc.begin("");
+		expect(acc.applyFinal("First chunk.")).toBe("First chunk.");
+		expect(acc.applyFinal("Second chunk")).toBe("First chunk. Second chunk");
+	});
+
+	it("does not double-space when the pre-voice input ends with a space", () => {
+		const acc = new VoiceTranscriptAccumulator();
+		acc.begin("Hello, ");
+		expect(acc.applyFinal("world")).toBe("Hello, world");
+	});
+
+	it("does not double-space when a segment starts with a space", () => {
+		const acc = new VoiceTranscriptAccumulator();
+		acc.begin("");
+		expect(acc.applyFinal("first")).toBe("first");
+		expect(acc.applyFinal("  second")).toBe("first second");
 	});
 
 	it("interim after a final previews on top of the committed text", () => {
 		const acc = new VoiceTranscriptAccumulator();
 		acc.begin("");
 		acc.applyFinal("one two");
-		expect(acc.applyInterim("three")).toBe("one twothree");
+		expect(acc.applyInterim("three")).toBe("one two three");
 	});
 
 	it("does not commit whitespace-only finals", () => {
@@ -79,6 +106,6 @@ describe("VoiceTranscriptAccumulator", () => {
 		acc.applyFinal("old");
 		acc.begin("fresh");
 		expect(acc.getPreview()).toBe("fresh");
-		expect(acc.applyFinal("new")).toBe("freshnew");
+		expect(acc.applyFinal("new")).toBe("fresh new");
 	});
 });

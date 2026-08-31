@@ -1,5 +1,16 @@
 /**
- * Accumulates streamed voice transcripts for the chat input.
+ * Join two pieces of text, inserting a single space at the boundary when
+ * neither side already provides one (leading/trailing whitespace or a
+ * space around the seam). Keeps dictated segments readable: "First
+ * chunk." + "Second chunk" -> "First chunk. Second chunk".
+ */
+function joinWithBoundarySpace(a: string, b: string): string {
+	if (!a || !b) return a + b;
+	if (/\s$/.test(a) || /^\s/.test(b)) return a + b;
+	return `${a} ${b}`;
+}
+
+/**
  *
  * The Gemini Live API reports per-segment interims and finals, not the
  * whole utterance. The input keeps a running transcript baseline so new
@@ -30,7 +41,10 @@ export class VoiceTranscriptAccumulator {
 
 	/** Text to show in the input right now. */
 	getPreview(): string {
-		return this.preVoiceInput + this.committed + this.interim;
+		return joinWithBoundarySpace(
+			joinWithBoundarySpace(this.preVoiceInput, this.committed),
+			this.interim,
+		);
 	}
 
 	/**
@@ -49,9 +63,9 @@ export class VoiceTranscriptAccumulator {
 	 */
 	applyFinal(text: string): string | null {
 		if (!text.trim()) return null;
-		this.committed += text;
+		this.committed = joinWithBoundarySpace(this.committed, text.trim());
 		this.interim = "";
-		return this.preVoiceInput + this.committed;
+		return joinWithBoundarySpace(this.preVoiceInput, this.committed);
 	}
 
 	/**
@@ -61,6 +75,6 @@ export class VoiceTranscriptAccumulator {
 	 */
 	discardInterim(): string {
 		this.interim = "";
-		return this.preVoiceInput + this.committed;
+		return joinWithBoundarySpace(this.preVoiceInput, this.committed);
 	}
 }
