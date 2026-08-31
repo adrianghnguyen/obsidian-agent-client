@@ -4,7 +4,7 @@ import {
 	realtimeAudioMessage,
 	audioStreamEndMessage,
 	parseLiveMessage,
-	decodeWsDataSync,
+	decodeWsData,
 } from "./LiveProtocol";
 import { AudioCapture } from "./AudioCapture";
 import type { TranscriptSink } from "./types";
@@ -173,7 +173,7 @@ export class LiveTranscriber {
 			};
 
 			this.socket.onmessage = (event) => {
-				this.onSocketMessage(event.data, finish);
+				void this.onSocketMessage(event.data, finish);
 			};
 
 			this.socket.onclose = (ev) => {
@@ -197,13 +197,15 @@ export class LiveTranscriber {
 		});
 	}
 
-	private onSocketMessage(
+	private async onSocketMessage(
 		data: unknown,
 		finish: (err?: Error) => void,
-	): void {
+	): Promise<void> {
+		// The Gemini Live server delivers messages as Blobs in Chromium,
+		// which requires async decoding; decodeWsDataSync would drop them.
 		let text: string;
 		try {
-			text = decodeWsDataSync(data);
+			text = await decodeWsData(data);
 		} catch {
 			return;
 		}

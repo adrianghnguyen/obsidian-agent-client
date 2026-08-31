@@ -31,6 +31,9 @@ describe("LiveTranscriber", () => {
 		});
 	}
 
+	/** Yield to the microtask queue so async message handling settles. */
+	const flush = () => new Promise((r) => setTimeout(r, 0));
+
 	/** Drive the transcriber through the setup handshake so it becomes active. */
 	async function startAndSetup(t?: LiveTranscriber, sk?: TranscriptSink): Promise<void> {
 		const target = t ?? createTranscriber();
@@ -78,6 +81,21 @@ describe("LiveTranscriber", () => {
 
 			expect(recorder.start).toHaveBeenCalled();
 			expect(t.isActive).toBe(true);
+		});
+
+		it("handles setupComplete delivered as a Blob (Chromium behavior)", async () => {
+			const t = createTranscriber();
+			const p = t.start(sink);
+
+			socketBundle.socket.onopen?.();
+			socketBundle.socket.onmessage?.({
+				data: new Blob([JSON.stringify({ setupComplete: true })]),
+			});
+			await p;
+
+			expect(recorder.start).toHaveBeenCalled();
+			expect(t.isActive).toBe(true);
+			expect(sink.onError).not.toHaveBeenCalled();
 		});
 
 		it("reports error to sink on timeout", async () => {
@@ -142,6 +160,7 @@ describe("LiveTranscriber", () => {
 					serverContent: { interimInputTranscription: { text: "hello world" } },
 				}),
 			});
+			await flush();
 
 			expect(sink.onInterim).toHaveBeenCalledWith("hello world");
 		});
@@ -155,6 +174,7 @@ describe("LiveTranscriber", () => {
 					serverContent: { inputTranscription: { text: "hello world final" } },
 				}),
 			});
+			await flush();
 
 			expect(sink.onFinal).toHaveBeenCalledWith("hello world final");
 		});
@@ -171,6 +191,7 @@ describe("LiveTranscriber", () => {
 					},
 				}),
 			});
+			await flush();
 
 			expect(sink.onInterim).toHaveBeenCalledWith("partial");
 			expect(sink.onFinal).toHaveBeenCalledWith("complete");
@@ -186,6 +207,7 @@ describe("LiveTranscriber", () => {
 			socketBundle.socket.onmessage?.({
 				data: wsMsg({ serverContent: { interimInputTranscription: { text: "second" } } }),
 			});
+			await flush();
 
 			expect(sink.onInterim).toHaveBeenCalledTimes(2);
 			expect(sink.onInterim).toHaveBeenNthCalledWith(1, "first");
@@ -213,6 +235,7 @@ describe("LiveTranscriber", () => {
 			await startAndSetup(t);
 
 			socketBundle.socket.onmessage?.({ data: wsMsg({ error: { message: "quota exceeded" } }) });
+			await flush();
 
 			expect(sink.onError).toHaveBeenCalledWith("quota exceeded");
 		});

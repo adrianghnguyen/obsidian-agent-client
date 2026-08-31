@@ -2,9 +2,13 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## 0.15.1
+
+- Voice input: fix "Live API setup timed out" — setup messages from the Gemini Live server can arrive as a Blob, which was being dropped, so the handshake never completed.
+
 ## 0.15.0
 
-- Voice input: transcribe your voice into the chat input via the Gemini Live API. Add your Gemini API key under Settings → Voice Input, then use the mic button in the chat input toolbar.
+- Voice input: transcribe your voice into the chat input via the Gemini Live API. Add your Gemini API key under Settings → Voice Input, then use the mic button in the chat input toolbar. Note: this version had a setup handshake bug (fixed in 0.15.1).
 
 ## 0.14.2
 
