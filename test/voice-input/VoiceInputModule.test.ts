@@ -8,16 +8,7 @@ import type { VoiceInputSettings } from "../../src/voice-input/VoiceInputSetting
 function createPluginStub(overrides: {
 	secretStorageGet?: string | null;
 } = {}): Plugin {
-	const statusBarEl = {
-		addClass: vi.fn(),
-		removeClass: vi.fn(),
-		empty: vi.fn(),
-		remove: vi.fn(),
-		addEventListener: vi.fn(),
-		style: {} as CSSStyleDeclaration,
-	};
 	return {
-		addStatusBarItem: vi.fn(() => statusBarEl as unknown as HTMLElement),
 		addCommand: vi.fn(),
 		app: {
 			secretStorage: {
@@ -108,26 +99,5 @@ describe("VoiceInputModule", () => {
 		expect(plugin.addCommand).toHaveBeenCalledWith(
 			expect.objectContaining({ id: "voice-input-toggle" }),
 		);
-	});
-
-	it("mountStatusBar adds a status bar item", () => {
-		module.mountStatusBar();
-		expect(plugin.addStatusBarItem).toHaveBeenCalled();
-	});
-
-	it("mountStatusBar is idempotent", () => {
-		module.mountStatusBar();
-		module.mountStatusBar();
-		expect(plugin.addStatusBarItem).toHaveBeenCalledTimes(1);
-	});
-
-	it("unmountStatusBar removes the status bar", () => {
-		module.mountStatusBar();
-		module.unmountStatusBar();
-		module.unmountStatusBar(); // safe
-	});
-
-	it("unmountStatusBar is safe when not mounted", () => {
-		module.unmountStatusBar();
 	});
 });

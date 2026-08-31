@@ -233,7 +233,7 @@ export function InputToolbar({
 
 	useEffect(() => {
 		if (micButtonRef.current) {
-			setIcon(micButtonRef.current, isListening ? "mic-off" : "mic");
+			setIcon(micButtonRef.current, isListening ? "audio-lines" : "mic");
 		}
 	}, [isListening]);
 
