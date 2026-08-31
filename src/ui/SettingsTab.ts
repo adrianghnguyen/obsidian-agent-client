@@ -32,6 +32,8 @@ import {
 	CHAT_FONT_SIZE_MIN,
 	parseChatFontSize,
 } from "../services/settings-normalizer";
+import { VOICE_INPUT_SECRET_ID } from "../voice-input/VoiceInputSettings";
+import type { VoiceInputSettings } from "../voice-input/VoiceInputSettings";
 
 export class AgentClientSettingTab extends PluginSettingTab {
 	plugin: AgentClientPlugin;
@@ -903,6 +905,101 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						});
 					}),
 			);
+
+		// ─────────────────────────────────────────────────────────────────────
+		// Voice Input
+		// ─────────────────────────────────────────────────────────────────────
+
+		new Setting(containerEl).setName("Voice Input").setHeading();
+
+		new Setting(containerEl)
+			.setName("Enable voice input")
+			.setDesc("Adds a microphone button to the chat input area for Gemini Live voice transcription.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.voiceInput.enabled)
+					.onChange(async (value) => {
+						this.plugin.settings.voiceInput.enabled = value;
+						await this.plugin.saveSettings();
+						this.renderContent();
+					}),
+			);
+
+		if (this.plugin.settings.voiceInput.enabled) {
+			new Setting(containerEl)
+				.setName("Gemini API key")
+				.setDesc("Your Google AI Studio API key for Gemini Live transcription.")
+				.addComponent((el) => {
+					const secretId = VOICE_INPUT_SECRET_ID;
+					const currentValue =
+						this.plugin.app.secretStorage.getSecret(secretId) ?? "";
+					const secret = new SecretComponent(this.app, el);
+					secret.setValue(
+						currentValue
+							? secretId
+							: this.plugin.settings.voiceInput
+									.geminiApiKeySecretId,
+					).onChange(async (value) => {
+						if (value.trim()) {
+							this.plugin.app.secretStorage.setSecret(
+								secretId,
+								value.trim(),
+							);
+							this.plugin.settings.voiceInput.geminiApiKeySecretId =
+								secretId;
+						}
+						await this.plugin.saveSettings();
+					});
+					return secret;
+				});
+
+			new Setting(containerEl)
+				.setName("Model")
+				.setDesc("Gemini Live model name (e.g. gemini-3.5-transcribe-live).")
+				.addText((text) =>
+					text
+						.setPlaceholder("gemini-3.5-transcribe-live")
+						.setValue(this.plugin.settings.voiceInput.model)
+						.onChange(async (value) => {
+							this.plugin.settings.voiceInput.model =
+								value.trim() || "gemini-3.5-transcribe-live";
+							await this.plugin.saveSettings();
+						}),
+				);
+
+			new Setting(containerEl)
+				.setName("Transcription mode")
+				.setDesc("Smart mode for clean transcripts, verbatim for exact word-for-word.")
+				.addDropdown((dropdown) =>
+					dropdown
+						.addOption("smart", "Smart")
+						.addOption("verbatim", "Verbatim")
+						.setValue(
+							this.plugin.settings.voiceInput.transcriptionMode,
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.voiceInput.transcriptionMode =
+								value as "smart" | "verbatim";
+							await this.plugin.saveSettings();
+						}),
+				);
+
+			new Setting(containerEl)
+				.setName("Language codes")
+				.setDesc("Comma-separated BCP-47 language codes (e.g. en-US, fr-CA).")
+				.addText((text) =>
+					text
+						.setPlaceholder("en-US, fr-CA")
+						.setValue(
+							this.plugin.settings.voiceInput.languageCodes,
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.voiceInput.languageCodes =
+								value;
+							await this.plugin.saveSettings();
+						}),
+				);
+		}
 
 		// ─────────────────────────────────────────────────────────────────────
 		// Developer

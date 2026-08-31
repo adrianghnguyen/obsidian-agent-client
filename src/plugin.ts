@@ -59,6 +59,9 @@ import {
 	needsFloatingChatEntryMigration,
 } from "./services/settings-normalizer";
 import { PRESET_AGENTS } from "./services/preset-agents";
+import { VoiceInputModule } from "./voice-input/VoiceInputModule";
+import type { VoiceInputSettings } from "./voice-input/VoiceInputSettings";
+import { DEFAULT_VOICE_INPUT, normalizeVoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import {
 	getAvailableAgentsFromSettings,
 	getAllAgentsFromSettings,
@@ -193,6 +196,8 @@ export interface AgentClientPluginSettings {
 	floatingWindowSize: { width: number; height: number };
 	floatingWindowPosition: { x: number; y: number } | null;
 	floatingButtonPosition: { x: number; y: number } | null;
+	/** Voice Input (Gemini Live) settings */
+	voiceInput: VoiceInputSettings;
 }
 
 const DEFAULT_SETTINGS: AgentClientPluginSettings = {
@@ -250,6 +255,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	floatingWindowSize: { width: 400, height: 500 },
 	floatingWindowPosition: null,
 	floatingButtonPosition: null,
+	voiceInput: { ...DEFAULT_VOICE_INPUT },
 };
 
 export default class AgentClientPlugin extends Plugin {
@@ -291,6 +297,8 @@ export default class AgentClientPlugin extends Plugin {
 	private floatingChatCounter = 0;
 	/** Guards against concurrent embed-id injection for the same block. */
 	private embedIdInjectionInFlight = new Set<string>();
+	/** Voice Input module (Gemini Live). */
+	voiceInput: VoiceInputModule | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -467,12 +475,23 @@ export default class AgentClientPlugin extends Plugin {
 				}
 			}),
 		);
+
+		// Voice Input module
+		if (this.settings.voiceInput.enabled) {
+			this.voiceInput = new VoiceInputModule(this, this.settings.voiceInput);
+			this.voiceInput.registerCommands();
+			this.voiceInput.mountStatusBar();
+		}
 	}
 
 	onunload() {
 		// Unmount floating button
 		this.floatingButton?.unmount();
 		this.floatingButton = null;
+
+		// Voice Input cleanup
+		this.voiceInput?.dispose();
+		this.voiceInput = null;
 
 		this.floatingChatStatusBar?.unmount();
 		this.floatingChatStatusBar = null;
@@ -1691,6 +1710,9 @@ export default class AgentClientPlugin extends Plugin {
 			})(),
 			floatingWindowPosition: xyPoint(raw.floatingWindowPosition),
 			floatingButtonPosition: xyPoint(raw.floatingButtonPosition),
+			voiceInput: normalizeVoiceInputSettings(
+				obj(raw.voiceInput) as Partial<VoiceInputSettings> | undefined,
+			),
 		};
 
 		this.ensureAtLeastOneEnabled();

@@ -177,6 +177,9 @@ export interface InputToolbarProps {
 	onConfigOptionChange?: (configId: string, value: string) => void;
 	usage?: SessionUsage;
 	isSessionReady: boolean;
+	/** Voice input state and toggle */
+	isListening?: boolean;
+	onToggleVoice?: () => void;
 }
 
 export function InputToolbar({
@@ -190,8 +193,11 @@ export function InputToolbar({
 	onConfigOptionChange,
 	usage,
 	isSessionReady,
+	isListening = false,
+	onToggleVoice,
 }: InputToolbarProps) {
 	const sendButtonRef = useRef<HTMLButtonElement>(null);
+	const micButtonRef = useRef<HTMLButtonElement>(null);
 
 	const updateIconColor = useCallback(
 		(svg: SVGElement) => {
@@ -224,6 +230,12 @@ export function InputToolbar({
 			}
 		}
 	}, [isSending, updateIconColor]);
+
+	useEffect(() => {
+		if (micButtonRef.current) {
+			setIcon(micButtonRef.current, isListening ? "mic-off" : "mic");
+		}
+	}, [isListening]);
 
 	useEffect(() => {
 		if (sendButtonRef.current) {
@@ -350,6 +362,14 @@ export function InputToolbar({
 			)}
 
 			{/* Send/Stop Button */}
+			{onToggleVoice && (
+				<button
+					ref={micButtonRef}
+					onClick={onToggleVoice}
+					className={`agent-client-chat-voice-button ${isListening ? "is-recording" : ""}`}
+					title={isListening ? "Stop recording" : "Start voice input"}
+				></button>
+			)}
 			<button
 				ref={sendButtonRef}
 				onClick={onSendOrStop}

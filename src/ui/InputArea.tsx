@@ -751,6 +751,46 @@ export function InputArea({
 		resetHistory,
 	]);
 
+	// Voice input
+	const voiceSinkRef = useRef<{
+		onInterim: (text: string) => void;
+		onFinal: (text: string) => void;
+		onError: (error: string) => void;
+	} | null>(null);
+	const [isVoiceListening, setIsVoiceListening] = useState(false);
+
+	const handleToggleVoice = useCallback(() => {
+		const voiceInput = plugin.voiceInput;
+		if (!voiceInput) return;
+		if (!isSessionReady) {
+			new Notice(
+				"[Agent Client] Wait for the agent session to be ready before using voice input.",
+			);
+			return;
+		}
+
+		if (voiceInput.isListening) {
+			void voiceInput.stopListening();
+			setIsVoiceListening(false);
+		} else {
+			const sink = {
+				onInterim: (text: string) => {
+					onInputChange(text);
+				},
+				onFinal: (text: string) => {
+					onInputChange(text);
+				},
+				onError: (error: string) => {
+					new Notice("[Agent Client] Voice: " + error);
+					setIsVoiceListening(false);
+				},
+			};
+			voiceSinkRef.current = sink;
+			void voiceInput.startListening(sink);
+			setIsVoiceListening(true);
+		}
+	}, [plugin, onInputChange, isSessionReady]);
+
 	/**
 	 * Handle dropdown keyboard navigation.
 	 */
@@ -1093,6 +1133,8 @@ export function InputArea({
 					onConfigOptionChange={onConfigOptionChange}
 					usage={usage}
 					isSessionReady={isSessionReady}
+					isListening={isVoiceListening}
+					onToggleVoice={handleToggleVoice}
 				/>
 			</div>
 		</div>

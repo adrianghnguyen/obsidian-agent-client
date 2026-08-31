@@ -64,3 +64,19 @@ export function parseLinktext(linktext: string): {
 export function requestUrl(): Promise<never> {
 	return Promise.reject(new Error("requestUrl is not available in tests"));
 }
+
+/**
+ * Stub for Obsidian's Notice.
+ */
+export class Notice {
+	constructor(message: string) {
+		// no-op in tests
+	}
+}
+
+/**
+ * Stub for Obsidian's setIcon.
+ */
+export function setIcon(el: HTMLElement, icon: string): void {
+	// no-op in tests
+}
