@@ -2,6 +2,10 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## 0.15.0
+
+- Voice input: transcribe your voice into the chat input via the Gemini Live API. Add your Gemini API key under Settings → Voice Input, then use the mic button in the chat input toolbar.
+
 ## 0.14.2
 
 - Floating chat tabs show the same session status icons as Session Manager (ready, busy, permission, error, disconnected).
