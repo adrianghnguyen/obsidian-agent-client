@@ -4,8 +4,20 @@
  */
 
 import type { ToolCallMessageContent } from "../types/chat";
+import { isRawInputRecord } from "../utils/raw-input";
 
 const SUBAGENT_TITLE_RE = /^(task|agent|subagent)\b/i;
+
+/**
+ * rawInput is normally normalized to an object at the ACP boundary, but
+ * guard here too so a malformed value (e.g. a JSON string) can never crash
+ * a render via `in` or property access.
+ */
+function safeRawInput(
+	rawInput?: { [k: string]: unknown },
+): { [k: string]: unknown } | undefined {
+	return isRawInputRecord(rawInput) ? rawInput : undefined;
+}
 
 function readString(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0
@@ -16,11 +28,12 @@ function readString(value: unknown): string | undefined {
 function toolNameFromRawInput(rawInput?: {
 	[k: string]: unknown;
 }): string | undefined {
-	if (!rawInput) return undefined;
+	const raw = safeRawInput(rawInput);
+	if (!raw) return undefined;
 	return (
-		readString(rawInput._toolName) ??
-		readString(rawInput.toolName) ??
-		readString(rawInput.name)
+		readString(raw._toolName) ??
+		readString(raw.toolName) ??
+		readString(raw.name)
 	);
 }
 
@@ -37,9 +50,10 @@ export function isSubagentToolCall(
 	if (call.nestedCalls && call.nestedCalls.length > 0) return true;
 	const title = readString(call.title ?? undefined);
 	if (title && SUBAGENT_TITLE_RE.test(title)) return true;
-	const toolName = toolNameFromRawInput(call.rawInput);
+	const rawInput = safeRawInput(call.rawInput);
+	const toolName = toolNameFromRawInput(rawInput);
 	if (toolName && /^(task|agent|subagent)$/i.test(toolName)) return true;
-	if (call.rawInput && "subagentType" in call.rawInput) return true;
+	if (rawInput && "subagentType" in rawInput) return true;
 	return false;
 }
 

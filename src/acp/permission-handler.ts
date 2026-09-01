@@ -2,6 +2,7 @@ import * as acp from "@agentclientprotocol/sdk";
 import type { PermissionOption } from "../types/chat";
 import type { SessionUpdate } from "../types/session";
 import { AcpTypeConverter } from "./type-converter";
+import { normalizeRawInput } from "../utils/raw-input";
 import { getLogger, Logger } from "../utils/logger";
 
 /**
@@ -156,9 +157,9 @@ export class PermissionManager {
 			content: AcpTypeConverter.toToolCallContent(
 				toolCallInfo?.content,
 			),
-			rawInput: toolCallInfo?.rawInput as
-				| { [k: string]: unknown }
-				| undefined,
+			// Some agents send rawInput as a JSON-encoded string; normalize
+			// to a plain object (or undefined) before it reaches the UI.
+			rawInput: normalizeRawInput(toolCallInfo?.rawInput),
 			permissionRequest: permissionRequestData,
 		});
 

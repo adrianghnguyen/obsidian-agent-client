@@ -6,6 +6,7 @@ import type { PermissionManager } from "./permission-handler";
 import type { TerminalManager } from "./terminal-handler";
 import type { Logger } from "../utils/logger";
 import { extractToolCallMeta } from "./session-meta";
+import { normalizeRawInput } from "../utils/raw-input";
 import type { ToolKind } from "../types/chat";
 
 /**
@@ -109,12 +110,11 @@ export class AcpHandler {
 					kind: (update.kind as ToolKind | undefined) ?? undefined,
 					content: AcpTypeConverter.toToolCallContent(update.content),
 					locations: update.locations ?? undefined,
-					rawInput: update.rawInput as
-						| { [k: string]: unknown }
-						| undefined,
-					rawOutput: update.rawOutput as
-						| { [k: string]: unknown }
-						| undefined,
+					// Some agents send rawInput/rawOutput as a JSON-encoded
+					// string. Normalize to a plain object (or undefined) so
+					// downstream `in` / property access is always safe.
+					rawInput: normalizeRawInput(update.rawInput),
+					rawOutput: normalizeRawInput(update.rawOutput),
 					parentToolUseId: meta.parentToolUseId,
 					subagent: meta.subagent,
 				});
