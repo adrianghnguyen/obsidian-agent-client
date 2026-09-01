@@ -536,6 +536,17 @@ export function useSessionHistory(
 			setError(null);
 
 			try {
+				// Guard: restoring against a dead/disconnected agent would
+				// fail with the opaque SDK error "ACP connection closed".
+				// Surface an actionable message instead. (No auto-spawn here —
+				// the view's new chat already starts a fresh agent on reopen.)
+				if (!agentClient.isInitialized()) {
+					const notConnected =
+						"Agent is not connected. Reopen the chat (a new agent starts automatically) and try restoring again.";
+					setError(notConnected);
+					throw new Error(notConnected);
+				}
+
 				// IMPORTANT: Update session.sessionId BEFORE calling restore
 				// so that session/update notifications are not ignored
 				onSessionLoad(sessionId, undefined, undefined);
