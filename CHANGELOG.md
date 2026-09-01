@@ -2,6 +2,11 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## 0.16.1
+
+- Tool calls from agents that send `rawInput` as a JSON string (e.g. anti-gravity) no longer crash the chat with `Cannot use 'in' operator`; tool names and subagent detection now parse correctly.
+- Restoring a session after the agent process exits no longer fails with the cryptic "ACP connection closed" — you now get an actionable error (agent exited / not connected) instead.
+
 ## 0.16.0
 
 - Floating chat close button now minimizes by default (quick click); long-press (~0.8s) turns red to close all sessions. Applies to both tabbed and standalone floating windows.

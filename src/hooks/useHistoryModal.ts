@@ -3,6 +3,7 @@ import { Notice, Platform } from "obsidian";
 import { SessionHistoryModal } from "../ui/SessionHistoryModal";
 import { getLogger } from "../utils/logger";
 import { convertWslPathToWindows } from "../utils/platform";
+import { extractErrorMessage } from "../utils/error-utils";
 import type AgentClientPlugin from "../plugin";
 import type { UseAgentReturn } from "./useAgent";
 import type { UseSessionHistoryReturn } from "./useSessionHistory";
@@ -45,7 +46,11 @@ export function useHistoryModal(
 				);
 				new Notice("[Agent Client] Session restored");
 			} catch (error) {
-				new Notice("[Agent Client] Failed to restore session");
+				const errorMessage = extractErrorMessage(error);
+				new Notice(
+					`[Agent Client] Failed to restore session: ${errorMessage}`,
+					8000,
+				);
 				logger.error("Session restore error:", error);
 			}
 		},
