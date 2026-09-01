@@ -2,6 +2,10 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## 0.16.0
+
+- Floating chat close button now minimizes by default (quick click); long-press (~0.8s) turns red to close all sessions. Applies to both tabbed and standalone floating windows.
+
 ## 0.15.2
 
 - Voice input: consecutive spoken chunks are now joined with a space in the input box, so words from separate chunks are no longer glued together.

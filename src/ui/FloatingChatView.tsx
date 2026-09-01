@@ -17,6 +17,7 @@ import { ChatContextProvider } from "./ChatContext";
 // Component imports
 import { ChatPanel, type ChatPanelCallbacks } from "./ChatPanel";
 import { HeaderButton } from "./shared/IconButton";
+import { WindowMinimizeCloseButton } from "./shared/WindowMinimizeCloseButton";
 import {
 	SessionStatusIcon,
 	sessionStatusLabel,
@@ -405,6 +406,7 @@ export class FloatingTabbedShell {
 				initialPosition={this.initialPosition}
 				getTabContainer={(viewId) => this.tabs.get(viewId) ?? null}
 				onCloseTab={(viewId) => this.removeTab(viewId)}
+				onCloseWindow={() => this.closeWindow()}
 				onOpenNewTab={() => {
 					this.plugin.openNewFloatingChat(true);
 				}}
@@ -548,6 +550,11 @@ export class FloatingTabbedShell {
 		}
 		this.api = null;
 		this.containerEl.remove();
+	}
+
+	closeWindow(): void {
+		this.unmount();
+		this.plugin.clearFloatingTabbedShell(this);
 	}
 
 	getTabCount(): number {
@@ -879,6 +886,7 @@ interface FloatingTabbedShellComponentProps {
 	initialPosition?: { x: number; y: number };
 	getTabContainer: (viewId: string) => FloatingTabContainer | null;
 	onCloseTab: (viewId: string) => void;
+	onCloseWindow: () => void;
 	onOpenNewTab: () => void;
 	onExpandedChange: (expanded: boolean) => void;
 	onActiveTabChange: (viewId: string | null) => void;
@@ -973,6 +981,7 @@ function FloatingTabbedShellComponent({
 	initialPosition,
 	getTabContainer,
 	onCloseTab,
+	onCloseWindow,
 	onOpenNewTab,
 	onExpandedChange,
 	onActiveTabChange,
@@ -1338,23 +1347,10 @@ function FloatingTabbedShellComponent({
 						className="agent-client-floating-tab-bar-action"
 						onClick={handleTabBarShowMenu}
 					/>
-					<HeaderButton
-						iconName="minimize-2"
-						tooltip="Minimize"
+					<WindowMinimizeCloseButton
+						onMinimize={handleMinimize}
+						onCloseAll={onCloseWindow}
 						className="agent-client-floating-tab-bar-action"
-						onClick={(e) => {
-							e.stopPropagation();
-							handleMinimize();
-						}}
-					/>
-					<HeaderButton
-						iconName="x"
-						tooltip="Close session"
-						className="agent-client-floating-tab-bar-action agent-client-floating-close-session"
-						onClick={(e) => {
-							e.stopPropagation();
-							if (activeTabId) onCloseTab(activeTabId);
-						}}
 					/>
 				</div>
 			</div>

@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-agent-client",
-	"version": "0.15.2",
+	"version": "0.16.0",
 	"description": "Use AI coding agents via the Agent Client Protocol directly inside Obsidian",
 	"main": "main.js",
 	"scripts": {
@@ -22,6 +22,8 @@
 	"license": "Apache-2.0",
 	"devDependencies": {
 		"@eslint/json": "^0.14.0",
+		"@testing-library/dom": "^10.4.1",
+		"@testing-library/react": "^16.3.3",
 		"@types/node": "^16.11.6",
 		"@types/react": "18.3.29",
 		"@types/react-dom": "18.3.7",
@@ -31,6 +33,7 @@
 		"esbuild": "0.17.3",
 		"eslint": "^9.0.0",
 		"eslint-plugin-obsidianmd": "^0.1.9",
+		"jsdom": "^30.0.1",
 		"obsidian": "latest",
 		"prettier": "^3.4.2",
 		"tslib": "2.4.0",

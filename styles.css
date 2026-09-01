@@ -2545,6 +2545,17 @@ If your plugin does not need CSS, delete this file.
 	);
 }
 
+/* Window minimize/close button (long-press): armed (danger) state */
+.agent-client-window-close.is-armed {
+	border-color: var(--background-modifier-error-border, var(--text-error)) !important;
+	color: var(--text-error) !important;
+	background: color-mix(
+		in srgb,
+		var(--background-modifier-error, var(--text-error)) 12%,
+		transparent
+	) !important;
+}
+
 .agent-client-floating-tab-panels {
 	flex: 1;
 	display: flex;

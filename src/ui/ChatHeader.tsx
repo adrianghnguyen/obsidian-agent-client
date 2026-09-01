@@ -2,6 +2,7 @@ import * as React from "react";
 const { useRef, useEffect, useMemo } = React;
 import { setIcon, DropdownComponent } from "obsidian";
 import { HeaderButton } from "./shared/IconButton";
+import { WindowMinimizeCloseButton } from "./shared/WindowMinimizeCloseButton";
 import type { AgentDisplayInfo } from "../services/session-helpers";
 
 /** Stable empty list for the pinned-agent case (no switchable agents). */
@@ -329,19 +330,10 @@ function FloatingHeader({
 							tooltip="More"
 							onClick={onShowMenu}
 						/>
-						{onMinimize && (
-							<HeaderButton
-								iconName="minimize-2"
-								tooltip="Minimize"
-								onClick={onMinimize}
-							/>
-						)}
-						{onClose && (
-							<HeaderButton
-								iconName="x"
-								tooltip="Close session"
-								className="agent-client-floating-close-session"
-								onClick={onClose}
+						{(onMinimize || onClose) && (
+							<WindowMinimizeCloseButton
+								onMinimize={onMinimize ?? (() => {})}
+								onCloseAll={onClose ?? (() => {})}
 							/>
 						)}
 					</>
