@@ -179,6 +179,45 @@ describe("LiveTranscriber", () => {
 			expect(sink.onFinal).toHaveBeenCalledWith("hello world final");
 		});
 
+		it("joins consecutive final chunks with a space", async () => {
+			const t = createTranscriber();
+			await startAndSetup(t);
+
+			socketBundle.socket.onmessage?.({
+				data: wsMsg({
+					serverContent: { inputTranscription: { text: "hello world" } },
+				}),
+			});
+			socketBundle.socket.onmessage?.({
+				data: wsMsg({
+					serverContent: { inputTranscription: { text: "how are you" } },
+				}),
+			});
+			await flush();
+
+			expect(sink.onFinal).toHaveBeenNthCalledWith(1, "hello world");
+			expect(sink.onFinal).toHaveBeenNthCalledWith(2, "hello world how are you");
+		});
+
+		it("prefixes interim text with previously committed finals", async () => {
+			const t = createTranscriber();
+			await startAndSetup(t);
+
+			socketBundle.socket.onmessage?.({
+				data: wsMsg({
+					serverContent: { inputTranscription: { text: "hello world" } },
+				}),
+			});
+			socketBundle.socket.onmessage?.({
+				data: wsMsg({
+					serverContent: { interimInputTranscription: { text: "and" } },
+				}),
+			});
+			await flush();
+
+			expect(sink.onInterim).toHaveBeenLastCalledWith("hello world and");
+		});
+
 		it("delivers both interim and final in same message", async () => {
 			const t = createTranscriber();
 			await startAndSetup(t);

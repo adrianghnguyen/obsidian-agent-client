@@ -60,6 +60,8 @@ export class LiveTranscriber {
 	private setupComplete = false;
 	private currentSink: TranscriptSink | null = null;
 	private startPromise: Promise<void> | null = null;
+	/** Committed final transcript text (finalized utterances, space-joined). */
+	private committedText = "";
 
 	constructor(
 		apiKey: string,
@@ -190,6 +192,7 @@ export class LiveTranscriber {
 					this._isActive = false;
 					this.setupComplete = false;
 					this.currentSink = null;
+					this.committedText = "";
 					this.audioSource.stop();
 					this.socket = null;
 				}
@@ -235,11 +238,27 @@ export class LiveTranscriber {
 		}
 
 		if (parsed.interimText) {
-			this.currentSink.onInterim(parsed.interimText);
+			const interim = parsed.interimText.trim();
+			if (interim) {
+				// Show running transcript + current utterance, space-separated.
+				this.currentSink.onInterim(
+					this.committedText
+						? `${this.committedText} ${interim}`
+						: interim,
+				);
+			}
 		}
 
 		if (parsed.finalText) {
-			this.currentSink.onFinal(parsed.finalText);
+			const final = parsed.finalText.trim();
+			if (final) {
+				// Finalized utterances accumulate; each is joined with a space
+				// so consecutive voice chunks are never glued together.
+				this.committedText = this.committedText
+					? `${this.committedText} ${final}`
+					: final;
+				this.currentSink.onFinal(this.committedText);
+			}
 		}
 	}
 
@@ -258,6 +277,7 @@ export class LiveTranscriber {
 		this._isActive = false;
 		this.setupComplete = false;
 		this.currentSink = null;
+		this.committedText = "";
 		if (this.socket) {
 			try {
 				this.socket.close();
