@@ -480,7 +480,6 @@ export default class AgentClientPlugin extends Plugin {
 		if (this.settings.voiceInput.enabled) {
 			this.voiceInput = new VoiceInputModule(this, this.settings.voiceInput);
 			this.voiceInput.registerCommands();
-			this.voiceInput.mountStatusBar();
 		}
 	}
 

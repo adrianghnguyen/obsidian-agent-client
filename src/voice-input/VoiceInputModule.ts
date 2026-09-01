@@ -1,4 +1,4 @@
-import { Notice, Plugin, setIcon } from "obsidian";
+import { Notice, Plugin } from "obsidian";
 import { LiveTranscriber } from "./LiveTranscriber";
 import {
 	VOICE_INPUT_SECRET_ID,
@@ -10,13 +10,15 @@ import type { TranscriptSink } from "./types";
  * VoiceInputModule
  *
  * Self-contained module for Gemini Live voice input. Depends on Obsidian
- * (Plugin, Notice, status bar, commands) but NOT on Agent Client internals
+ * (Plugin, Notice, commands) but NOT on Agent Client internals
  * (ACP, ChatPanel, InputArea, etc.).
  *
  * Exposes:
  * - Commands: toggle voice input
- * - Status bar: mic icon showing recording state
  * - startListening/stopListening for the input area to call
+ *
+ * Recording state is surfaced by the chat input toolbar mic button,
+ * not by a status bar item.
  *
  * Rip-and-replace: swap LiveTranscriber for a different provider that
  * implements the same start(sink)/stop()/isActive contract.
@@ -24,7 +26,6 @@ import type { TranscriptSink } from "./types";
 export class VoiceInputModule {
 	private transcriber: LiveTranscriber | null = null;
 	private settings: VoiceInputSettings;
-	private statusBarItem: HTMLElement | null = null;
 	private inProgress = false;
 	private createTranscriber: (apiKey: string, model: string) => LiveTranscriber;
 
@@ -60,7 +61,6 @@ export class VoiceInputModule {
 		try {
 			this.transcriber = new LiveTranscriber(apiKey, this.settings.model);
 			await this.transcriber.start(sink);
-			this.updateStatusBarIcon(true);
 		} catch {
 			// transcriber.start() handles errors internally via sink.onError
 		} finally {
@@ -71,7 +71,6 @@ export class VoiceInputModule {
 	async stopListening(): Promise<void> {
 		if (!this.transcriber?.isActive) return;
 		await this.transcriber.stop();
-		this.updateStatusBarIcon(false);
 	}
 
 	get isListening(): boolean {
@@ -96,32 +95,12 @@ export class VoiceInputModule {
 		});
 	}
 
-	/** Mount the status bar mic icon. */
-	mountStatusBar(): void {
-		if (this.statusBarItem) return;
-		this.statusBarItem = this.plugin.addStatusBarItem();
-		this.statusBarItem.addClass("agent-client-voice-input-status");
-		this.updateStatusBarIcon(false);
-		this.statusBarItem.addEventListener("click", () => {
-			this.plugin.app.workspace.trigger(
-				"agent-client:voice-input-toggle",
-			);
-		});
-	}
-
-	/** Remove the status bar icon. */
-	unmountStatusBar(): void {
-		this.statusBarItem?.remove();
-		this.statusBarItem = null;
-	}
-
 	/** Dispose of any active session and clean up. */
 	dispose(): void {
 		if (this.transcriber) {
 			this.transcriber.dispose();
 			this.transcriber = null;
 		}
-		this.unmountStatusBar();
 	}
 
 	// ── Internals ──────────────────────────────────────────────────
@@ -131,19 +110,5 @@ export class VoiceInputModule {
 			this.settings.geminiApiKeySecretId || VOICE_INPUT_SECRET_ID;
 		if (!secretId) return "";
 		return this.plugin.app.secretStorage.getSecret(secretId) ?? "";
-	}
-
-	private updateStatusBarIcon(recording: boolean): void {
-		if (!this.statusBarItem) return;
-		this.statusBarItem.empty();
-		if (recording) {
-			setIcon(this.statusBarItem, "mic");
-			this.statusBarItem.addClass("is-recording");
-			this.statusBarItem.style.color = "red";
-		} else {
-			setIcon(this.statusBarItem, "mic");
-			this.statusBarItem.removeClass("is-recording");
-			this.statusBarItem.style.color = "";
-		}
 	}
 }
