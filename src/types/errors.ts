@@ -98,6 +98,7 @@ export interface AcpError extends ErrorInfo {
 export type ProcessErrorType =
 	| "spawn_failed" // Process spawn failed (ENOENT, etc.)
 	| "command_not_found" // Exit code 127
+	| "agent_exited" // Agent process exited unexpectedly while initialized
 	| "process_crashed" // Abnormal termination
 	| "process_timeout"; // Timeout
 

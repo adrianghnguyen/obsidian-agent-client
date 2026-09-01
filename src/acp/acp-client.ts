@@ -41,6 +41,7 @@ import {
 	isEmptyResponseError,
 	isUserAbortedError,
 } from "../utils/error-utils";
+import { classifyUnexpectedExit } from "../utils/process-exit";
 
 /**
  * Runtime configuration for launching an AI agent process.
@@ -140,7 +141,11 @@ export class AcpClient {
 			`[AcpClient] Current state - process: ${!!this.agentProcess}, PID: ${this.agentProcess?.pid}`,
 		);
 
-		// Clean up existing process if any (e.g., when switching agents)
+		// Clean up existing process if any (e.g., when switching agents).
+		// Clear the initialized flag first so the dying process's delayed
+		// "exit" event is not misreported as an unexpected exit.
+		this.isInitializedFlag = false;
+		this.currentAgentId = null;
 		if (this.agentProcess) {
 			this.killProcessTree();
 		}
@@ -336,6 +341,36 @@ export class AcpClient {
 					sessionId: this.currentSessionId ?? "",
 					error: processError,
 				});
+			}
+
+			// If the process died while we still considered it connected, the
+			// SDK stream is now closed and any further request would fail with
+			// the opaque "ACP connection closed" error. Mark the connection
+			// dead so requireConnection()/isInitialized() fail clearly, and
+			// surface an actionable process_error for non-127, non-clean exits.
+			// (disconnect()/initialize() clear isInitializedFlag before
+			// killing the process, so user-initiated shutdowns and agent
+			// switches are not reported.)
+			if (this.isInitializedFlag) {
+				const unexpectedExit = classifyUnexpectedExit(
+					code,
+					signal,
+					this.isInitializedFlag,
+					config.id,
+					agentLabel,
+				);
+				this.isInitializedFlag = false;
+				this.currentAgentId = null;
+				if (unexpectedExit) {
+					this.logger.error(
+						`[AcpClient] ${agentLabel} exited unexpectedly (code ${code}, signal ${signal})`,
+					);
+					this.handler.emitSessionUpdate({
+						type: "process_error",
+						sessionId: this.currentSessionId ?? "",
+						error: unexpectedExit,
+					});
+				}
 			}
 		});
 
@@ -868,6 +903,16 @@ export class AcpClient {
 		if (!this.connection) {
 			throw new Error(
 				"Connection not initialized. Call initialize() first.",
+			);
+		}
+		// The connection object can outlive the agent process: after an
+		// unexpected exit the SDK stream is closed and any request fails
+		// with the opaque "ACP connection closed" error. Fail fast with an
+		// actionable message instead (covers loadSession, resumeSession,
+		// newSession, sendPrompt, etc.).
+		if (!this.isInitializedFlag) {
+			throw new Error(
+				"Agent connection is not available (process not running). Start a new session first.",
 			);
 		}
 		return this.connection;
