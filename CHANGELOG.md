@@ -2,6 +2,11 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## 0.15.2
+
+- Tool calls from agents that send `rawInput` as a JSON string (e.g. anti-gravity) no longer crash the chat with `Cannot use 'in' operator`; tool names and subagent detection now parse correctly.
+- Restoring a session after the agent process exits no longer fails with the cryptic "ACP connection closed" — you now get an actionable error (agent exited / not connected) instead.
+
 ## 0.15.1
 
 - Voice input: fix "Live API setup timed out" — setup messages from the Gemini Live server can arrive as a Blob, which was being dropped, so the handshake never completed.
