@@ -14,15 +14,9 @@ Upstream sync: merge on `sync/upstream-<version>` (not rebase) from `upstream/ma
 
 Vault catalog: `Notes/obsidian plugin tweaks.md`. Skill: `.agents/skills/obsidian-plugin-tweaks/SKILL.md` (vault).
 
-### Versioning and changelog (required on user-facing changes)
+### Versioning and changelog
 
-When a change is user-facing (feature, fix, or behavior users will notice):
-
-1. **Bump** `manifest.json` `version` (and keep `package.json` `version` in sync). Use semver: patch for fixes, minor for features, major only for breaking changes.
-2. **Update** `CHANGELOG.md` with a short high-level bullet under that version — what the user gets, not commit/PR dumps or file lists.
-3. If `versions.json` needs the new version ↔ `minAppVersion` mapping, update it (or run the repo’s `npm version` / `version-bump.mjs` flow when doing a formal release).
-
-Do this in the same PR as the feature/fix. Skip version/changelog bumps for pure docs, refactors with no user-visible effect, or chore-only work unless asked.
+User-facing changes: log under `CHANGELOG.md` `[Unreleased]` when ready; version bump on `main` only — global skill `~/.cursor/skills/obsidian-plugin-dev/SKILL.md` (Release notes and semantic versioning). This repo also syncs `package.json` and `versions.json` at release (or via `npm version` / release script).
 
 ---
 
