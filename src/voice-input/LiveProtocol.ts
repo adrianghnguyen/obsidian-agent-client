@@ -25,7 +25,12 @@ export interface LiveSetupOptions {
 	transcriptionMode?: GeminiTranscriptionMode;
 	customVocabulary?: string[];
 	systemPrompt?: string;
+	/** Pause tolerance before the server ends a speech turn (ms). Default 2000. */
+	silenceDurationMs?: number;
 }
+
+/** Hybrid VAD tuned for natural pauses during dictation (see whisper fork RCA). */
+export const DEFAULT_SILENCE_DURATION_MS = 2000;
 
 export function setupMessage(
 	model: string,
@@ -48,6 +53,16 @@ export function setupMessage(
 			responseModalities: ["TEXT"],
 		},
 		inputAudioTranscription,
+		realtimeInputConfig: {
+			automaticActivityDetection: {
+				disabled: false,
+				startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+				endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+				silenceDurationMs:
+					options.silenceDurationMs ?? DEFAULT_SILENCE_DURATION_MS,
+				prefixPaddingMs: 300,
+			},
+		},
 	};
 
 	const prompt = options.systemPrompt?.trim();

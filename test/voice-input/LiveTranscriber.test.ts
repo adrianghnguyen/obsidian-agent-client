@@ -14,6 +14,20 @@ function wsMsg(data: unknown): string {
 	return JSON.stringify(data);
 }
 
+/** PCM audio chunks only (setup uses realtimeInputConfig, not realtimeInput.audio). */
+function audioChunks(sent: string[]): string[] {
+	return sent.filter((m) => {
+		try {
+			const parsed = JSON.parse(m) as {
+				realtimeInput?: { audio?: { data?: string } };
+			};
+			return typeof parsed.realtimeInput?.audio?.data === "string";
+		} catch {
+			return false;
+		}
+	});
+}
+
 describe("LiveTranscriber", () => {
 	let sink: TranscriptSink;
 	let socketBundle: FakeSocketBundle;
@@ -196,10 +210,10 @@ describe("LiveTranscriber", () => {
 			await flush();
 
 			expect(sink.onFinal).toHaveBeenNthCalledWith(1, "hello world");
-			expect(sink.onFinal).toHaveBeenNthCalledWith(2, "hello world how are you");
+			expect(sink.onFinal).toHaveBeenNthCalledWith(2, "how are you");
 		});
 
-		it("prefixes interim text with previously committed finals", async () => {
+		it("does not prefix interim text with previous finals (accumulation is upstream)", async () => {
 			const t = createTranscriber();
 			await startAndSetup(t);
 
@@ -215,7 +229,7 @@ describe("LiveTranscriber", () => {
 			});
 			await flush();
 
-			expect(sink.onInterim).toHaveBeenLastCalledWith("hello world and");
+			expect(sink.onInterim).toHaveBeenLastCalledWith("and");
 		});
 
 		it("delivers both interim and final in same message", async () => {
@@ -325,7 +339,7 @@ describe("LiveTranscriber", () => {
 			socketBundle.socket.onopen?.();
 			recorder.emitChunk("AAAA");
 
-			const rt = socketBundle.sent.filter((m) => m.includes("realtimeInput"));
+			const rt = audioChunks(socketBundle.sent);
 			expect(rt.length).toBe(0);
 		});
 
@@ -335,7 +349,7 @@ describe("LiveTranscriber", () => {
 
 			recorder.emitChunk("BBBB");
 
-			const rt = socketBundle.sent.filter((m) => m.includes("realtimeInput"));
+			const rt = audioChunks(socketBundle.sent);
 			expect(rt.length).toBe(1);
 			const parsed = JSON.parse(rt[0]);
 			expect(parsed.realtimeInput.audio.data).toBe("BBBB");
@@ -349,7 +363,7 @@ describe("LiveTranscriber", () => {
 			recorder.emitChunk("BBBB");
 			recorder.emitChunk("CCCC");
 
-			const rt = socketBundle.sent.filter((m) => m.includes("realtimeInput"));
+			const rt = audioChunks(socketBundle.sent);
 			expect(rt.length).toBe(3);
 		});
 
@@ -361,7 +375,7 @@ describe("LiveTranscriber", () => {
 
 			recorder.emitChunk("DDDD");
 
-			const rt = socketBundle.sent.filter((m) => m.includes("realtimeInput"));
+			const rt = audioChunks(socketBundle.sent);
 			expect(rt.length).toBe(0);
 		});
 	});

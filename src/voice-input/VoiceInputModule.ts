@@ -1,5 +1,6 @@
 import { Notice, Plugin } from "obsidian";
 import { LiveTranscriber } from "./LiveTranscriber";
+import type { LiveSetupOptions } from "./LiveProtocol";
 import {
 	VOICE_INPUT_SECRET_ID,
 	type VoiceInputSettings,
@@ -27,17 +28,26 @@ export class VoiceInputModule {
 	private transcriber: LiveTranscriber | null = null;
 	private settings: VoiceInputSettings;
 	private inProgress = false;
-	private createTranscriber: (apiKey: string, model: string) => LiveTranscriber;
+	private createTranscriber: (
+		apiKey: string,
+		model: string,
+		setupOptions: LiveSetupOptions,
+	) => LiveTranscriber;
 
 	constructor(
 		private plugin: Plugin,
 		settings: VoiceInputSettings,
-		createTranscriber?: (apiKey: string, model: string) => LiveTranscriber,
+		createTranscriber?: (
+			apiKey: string,
+			model: string,
+			setupOptions: LiveSetupOptions,
+		) => LiveTranscriber,
 	) {
 		this.settings = settings;
 		this.createTranscriber =
 			createTranscriber ??
-			((apiKey, model) => new LiveTranscriber(apiKey, model));
+			((apiKey, model, setupOptions) =>
+				new LiveTranscriber(apiKey, model, { setupOptions }));
 	}
 
 	/** Update settings at runtime (called from plugin load/settings change). */
@@ -59,7 +69,12 @@ export class VoiceInputModule {
 
 		this.inProgress = true;
 		try {
-			this.transcriber = new LiveTranscriber(apiKey, this.settings.model);
+			this.transcriber = this.createTranscriber(
+				apiKey,
+				this.settings.model,
+				this.buildSetupOptions(),
+			);
+			this.transcriber.setAudioDevice(this.settings.audioDeviceId);
 			await this.transcriber.start(sink);
 		} catch {
 			// transcriber.start() handles errors internally via sink.onError
@@ -110,5 +125,23 @@ export class VoiceInputModule {
 			this.settings.geminiApiKeySecretId || VOICE_INPUT_SECRET_ID;
 		if (!secretId) return "";
 		return this.plugin.app.secretStorage.getSecret(secretId) ?? "";
+	}
+
+	private buildSetupOptions(): LiveSetupOptions {
+		const languageCodes = this.settings.languageCodes
+			.split(",")
+			.map((code) => code.trim())
+			.filter(Boolean);
+		const customVocabulary = this.settings.customVocabulary
+			.split(",")
+			.map((term) => term.trim())
+			.filter(Boolean);
+		return {
+			transcriptionMode: this.settings.transcriptionMode,
+			languageCodes: languageCodes.length ? languageCodes : undefined,
+			customVocabulary: customVocabulary.length
+				? customVocabulary
+				: undefined,
+		};
 	}
 }

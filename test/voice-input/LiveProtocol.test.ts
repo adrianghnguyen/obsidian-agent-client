@@ -21,6 +21,15 @@ describe("LiveProtocol", () => {
 					model: "models/gemini-3.5-transcribe-live",
 					generationConfig: { responseModalities: ["TEXT"] },
 					inputAudioTranscription: { mode: "smart" },
+					realtimeInputConfig: {
+						automaticActivityDetection: {
+							disabled: false,
+							startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+							endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+							silenceDurationMs: 2000,
+							prefixPaddingMs: 300,
+						},
+					},
 				},
 			});
 		});

@@ -2,6 +2,11 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## 0.16.2
+
+- Voice input: fix dictated text duplicating or cutting off mid-sentence — transcript accumulation now happens in one place (the input field) instead of twice in the pipeline.
+- Voice input: transcription mode and language codes from Settings are now sent to the Gemini Live API; server-side pause tolerance (2 s silence window) reduces lost speech after natural pauses.
+
 ## 0.16.1
 
 - Tool calls from agents that send `rawInput` as a JSON string (e.g. anti-gravity) no longer crash the chat with `Cannot use 'in' operator`; tool names and subagent detection now parse correctly.

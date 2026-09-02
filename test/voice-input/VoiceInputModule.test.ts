@@ -35,12 +35,13 @@ describe("VoiceInputModule", () => {
 	let plugin: Plugin;
 	let sink: TranscriptSink;
 	let fakeTranscriber: LiveTranscriber;
+	let socketBundle: ReturnType<typeof createFakeSocket>;
 
 	beforeEach(() => {
 		plugin = createPluginStub({ secretStorageGet: "test-key" });
 		sink = createFakeSink();
 
-		const socketBundle = createFakeSocket();
+		socketBundle = createFakeSocket();
 		const recorder = createFakeRecorder();
 		fakeTranscriber = new LiveTranscriber("key", "model", {
 			createSocket: () => socketBundle.socket,
@@ -48,7 +49,11 @@ describe("VoiceInputModule", () => {
 		});
 
 		// Inject the fake transcriber via the factory parameter
-		module = new VoiceInputModule(plugin, { ...TEST_SETTINGS }, () => fakeTranscriber);
+		module = new VoiceInputModule(
+			plugin,
+			{ ...TEST_SETTINGS },
+			() => fakeTranscriber,
+		);
 	});
 
 	it("is idle after construction", () => {
@@ -57,7 +62,11 @@ describe("VoiceInputModule", () => {
 
 	it("refuses to start without API key via onError", async () => {
 		const noKeyPlugin = createPluginStub({ secretStorageGet: null });
-		const noKeyModule = new VoiceInputModule(noKeyPlugin, { ...TEST_SETTINGS }, () => fakeTranscriber);
+		const noKeyModule = new VoiceInputModule(
+			noKeyPlugin,
+			{ ...TEST_SETTINGS },
+			() => fakeTranscriber,
+		);
 		await noKeyModule.startListening(sink);
 		expect(sink.onError).toHaveBeenCalledWith(
 			"Add your Gemini API key in Voice Input settings",
@@ -66,17 +75,13 @@ describe("VoiceInputModule", () => {
 	});
 
 	it("startListening delegates to the transcriber", async () => {
-		// Drive the transcriber through setup (it's the real LiveTranscriber)
 		const startPromise = module.startListening(sink);
-		// The real transcriber's start() needs socket open + setupComplete.
-		// Since we injected a fake socket, we need to trigger those.
-		// But the module creates a new LiveTranscriber per call, and
-		// the fake socket requires manual wiring. For simplicity, verify
-		// the module calls start() by checking the transcriber is created.
-		// The call will fail because socket never opens — but it won't hang.
+		socketBundle.socket.onopen?.();
+		socketBundle.socket.onmessage?.({
+			data: JSON.stringify({ setupComplete: true }),
+		});
 		await startPromise;
-		// The module's isListening stays false because the real transcriber
-		// failed (no socket events). This is correct behavior.
+		expect(module.isListening).toBe(true);
 	});
 
 	it("stopListening is safe when not listening", async () => {

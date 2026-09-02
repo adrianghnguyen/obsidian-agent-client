@@ -5,6 +5,7 @@ import {
 	audioStreamEndMessage,
 	parseLiveMessage,
 	decodeWsData,
+	type LiveSetupOptions,
 } from "./LiveProtocol";
 import { AudioCapture } from "./AudioCapture";
 import type { TranscriptSink } from "./types";
@@ -34,6 +35,7 @@ export interface LiveSessionDeps {
 	createSocket?: (url: string) => LiveSocket;
 	audioSource?: LiveAudioSource;
 	flushDelayMs?: number;
+	setupOptions?: LiveSetupOptions;
 }
 
 const SETUP_TIMEOUT_MS = 10000;
@@ -56,12 +58,11 @@ export class LiveTranscriber {
 	private audioSource: LiveAudioSource;
 	private createSocket: (url: string) => LiveSocket;
 	private flushDelayMs: number;
+	private setupOptions: LiveSetupOptions;
 	private _isActive = false;
 	private setupComplete = false;
 	private currentSink: TranscriptSink | null = null;
 	private startPromise: Promise<void> | null = null;
-	/** Committed final transcript text (finalized utterances, space-joined). */
-	private committedText = "";
 
 	constructor(
 		apiKey: string,
@@ -74,6 +75,13 @@ export class LiveTranscriber {
 		this.createSocket =
 			deps.createSocket ?? ((url) => new WebSocket(url) as unknown as LiveSocket);
 		this.flushDelayMs = deps.flushDelayMs ?? 1000;
+		this.setupOptions = deps.setupOptions ?? {};
+	}
+
+	setAudioDevice(deviceId: string): void {
+		const id =
+			deviceId && deviceId !== "default" ? deviceId : null;
+		this.audioSource.setDeviceId(id);
 	}
 
 	get isActive(): boolean {
@@ -165,7 +173,7 @@ export class LiveTranscriber {
 			this.socket.onopen = () => {
 				this.socket?.send(
 					JSON.stringify(
-						setupMessage(this.model),
+						setupMessage(this.model, this.setupOptions),
 					),
 				);
 			};
@@ -192,7 +200,6 @@ export class LiveTranscriber {
 					this._isActive = false;
 					this.setupComplete = false;
 					this.currentSink = null;
-					this.committedText = "";
 					this.audioSource.stop();
 					this.socket = null;
 				}
@@ -240,24 +247,14 @@ export class LiveTranscriber {
 		if (parsed.interimText) {
 			const interim = parsed.interimText.trim();
 			if (interim) {
-				// Show running transcript + current utterance, space-separated.
-				this.currentSink.onInterim(
-					this.committedText
-						? `${this.committedText} ${interim}`
-						: interim,
-				);
+				this.currentSink.onInterim(interim);
 			}
 		}
 
 		if (parsed.finalText) {
 			const final = parsed.finalText.trim();
 			if (final) {
-				// Finalized utterances accumulate; each is joined with a space
-				// so consecutive voice chunks are never glued together.
-				this.committedText = this.committedText
-					? `${this.committedText} ${final}`
-					: final;
-				this.currentSink.onFinal(this.committedText);
+				this.currentSink.onFinal(final);
 			}
 		}
 	}
@@ -277,7 +274,6 @@ export class LiveTranscriber {
 		this._isActive = false;
 		this.setupComplete = false;
 		this.currentSink = null;
-		this.committedText = "";
 		if (this.socket) {
 			try {
 				this.socket.close();
