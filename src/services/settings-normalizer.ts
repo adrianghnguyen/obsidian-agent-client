@@ -468,6 +468,184 @@ export function xyPoint(raw: unknown): { x: number; y: number } | null {
 	return { x: o.x, y: o.y };
 }
 
+// ============================================================================
+// Floating window layout
+// ============================================================================
+
+export type FloatingWindowSize = { width: number; height: number };
+export type FloatingWindowPoint = { x: number; y: number };
+
+export const FLOATING_WINDOW_SIZE_MIN: FloatingWindowSize = {
+	width: 300,
+	height: 200,
+};
+export const FLOATING_WINDOW_SIZE_MAX: FloatingWindowSize = {
+	width: 2000,
+	height: 2000,
+};
+
+/** Parse a required {width, height}; invalid values fall back. */
+export function parseFloatingWindowSize(
+	raw: unknown,
+	fallback: FloatingWindowSize,
+): FloatingWindowSize {
+	const o = obj(raw);
+	if (
+		!o ||
+		typeof o.width !== "number" ||
+		typeof o.height !== "number" ||
+		!Number.isFinite(o.width) ||
+		!Number.isFinite(o.height)
+	) {
+		return { width: fallback.width, height: fallback.height };
+	}
+	return { width: o.width, height: o.height };
+}
+
+/** Parse an optional {width, height}, or null if invalid / missing. */
+export function parseOptionalFloatingWindowSize(
+	raw: unknown,
+): FloatingWindowSize | null {
+	const o = obj(raw);
+	if (
+		!o ||
+		typeof o.width !== "number" ||
+		typeof o.height !== "number" ||
+		!Number.isFinite(o.width) ||
+		!Number.isFinite(o.height)
+	) {
+		return null;
+	}
+	return { width: o.width, height: o.height };
+}
+
+/** Clamp a size into the settings-UI bounds (min/max). */
+export function clampFloatingWindowSize(
+	size: FloatingWindowSize,
+): FloatingWindowSize {
+	return {
+		width: Math.min(
+			FLOATING_WINDOW_SIZE_MAX.width,
+			Math.max(FLOATING_WINDOW_SIZE_MIN.width, Math.round(size.width)),
+		),
+		height: Math.min(
+			FLOATING_WINDOW_SIZE_MAX.height,
+			Math.max(FLOATING_WINDOW_SIZE_MIN.height, Math.round(size.height)),
+		),
+	};
+}
+
+export interface FloatingWindowLayoutSettings {
+	floatingWindowDefaultSize: FloatingWindowSize;
+	floatingWindowDefaultPosition: FloatingWindowPoint | null;
+	floatingWindowLastSize: FloatingWindowSize | null;
+	floatingWindowLastPosition: FloatingWindowPoint | null;
+}
+
+export interface ViewportSize {
+	width: number;
+	height: number;
+}
+
+/**
+ * Resolve floating-window size/position for open.
+ * Priority: initialPosition (when passed) > last > default > auto bottom-right.
+ * Size: lastSize ?? defaultSize, then clamped to the viewport.
+ */
+export function resolveFloatingWindowLayout(
+	settings: FloatingWindowLayoutSettings,
+	viewport: ViewportSize,
+	initialPosition?: FloatingWindowPoint | null,
+): { size: FloatingWindowSize; position: FloatingWindowPoint } {
+	const rawSize =
+		settings.floatingWindowLastSize ?? settings.floatingWindowDefaultSize;
+	const size: FloatingWindowSize = {
+		width: Math.min(rawSize.width, viewport.width),
+		height: Math.min(rawSize.height, viewport.height),
+	};
+
+	let x: number;
+	let y: number;
+	if (initialPosition) {
+		x = initialPosition.x;
+		y = initialPosition.y;
+	} else if (settings.floatingWindowLastPosition) {
+		x = settings.floatingWindowLastPosition.x;
+		y = settings.floatingWindowLastPosition.y;
+	} else if (settings.floatingWindowDefaultPosition) {
+		x = settings.floatingWindowDefaultPosition.x;
+		y = settings.floatingWindowDefaultPosition.y;
+	} else {
+		x = viewport.width - size.width - 50;
+		y = viewport.height - size.height - 50;
+	}
+
+	const position: FloatingWindowPoint = {
+		x: Math.max(0, Math.min(x, viewport.width - size.width)),
+		y: Math.max(0, Math.min(y, viewport.height - size.height)),
+	};
+
+	return { size, position };
+}
+
+/**
+ * Migrate legacy floatingWindowSize / floatingWindowPosition into
+ * default + last layout fields.
+ */
+export function migrateFloatingWindowLayoutFields(
+	raw: Record<string, unknown>,
+	fallbackDefaultSize: FloatingWindowSize,
+): FloatingWindowLayoutSettings {
+	const legacySize = parseOptionalFloatingWindowSize(raw.floatingWindowSize);
+	const legacyPos = xyPoint(raw.floatingWindowPosition);
+	const hasNewDefaults = raw.floatingWindowDefaultSize !== undefined;
+
+	if (hasNewDefaults) {
+		return {
+			floatingWindowDefaultSize: parseFloatingWindowSize(
+				raw.floatingWindowDefaultSize,
+				fallbackDefaultSize,
+			),
+			floatingWindowDefaultPosition: xyPoint(
+				raw.floatingWindowDefaultPosition,
+			),
+			floatingWindowLastSize:
+				parseOptionalFloatingWindowSize(raw.floatingWindowLastSize) ??
+				legacySize,
+			floatingWindowLastPosition:
+				xyPoint(raw.floatingWindowLastPosition) ?? legacyPos,
+		};
+	}
+
+	return {
+		floatingWindowDefaultSize: legacySize ?? fallbackDefaultSize,
+		floatingWindowDefaultPosition: null,
+		floatingWindowLastSize: legacySize,
+		floatingWindowLastPosition: legacyPos,
+	};
+}
+
+/** True when data.json still has legacy keys (or incomplete new schema). */
+export function needsFloatingWindowLayoutMigration(
+	raw: Record<string, unknown>,
+): boolean {
+	if (
+		raw.floatingWindowSize !== undefined ||
+		raw.floatingWindowPosition !== undefined
+	) {
+		return true;
+	}
+	if (
+		raw.floatingWindowDefaultSize === undefined &&
+		(raw.floatingWindowLastSize !== undefined ||
+			raw.floatingWindowLastPosition !== undefined ||
+			raw.floatingWindowDefaultPosition !== undefined)
+	) {
+		return true;
+	}
+	return false;
+}
+
 export const FLOATING_CHAT_ENTRIES: FloatingChatEntry[] = [
 	"off",
 	"button",

@@ -27,7 +27,7 @@ import {
 import { VaultService } from "../services/vault-service";
 
 // Hooks imports
-import { useSettings } from "../hooks/useSettings";
+import { resolveFloatingWindowLayout } from "../services/settings-normalizer";
 
 // ============================================================
 // Helpers
@@ -66,6 +66,91 @@ function fitToViewport(
 	return { position, size };
 }
 
+/**
+ * Debounced persistence of floating window layout to floatingWindowLast*.
+ * Flushes pending saves on unmount and via persistLayoutNow().
+ */
+function usePersistFloatingLayout(
+	plugin: AgentClientPlugin,
+	size: { width: number; height: number },
+	position: { x: number; y: number },
+	onRegisterPersist?: (persist: (() => void) | null) => void,
+): void {
+	const sizeRef = useRef(size);
+	const positionRef = useRef(position);
+	const timerRef = useRef<number | null>(null);
+	const pendingRef = useRef(false);
+
+	useEffect(() => {
+		sizeRef.current = size;
+	}, [size]);
+	useEffect(() => {
+		positionRef.current = position;
+	}, [position]);
+
+	const saveNow = useCallback(() => {
+		const s = sizeRef.current;
+		const p = positionRef.current;
+		const cur = plugin.settings;
+		const sizeChanged =
+			!cur.floatingWindowLastSize ||
+			cur.floatingWindowLastSize.width !== s.width ||
+			cur.floatingWindowLastSize.height !== s.height;
+		const posChanged =
+			!cur.floatingWindowLastPosition ||
+			cur.floatingWindowLastPosition.x !== p.x ||
+			cur.floatingWindowLastPosition.y !== p.y;
+		if (!sizeChanged && !posChanged) return;
+		void plugin.saveSettingsAndNotify({
+			...plugin.settings,
+			floatingWindowLastSize: s,
+			floatingWindowLastPosition: p,
+		});
+	}, [plugin]);
+
+	const flushNow = useCallback(() => {
+		if (timerRef.current !== null) {
+			window.clearTimeout(timerRef.current);
+			timerRef.current = null;
+		}
+		if (pendingRef.current) {
+			pendingRef.current = false;
+			saveNow();
+		} else {
+			// Still compare — covers quit flush when timer already fired
+			saveNow();
+		}
+	}, [saveNow]);
+
+	useEffect(() => {
+		pendingRef.current = true;
+		if (timerRef.current !== null) {
+			window.clearTimeout(timerRef.current);
+		}
+		timerRef.current = window.setTimeout(() => {
+			timerRef.current = null;
+			if (pendingRef.current) {
+				pendingRef.current = false;
+				saveNow();
+			}
+		}, 500);
+		return () => {
+			if (timerRef.current !== null) {
+				window.clearTimeout(timerRef.current);
+				timerRef.current = null;
+			}
+		};
+	}, [size, position, saveNow]);
+
+	useEffect(() => {
+		onRegisterPersist?.(flushNow);
+		return () => {
+			flushNow();
+			onRegisterPersist?.(null);
+		};
+	}, [flushNow, onRegisterPersist]);
+}
+
 // ============================================================
 // FloatingViewContainer Class (standalone multi-window mode)
 // ============================================================
@@ -86,6 +171,7 @@ export class FloatingViewContainer implements IChatViewContainer {
 	private setExpanded: ((expanded: boolean) => void) | null = null;
 	private isExpandedState = false;
 	private containerRefEl: HTMLElement | null = null;
+	private persistLayout: (() => void) | null = null;
 
 	constructor(plugin: AgentClientPlugin, instanceId: string) {
 		this.plugin = plugin;
@@ -126,6 +212,9 @@ export class FloatingViewContainer implements IChatViewContainer {
 				onContainerRef={(el) => {
 					this.containerRefEl = el;
 				}}
+				onRegisterPersist={(fn) => {
+					this.persistLayout = fn;
+				}}
 			/>,
 		);
 
@@ -133,10 +222,16 @@ export class FloatingViewContainer implements IChatViewContainer {
 		this.plugin.viewRegistry.register(this);
 	}
 
+	/** Flush last size/position to settings (quit / unload). */
+	persistLayoutNow(): void {
+		this.persistLayout?.();
+	}
+
 	/**
 	 * Unmount the React component and unregister from the plugin.
 	 */
 	unmount(): void {
+		this.persistLayoutNow();
 		this.plugin.viewRegistry.unregister(this.viewId);
 
 		if (this.root) {
@@ -382,6 +477,7 @@ export class FloatingTabbedShell {
 	private activeTabId: string | null = null;
 	private initialExpanded: boolean;
 	private initialPosition?: { x: number; y: number };
+	private persistLayout: (() => void) | null = null;
 
 	constructor(
 		plugin: AgentClientPlugin,
@@ -416,6 +512,9 @@ export class FloatingTabbedShell {
 				onActiveTabChange={(viewId) => {
 					this.activeTabId = viewId;
 				}}
+				onRegisterPersist={(fn) => {
+					this.persistLayout = fn;
+				}}
 				onRegisterApi={(api) => {
 					this.api = api;
 					for (const pending of this.pendingTabs) {
@@ -431,6 +530,11 @@ export class FloatingTabbedShell {
 				}}
 			/>,
 		);
+	}
+
+	/** Flush last size/position to settings (quit / unload). */
+	persistLayoutNow(): void {
+		this.persistLayout?.();
 	}
 
 	addTab(
@@ -539,6 +643,7 @@ export class FloatingTabbedShell {
 	}
 
 	unmount(): void {
+		this.persistLayoutNow();
 		const viewIds = Array.from(this.tabs.keys());
 		this.tabs.clear();
 		for (const viewId of viewIds) {
@@ -577,6 +682,7 @@ interface FloatingChatComponentProps {
 	onRegisterExpanded?: (setExpanded: (expanded: boolean) => void) => void;
 	onExpandedChange?: (expanded: boolean) => void;
 	onContainerRef?: (el: HTMLDivElement | null) => void;
+	onRegisterPersist?: (persist: (() => void) | null) => void;
 }
 
 function FloatingChatComponent({
@@ -589,6 +695,7 @@ function FloatingChatComponent({
 	onRegisterExpanded,
 	onExpandedChange,
 	onContainerRef,
+	onRegisterPersist,
 }: FloatingChatComponentProps) {
 	// ============================================================
 	// Services (owned by FloatingViewContainer, created here for context)
@@ -623,7 +730,6 @@ function FloatingChatComponent({
 	// ============================================================
 	// UI State (View-Specific)
 	// ============================================================
-	const settings = useSettings(plugin);
 	const [isExpanded, setIsExpanded] = useState(initialExpanded);
 
 	// Register setIsExpanded with the class so it can call expand/collapse directly
@@ -632,34 +738,27 @@ function FloatingChatComponent({
 	}, [onRegisterExpanded]);
 
 	const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
-	const [size, setSize] = useState(settings.floatingWindowSize);
-	const [position, setPosition] = useState(() => {
-		if (initialPosition) {
-			return clampPosition(
-				initialPosition.x,
-				initialPosition.y,
-				settings.floatingWindowSize.width,
-				settings.floatingWindowSize.height,
-			);
-		}
-		if (settings.floatingWindowPosition) {
-			return clampPosition(
-				settings.floatingWindowPosition.x,
-				settings.floatingWindowPosition.y,
-				settings.floatingWindowSize.width,
-				settings.floatingWindowSize.height,
-			);
-		}
-		return clampPosition(
-			window.innerWidth - settings.floatingWindowSize.width - 50,
-			window.innerHeight - settings.floatingWindowSize.height - 50,
-			settings.floatingWindowSize.width,
-			settings.floatingWindowSize.height,
+	const [size, setSize] = useState(() => {
+		const layout = resolveFloatingWindowLayout(
+			plugin.settings,
+			{ width: window.innerWidth, height: window.innerHeight },
+			initialPosition,
 		);
+		return layout.size;
+	});
+	const [position, setPosition] = useState(() => {
+		const layout = resolveFloatingWindowLayout(
+			plugin.settings,
+			{ width: window.innerWidth, height: window.innerHeight },
+			initialPosition,
+		);
+		return layout.position;
 	});
 	const [isDragging, setIsDragging] = useState(false);
 	const dragOffset = useRef({ x: 0, y: 0 });
 	const containerRef = useRef<HTMLDivElement>(null);
+
+	usePersistFloatingLayout(plugin, size, position, onRegisterPersist);
 
 	// Expose container element for ChatPanel focus tracking
 	useEffect(() => {
@@ -760,47 +859,6 @@ function FloatingChatComponent({
 		return () => observer.disconnect();
 	}, [isExpanded, size.width, size.height]);
 
-	// Save size to settings
-	useEffect(() => {
-		const saveSize = async () => {
-			if (
-				size.width !== settings.floatingWindowSize.width ||
-				size.height !== settings.floatingWindowSize.height
-			) {
-				await plugin.saveSettingsAndNotify({
-					...plugin.settings,
-					floatingWindowSize: size,
-				});
-			}
-		};
-
-		const timer = window.setTimeout(() => {
-			void saveSize();
-		}, 500);
-		return () => window.clearTimeout(timer);
-	}, [size, plugin, settings.floatingWindowSize]);
-
-	// Save position to settings
-	useEffect(() => {
-		const savePosition = async () => {
-			if (
-				!settings.floatingWindowPosition ||
-				position.x !== settings.floatingWindowPosition.x ||
-				position.y !== settings.floatingWindowPosition.y
-			) {
-				await plugin.saveSettingsAndNotify({
-					...plugin.settings,
-					floatingWindowPosition: position,
-				});
-			}
-		};
-
-		const timer = window.setTimeout(() => {
-			void savePosition();
-		}, 500);
-		return () => window.clearTimeout(timer);
-	}, [position, plugin, settings.floatingWindowPosition]);
-
 	// ============================================================
 	// Dragging Logic (View-Specific)
 	// ============================================================
@@ -891,6 +949,7 @@ interface FloatingTabbedShellComponentProps {
 	onExpandedChange: (expanded: boolean) => void;
 	onActiveTabChange: (viewId: string | null) => void;
 	onRegisterApi: (api: FloatingTabbedShellApi) => void;
+	onRegisterPersist?: (persist: (() => void) | null) => void;
 }
 
 function FloatingTabPanel({
@@ -986,8 +1045,8 @@ function FloatingTabbedShellComponent({
 	onExpandedChange,
 	onActiveTabChange,
 	onRegisterApi,
+	onRegisterPersist,
 }: FloatingTabbedShellComponentProps) {
-	const settings = useSettings(plugin);
 	// Re-render tab strip when session status / titles change (same pattern as Session Manager).
 	useSyncExternalStore(
 		plugin.viewRegistry.subscribe,
@@ -998,30 +1057,21 @@ function FloatingTabbedShellComponent({
 	const [tabs, setTabs] = useState<TabPanelSpec[]>([]);
 	const [activeTabId, setActiveTabId] = useState<string | null>(null);
 	const [titleVersion, setTitleVersion] = useState(0);
-	const [size, setSize] = useState(settings.floatingWindowSize);
-	const [position, setPosition] = useState(() => {
-		if (initialPosition) {
-			return clampPosition(
-				initialPosition.x,
-				initialPosition.y,
-				settings.floatingWindowSize.width,
-				settings.floatingWindowSize.height,
-			);
-		}
-		if (settings.floatingWindowPosition) {
-			return clampPosition(
-				settings.floatingWindowPosition.x,
-				settings.floatingWindowPosition.y,
-				settings.floatingWindowSize.width,
-				settings.floatingWindowSize.height,
-			);
-		}
-		return clampPosition(
-			window.innerWidth - settings.floatingWindowSize.width - 50,
-			window.innerHeight - settings.floatingWindowSize.height - 50,
-			settings.floatingWindowSize.width,
-			settings.floatingWindowSize.height,
+	const [size, setSize] = useState(() => {
+		const layout = resolveFloatingWindowLayout(
+			plugin.settings,
+			{ width: window.innerWidth, height: window.innerHeight },
+			initialPosition,
 		);
+		return layout.size;
+	});
+	const [position, setPosition] = useState(() => {
+		const layout = resolveFloatingWindowLayout(
+			plugin.settings,
+			{ width: window.innerWidth, height: window.innerHeight },
+			initialPosition,
+		);
+		return layout.position;
 	});
 	const [isDragging, setIsDragging] = useState(false);
 	const dragOffset = useRef({ x: 0, y: 0 });
@@ -1031,6 +1081,8 @@ function FloatingTabbedShellComponent({
 	const showMenuByTabRef = useRef(
 		new Map<string, (e: React.MouseEvent<HTMLElement>) => void>(),
 	);
+
+	usePersistFloatingLayout(plugin, size, position, onRegisterPersist);
 
 	const registerTabShowMenu = useCallback(
 		(
@@ -1118,37 +1170,6 @@ function FloatingTabbedShellComponent({
 		observer.observe(containerRef.current);
 		return () => observer.disconnect();
 	}, [isExpanded, size.width, size.height]);
-
-	useEffect(() => {
-		const timer = window.setTimeout(() => {
-			if (
-				size.width !== settings.floatingWindowSize.width ||
-				size.height !== settings.floatingWindowSize.height
-			) {
-				void plugin.saveSettingsAndNotify({
-					...plugin.settings,
-					floatingWindowSize: size,
-				});
-			}
-		}, 500);
-		return () => window.clearTimeout(timer);
-	}, [size, plugin, settings.floatingWindowSize]);
-
-	useEffect(() => {
-		const timer = window.setTimeout(() => {
-			if (
-				!settings.floatingWindowPosition ||
-				position.x !== settings.floatingWindowPosition.x ||
-				position.y !== settings.floatingWindowPosition.y
-			) {
-				void plugin.saveSettingsAndNotify({
-					...plugin.settings,
-					floatingWindowPosition: position,
-				});
-			}
-		}, 500);
-		return () => window.clearTimeout(timer);
-	}, [position, plugin, settings.floatingWindowPosition]);
 
 	const onMouseDown = useCallback(
 		(e: React.MouseEvent) => {

@@ -57,6 +57,8 @@ import {
 	xyPoint,
 	resolveFloatingChatEntry,
 	needsFloatingChatEntryMigration,
+	migrateFloatingWindowLayoutFields,
+	needsFloatingWindowLayoutMigration,
 } from "./services/settings-normalizer";
 import { PRESET_AGENTS } from "./services/preset-agents";
 import { VoiceInputModule } from "./voice-input/VoiceInputModule";
@@ -193,8 +195,14 @@ export interface AgentClientPluginSettings {
 	/** When true, Toggle floating chat opens or minimizes with one hotkey. */
 	floatingChatOneKeyToggle: boolean;
 	floatingButtonImage: string;
-	floatingWindowSize: { width: number; height: number };
-	floatingWindowPosition: { x: number; y: number } | null;
+	/** User-configurable default size when no last layout is saved. */
+	floatingWindowDefaultSize: { width: number; height: number };
+	/** User default position; null = automatic bottom-right. */
+	floatingWindowDefaultPosition: { x: number; y: number } | null;
+	/** Last size from resize; preferred over default on open. */
+	floatingWindowLastSize: { width: number; height: number } | null;
+	/** Last position from drag; preferred over default on open. */
+	floatingWindowLastPosition: { x: number; y: number } | null;
 	floatingButtonPosition: { x: number; y: number } | null;
 	/** Voice Input (Gemini Live) settings */
 	voiceInput: VoiceInputSettings;
@@ -252,8 +260,10 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	enableFloatingChatTabs: false,
 	floatingChatOneKeyToggle: true,
 	floatingButtonImage: "",
-	floatingWindowSize: { width: 400, height: 500 },
-	floatingWindowPosition: null,
+	floatingWindowDefaultSize: { width: 400, height: 500 },
+	floatingWindowDefaultPosition: null,
+	floatingWindowLastSize: null,
+	floatingWindowLastPosition: null,
 	floatingButtonPosition: null,
 	voiceInput: { ...DEFAULT_VOICE_INPUT },
 };
@@ -450,6 +460,10 @@ export default class AgentClientPlugin extends Plugin {
 		// Note: We don't wait for disconnect to complete to avoid blocking quit
 		this.registerEvent(
 			this.app.workspace.on("quit", () => {
+				// Persist floating layout before disconnect so a recent
+				// drag/resize is not lost if the debounce timer was pending.
+				this.flushFloatingWindowLayouts();
+
 				// Fire and forget - don't block Obsidian from quitting
 				for (const [viewId, client] of this._acpClients) {
 					client.disconnect().catch((error) => {
@@ -484,6 +498,9 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	onunload() {
+		// Flush layout before tearing down React roots
+		this.flushFloatingWindowLayouts();
+
 		// Unmount floating button
 		this.floatingButton?.unmount();
 		this.floatingButton = null;
@@ -870,6 +887,19 @@ export default class AgentClientPlugin extends Plugin {
 	clearFloatingTabbedShell(shell: FloatingTabbedShell): void {
 		if (this.floatingTabbedShell === shell) {
 			this.floatingTabbedShell = null;
+		}
+	}
+
+	/**
+	 * Flush pending floating-window size/position to settings immediately.
+	 * Used on quit / plugin unload so a debounced save is not lost.
+	 */
+	flushFloatingWindowLayouts(): void {
+		this.floatingTabbedShell?.persistLayoutNow();
+		for (const container of this.viewRegistry.getByType("floating")) {
+			if (container instanceof FloatingViewContainer) {
+				container.persistLayoutNow();
+			}
 		}
 	}
 
@@ -1699,15 +1729,10 @@ export default class AgentClientPlugin extends Plugin {
 				raw.floatingButtonImage,
 				D.floatingButtonImage,
 			),
-			floatingWindowSize: (() => {
-				const s = obj(raw.floatingWindowSize);
-				return s &&
-					typeof s.width === "number" &&
-					typeof s.height === "number"
-					? { width: s.width, height: s.height }
-					: D.floatingWindowSize;
-			})(),
-			floatingWindowPosition: xyPoint(raw.floatingWindowPosition),
+			...migrateFloatingWindowLayoutFields(
+				raw,
+				D.floatingWindowDefaultSize,
+			),
 			floatingButtonPosition: xyPoint(raw.floatingButtonPosition),
 			voiceInput: normalizeVoiceInputSettings(
 				obj(raw.voiceInput) as Partial<VoiceInputSettings> | undefined,
@@ -1720,7 +1745,8 @@ export default class AgentClientPlugin extends Plugin {
 		if (
 			migratedSecrets ||
 			absorption.absorbed.length > 0 ||
-			needsFloatingChatEntryMigration(raw)
+			needsFloatingChatEntryMigration(raw) ||
+			needsFloatingWindowLayoutMigration(raw)
 		) {
 			await this.saveSettings();
 		}

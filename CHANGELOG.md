@@ -2,6 +2,10 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## [Unreleased]
+
+- Floating chat remembers its last window size and position across Obsidian restarts (including when you quit soon after dragging or resizing).
+
 ## 0.16.2
 
 - Voice input: fix dictated text duplicating or cutting off mid-sentence — transcript accumulation now happens in one place (the input field) instead of twice in the pipeline.
