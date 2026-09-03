@@ -31,6 +31,9 @@ import {
 	CHAT_FONT_SIZE_MAX,
 	CHAT_FONT_SIZE_MIN,
 	parseChatFontSize,
+	FLOATING_WINDOW_SIZE_MIN,
+	FLOATING_WINDOW_SIZE_MAX,
+	clampFloatingWindowSize,
 } from "../services/settings-normalizer";
 import { VOICE_INPUT_SECRET_ID } from "../voice-input/VoiceInputSettings";
 import type { VoiceInputSettings } from "../voice-input/VoiceInputSettings";
@@ -523,6 +526,64 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						await this.plugin.settingsService.updateSettings({
 							floatingButtonImage: value.trim(),
+						});
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Default window width")
+			.setDesc(
+				`Used when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.width}–${FLOATING_WINDOW_SIZE_MAX.width}px). Position is remembered automatically from the last drag.`,
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder(String(FLOATING_WINDOW_SIZE_MIN.width))
+					.setValue(
+						String(
+							this.plugin.settings.floatingWindowDefaultSize
+								.width,
+						),
+					)
+					.setDisabled(!this.plugin.isFloatingChatEnabled())
+					.onChange(async (value) => {
+						const parsed = parseInt(value, 10);
+						if (isNaN(parsed)) return;
+						const next = clampFloatingWindowSize({
+							width: parsed,
+							height: this.plugin.settings
+								.floatingWindowDefaultSize.height,
+						});
+						await this.plugin.settingsService.updateSettings({
+							floatingWindowDefaultSize: next,
+						});
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Default window height")
+			.setDesc(
+				`Used when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.height}–${FLOATING_WINDOW_SIZE_MAX.height}px).`,
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder(String(FLOATING_WINDOW_SIZE_MIN.height))
+					.setValue(
+						String(
+							this.plugin.settings.floatingWindowDefaultSize
+								.height,
+						),
+					)
+					.setDisabled(!this.plugin.isFloatingChatEnabled())
+					.onChange(async (value) => {
+						const parsed = parseInt(value, 10);
+						if (isNaN(parsed)) return;
+						const next = clampFloatingWindowSize({
+							width: this.plugin.settings
+								.floatingWindowDefaultSize.width,
+							height: parsed,
+						});
+						await this.plugin.settingsService.updateSettings({
+							floatingWindowDefaultSize: next,
 						});
 					}),
 			);
