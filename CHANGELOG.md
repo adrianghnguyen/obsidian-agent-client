@@ -5,7 +5,6 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## [Unreleased]
 
 - Floating chat remembers its last window size and position across Obsidian restarts (including when you quit soon after dragging or resizing).
-- Settings → Floating chat: configure default floating window width, height, and position (used when no last layout is saved).
 
 ## 0.16.2
 
