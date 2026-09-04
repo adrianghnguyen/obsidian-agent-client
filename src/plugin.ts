@@ -145,6 +145,8 @@ export interface AgentClientPluginSettings {
 		tables: boolean;
 	};
 	debugMode: boolean;
+	/** Hide disabled agents in Settings → Agents (turn off to re-enable them). */
+	hideUnusedAgents: boolean;
 	nodePath: string;
 	exportSettings: {
 		defaultFolder: string;
@@ -228,6 +230,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 		tables: true,
 	},
 	debugMode: false,
+	hideUnusedAgents: false,
 	nodePath: "",
 	exportSettings: {
 		defaultFolder: "Agent Client",
@@ -1628,6 +1631,7 @@ export default class AgentClientPlugin extends Plugin {
 				};
 			})(),
 			debugMode: bool(raw.debugMode, D.debugMode),
+			hideUnusedAgents: bool(raw.hideUnusedAgents, D.hideUnusedAgents),
 			nodePath: str(raw.nodePath, D.nodePath),
 			exportSettings: {
 				defaultFolder: str(

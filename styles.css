@@ -149,6 +149,118 @@ If your plugin does not need CSS, delete this file.
 	text-decoration: underline;
 }
 
+/* ===== Settings Tab Expandable Callouts ===== */
+.agent-client-settings-callout {
+	margin: 0 0 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-left: 4px solid var(--interactive-accent);
+	border-radius: 8px;
+	background-color: var(--background-secondary);
+	overflow: hidden;
+}
+
+.agent-client-settings-callout.is-nested {
+	margin: 8px 0;
+	border-left-width: 3px;
+	background-color: var(--background-primary);
+}
+
+.agent-client-settings-callout-header {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	width: 100%;
+	padding: 10px 12px;
+	background: none;
+	border: none;
+	box-shadow: none;
+	color: var(--text-normal);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	text-align: left;
+	cursor: pointer;
+}
+
+.agent-client-settings-callout-header:hover {
+	color: var(--text-accent);
+	background-color: var(--background-modifier-hover);
+}
+
+.agent-client-settings-callout-chevron {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	color: var(--text-muted);
+	transition: transform 100ms ease-in-out;
+}
+
+.agent-client-settings-callout.is-open
+	.agent-client-settings-callout-chevron {
+	transform: rotate(90deg);
+}
+
+.agent-client-settings-callout-title {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.agent-client-settings-callout-trailing {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	gap: var(--size-4-1);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-normal);
+}
+
+.agent-client-settings-callout-body {
+	padding: 0 12px 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.agent-client-settings-callout-body.is-collapsed {
+	display: none;
+}
+
+.agent-client-settings-info-callout {
+	padding: 12px 16px;
+	margin-bottom: 16px;
+	background-color: rgba(var(--color-blue-rgb), 0.08);
+	border: 1px solid var(--background-modifier-border);
+	border-left: 4px solid var(--color-blue);
+	border-radius: 8px;
+	font-size: 14px;
+	color: var(--text-muted);
+}
+
+.agent-client-settings-info-callout a {
+	color: var(--text-accent);
+	text-decoration: none;
+}
+
+.agent-client-settings-info-callout a:hover {
+	text-decoration: underline;
+}
+
+.agent-client-settings-warning-callout {
+	padding: 10px 12px;
+	margin: 0 0 12px;
+	background-color: rgba(var(--color-orange-rgb), 0.1);
+	border: 1px solid var(--background-modifier-border);
+	border-left: 4px solid var(--color-orange);
+	border-radius: 6px;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.agent-client-settings-warning-callout-title {
+	display: block;
+	margin-bottom: 4px;
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
 /* ===== Settings Tab Collapsible Agent Sections ===== */
 .agent-client-agent-summary {
 	display: flex;

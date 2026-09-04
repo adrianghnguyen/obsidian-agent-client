@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+- Settings: reorganized into expandable sections (Getting started, Agents, Chat & input, Floating chat, Behavior, Export, Voice input, Developer) so common options are easier to find; agents sit near the top.
+- Settings → Agents: enabled agents appear first; disabled agents stay at the bottom of their list and move up when you turn them on.
+- Settings → Agents: optional Hide unused agents toggle to hide disabled agents from the preset/custom lists.
 - Floating chat remembers its last window size and position across Obsidian restarts (including when you quit soon after dragging or resizing).
 - Settings → Floating chat: configure default floating window width and height (used when no last size is saved). Position is always restored from the last drag.
 

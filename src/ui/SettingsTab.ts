@@ -36,20 +36,20 @@ import {
 	clampFloatingWindowSize,
 } from "../services/settings-normalizer";
 import { VOICE_INPUT_SECRET_ID } from "../voice-input/VoiceInputSettings";
-import type { VoiceInputSettings } from "../voice-input/VoiceInputSettings";
 
 export class AgentClientSettingTab extends PluginSettingTab {
 	plugin: AgentClientPlugin;
 	private agentSelector: DropdownComponent | null = null;
 	private unsubscribe: (() => void) | null = null;
 	/**
-	 * Open agent sections ("preset:<id>" / "custom:<id>"). Deliberately
-	 * non-persisted (cleared on hide), but held on the instance so
-	 * renderContent() calls from in-section actions (Auto-detect, the WSL
-	 * toggle) re-render sections in their current open state instead of
-	 * collapsing everything.
+	 * Open sections: agent rows ("preset:<id>" / "custom:<id>") and
+	 * settings callouts ("settings:<id>"). Deliberately non-persisted
+	 * (cleared on hide), but held on the instance so renderContent() calls
+	 * from in-section actions re-render in their current open state.
 	 */
 	private openSections = new Set<string>();
+	/** True after default-open settings callouts have been seeded this visit. */
+	private settingsCalloutDefaultsApplied = false;
 
 	constructor(app: App, plugin: AgentClientPlugin) {
 		super(app, plugin);
@@ -81,1007 +81,1424 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		this.agentSelector = null;
 
-		// Cleanup previous subscription if exists
 		if (this.unsubscribe) {
 			this.unsubscribe();
 			this.unsubscribe = null;
 		}
 
-		// Documentation link
-		const docContainer = containerEl.createDiv({
-			cls: "agent-client-doc-link",
+		this.seedSettingsCalloutDefaults();
+
+		this.renderDocumentationCallout(containerEl);
+		this.renderGettingStartedSection(containerEl);
+		this.renderAgentsSection(containerEl);
+		this.renderChatInputSection(containerEl);
+		this.renderFloatingChatSection(containerEl);
+		this.renderBehaviorSection(containerEl);
+		this.renderExportSection(containerEl);
+		this.renderVoiceInputSection(containerEl);
+		this.renderDeveloperSection(containerEl);
+
+		this.unsubscribe = this.plugin.settingsService.subscribe(() => {
+			this.updateAgentDropdown();
 		});
-		docContainer.createSpan({ text: "Need help? Check out the " });
+		this.updateAgentDropdown();
+	}
+
+	/**
+	 * Seed default-open settings callouts once per settings-tab visit.
+	 * Cleared together with openSections in hide().
+	 */
+	private seedSettingsCalloutDefaults(): void {
+		if (this.settingsCalloutDefaultsApplied) {
+			return;
+		}
+		const defaults: Record<string, boolean> = {
+			"settings:getting-started": true,
+			"settings:agents": true,
+			"settings:chat-input": true,
+			"settings:floating-chat":
+				this.plugin.settings.floatingChatEntry !== "off",
+			"settings:behavior": false,
+			"settings:export": false,
+			"settings:voice-input": this.plugin.settings.voiceInput.enabled,
+			"settings:developer": false,
+			"settings:advanced-runtime": false,
+			"settings:mentions": false,
+			"settings:display": false,
+			"settings:floating-appearance": false,
+			"settings:permissions": false,
+			"settings:notifications": false,
+			"settings:prompt-injection": false,
+			"settings:export-images": false,
+		};
+		for (const [id, open] of Object.entries(defaults)) {
+			if (open) {
+				this.openSections.add(id);
+			}
+		}
+		this.settingsCalloutDefaultsApplied = true;
+	}
+
+	private renderDocumentationCallout(containerEl: HTMLElement): void {
+		const docContainer = containerEl.createDiv({
+			cls: "agent-client-settings-info-callout",
+		});
+		docContainer.createEl("strong", { text: "Need help? " });
+		docContainer.createSpan({ text: "Check out the " });
 		docContainer.createEl("a", {
 			text: "documentation",
 			href: "https://rait-09.github.io/obsidian-agent-client/",
 			attr: { target: "_blank" },
 		});
-		docContainer.createSpan({ text: "." });
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Top-level settings (no header)
-		// ─────────────────────────────────────────────────────────────────────
-
-		this.renderAgentSelector(containerEl);
-
-		// Subscribe to settings changes to update agent dropdown
-		this.unsubscribe = this.plugin.settingsService.subscribe(() => {
-			this.updateAgentDropdown();
+		docContainer.createSpan({
+			text: " for agent setup, troubleshooting, and ACP compatibility.",
 		});
+	}
 
-		// Also update immediately on display to sync with current settings
-		this.updateAgentDropdown();
+	/**
+	 * Expandable settings callout (top-level or nested). Open state is keyed
+	 * in openSections as "settings:<id>". Defaults are seeded once per visit.
+	 */
+	private renderSettingsCallout(
+		containerEl: HTMLElement,
+		id: string,
+		title: string,
+		renderBody: (bodyEl: HTMLElement) => void,
+		options?: {
+			nested?: boolean;
+			trailing?: string;
+		},
+	): void {
+		const sectionId = `settings:${id}`;
+		const isOpen = this.openSections.has(sectionId);
 
-		const nodePathSetting = new Setting(containerEl)
-			.setName("Node.js path")
-			.setDesc(
-				"Path to Node.js. Usually leave blank. Only needed if node is in a non-standard location (enter absolute path, e.g. /usr/local/bin/node).",
-			)
-			.addText((text) => {
-				text.setPlaceholder("Leave blank (login shell auto-resolves)")
-					.setValue(this.plugin.settings.nodePath)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							nodePath: value.trim(),
-						});
-					});
-			});
-		this.addAutoDetectButton(nodePathSetting, "node", async (path) => {
-			await this.plugin.settingsService.updateSettings({
-				nodePath: path,
-			});
+		const calloutEl = containerEl.createDiv({
+			cls: "agent-client-settings-callout",
 		});
+		if (options?.nested) {
+			calloutEl.addClass("is-nested");
+		}
+		calloutEl.toggleClass("is-open", isOpen);
 
-		new Setting(containerEl)
-			.setName("Send message shortcut")
-			.setDesc(
-				"Choose the keyboard shortcut to send messages. Note: If using Cmd/Ctrl+Enter, you may need to remove any hotkeys assigned to Cmd/Ctrl+Enter (Settings → Hotkeys).",
-			)
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption(
-						"enter",
-						"Enter to send, Shift+Enter for newline",
-					)
-					.addOption(
-						"cmd-enter",
-						"Cmd/Ctrl+Enter to send, Enter for newline",
-					)
-					.setValue(this.plugin.settings.sendMessageShortcut)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							sendMessageShortcut: value as "enter" | "cmd-enter",
-						});
-					}),
-			);
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Mentions
-		// ─────────────────────────────────────────────────────────────────────
-
-		new Setting(containerEl).setName("Mentions").setHeading();
-
-		new Setting(containerEl)
-			.setName("Auto-mention active note")
-			.setDesc(
-				"Include the current note in your messages automatically. The agent will have access to its content without typing @notename.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.autoMentionActiveNote)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							autoMentionActiveNote: value,
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Expand wikilink context")
-			.setDesc(
-				"Surface [[wikilinks]] found inside mentioned/auto-mentioned notes as resolved file paths so the agent can choose which to read. Does not embed linked content. (Distinct from Prompt injection → Wikilink formatting, which asks the agent to write [[links]] in its replies.)",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.expandWikilinkContext)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							expandWikilinkContext: value,
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Max note length")
-			.setDesc(
-				"Maximum characters per mentioned note. Notes longer than this will be truncated.",
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("10000")
-					.setValue(
-						String(
-							this.plugin.settings.displaySettings.maxNoteLength,
-						),
-					)
-					.onChange(async (value) => {
-						const num = parseInt(value, 10);
-						if (!isNaN(num) && num >= 1) {
-							await this.plugin.settingsService.updateSettings({
-								displaySettings: {
-									...this.plugin.settings.displaySettings,
-									maxNoteLength: num,
-								},
-							});
-						}
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Max selection length")
-			.setDesc(
-				"Maximum characters for text selection in auto-mention. Selections longer than this will be truncated.",
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("10000")
-					.setValue(
-						String(
-							this.plugin.settings.displaySettings
-								.maxSelectionLength,
-						),
-					)
-					.onChange(async (value) => {
-						const num = parseInt(value, 10);
-						if (!isNaN(num) && num >= 1) {
-							await this.plugin.settingsService.updateSettings({
-								displaySettings: {
-									...this.plugin.settings.displaySettings,
-									maxSelectionLength: num,
-								},
-							});
-						}
-					}),
-			);
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Display
-		// ─────────────────────────────────────────────────────────────────────
-
-		new Setting(containerEl).setName("Display").setHeading();
-
-		new Setting(containerEl)
-			.setName("Chat view location")
-			.setDesc("Where to open new chat views")
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("right-tab", "Right pane (tabs)")
-					.addOption("right-split", "Right pane (split)")
-					.addOption("editor-tab", "Editor area (tabs)")
-					.addOption("editor-split", "Editor area (split)")
-					.setValue(this.plugin.settings.chatViewLocation)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							chatViewLocation: value as ChatViewLocation,
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Chat font size")
-			.setDesc(
-				`Adjust the font size of the chat message area (${CHAT_FONT_SIZE_MIN}-${CHAT_FONT_SIZE_MAX}px).`,
-			)
-			.addText((text) => {
-				const getCurrentDisplayValue = (): string => {
-					const currentFontSize =
-						this.plugin.settings.displaySettings.fontSize;
-					return currentFontSize === null
-						? ""
-						: String(currentFontSize);
-				};
-
-				const persistChatFontSize = async (
-					fontSize: number | null,
-				): Promise<void> => {
-					if (
-						this.plugin.settings.displaySettings.fontSize ===
-						fontSize
-					) {
-						return;
-					}
-
-					const nextSettings = {
-						...this.plugin.settings,
-						displaySettings: {
-							...this.plugin.settings.displaySettings,
-							fontSize,
-						},
-					};
-					await this.plugin.saveSettingsAndNotify(nextSettings);
-				};
-
-				text.setPlaceholder(
-					`${CHAT_FONT_SIZE_MIN}-${CHAT_FONT_SIZE_MAX}`,
-				)
-					.setValue(getCurrentDisplayValue())
-					.onChange(async (value) => {
-						if (value.trim().length === 0) {
-							await persistChatFontSize(null);
-							return;
-						}
-
-						const trimmedValue = value.trim();
-						if (!/^-?\d+$/.test(trimmedValue)) {
-							return;
-						}
-
-						const numericValue = Number.parseInt(trimmedValue, 10);
-						if (
-							numericValue < CHAT_FONT_SIZE_MIN ||
-							numericValue > CHAT_FONT_SIZE_MAX
-						) {
-							return;
-						}
-
-						const parsedFontSize = parseChatFontSize(numericValue);
-						if (parsedFontSize === null) {
-							return;
-						}
-
-						const hasChanged =
-							this.plugin.settings.displaySettings.fontSize !==
-							parsedFontSize;
-						if (hasChanged) {
-							await persistChatFontSize(parsedFontSize);
-						}
-					});
-
-				text.inputEl.addEventListener("blur", () => {
-					const currentInputValue = text.getValue();
-					const parsedFontSize = parseChatFontSize(currentInputValue);
-
-					if (
-						currentInputValue.trim().length > 0 &&
-						parsedFontSize === null
-					) {
-						text.setValue(getCurrentDisplayValue());
-						return;
-					}
-
-					if (parsedFontSize !== null) {
-						text.setValue(String(parsedFontSize));
-						const hasChanged =
-							this.plugin.settings.displaySettings.fontSize !==
-							parsedFontSize;
-						if (hasChanged) {
-							void persistChatFontSize(parsedFontSize);
-						}
-						return;
-					}
-
-					text.setValue("");
-				});
+		const headerEl = calloutEl.createEl("button", {
+			cls: "agent-client-settings-callout-header",
+			attr: { type: "button", "aria-expanded": String(isOpen) },
+		});
+		const chevronEl = headerEl.createSpan({
+			cls: "agent-client-settings-callout-chevron",
+		});
+		setIcon(chevronEl, "chevron-right");
+		headerEl.createSpan({
+			cls: "agent-client-settings-callout-title",
+			text: title,
+		});
+		if (options?.trailing) {
+			headerEl.createSpan({
+				cls: "agent-client-settings-callout-trailing",
+				text: options.trailing,
 			});
-
-		new Setting(containerEl)
-			.setName("Show emojis")
-			.setDesc(
-				"Display emoji icons in tool calls, thoughts, plans, and terminal blocks.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.displaySettings.showEmojis)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							displaySettings: {
-								...this.plugin.settings.displaySettings,
-								showEmojis: value,
-							},
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Auto-collapse long diffs")
-			.setDesc(
-				"Automatically collapse diffs that exceed the line threshold.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.displaySettings.autoCollapseDiffs,
-					)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							displaySettings: {
-								...this.plugin.settings.displaySettings,
-								autoCollapseDiffs: value,
-							},
-						});
-						this.renderContent();
-					}),
-			);
-
-		if (this.plugin.settings.displaySettings.autoCollapseDiffs) {
-			new Setting(containerEl)
-				.setName("Collapse threshold")
-				.setDesc(
-					"Diffs with more lines than this will be collapsed by default.",
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder("10")
-						.setValue(
-							String(
-								this.plugin.settings.displaySettings
-									.diffCollapseThreshold,
-							),
-						)
-						.onChange(async (value) => {
-							const num = parseInt(value, 10);
-							if (!isNaN(num) && num > 0) {
-								await this.plugin.settingsService.updateSettings(
-									{
-										displaySettings: {
-											...this.plugin.settings
-												.displaySettings,
-											diffCollapseThreshold: num,
-										},
-									},
-								);
-							}
-						}),
-				);
 		}
 
-		// ─────────────────────────────────────────────────────────────────────
-		// Floating chat
-		// ─────────────────────────────────────────────────────────────────────
+		const bodyEl = calloutEl.createDiv({
+			cls: "agent-client-settings-callout-body",
+		});
+		bodyEl.toggleClass("is-collapsed", !isOpen);
 
-		new Setting(containerEl).setName("Floating chat").setHeading();
+		headerEl.addEventListener("click", () => {
+			const open = !this.openSections.has(sectionId);
+			if (open) {
+				this.openSections.add(sectionId);
+			} else {
+				this.openSections.delete(sectionId);
+			}
+			headerEl.setAttribute("aria-expanded", String(open));
+			calloutEl.toggleClass("is-open", open);
+			bodyEl.toggleClass("is-collapsed", !open);
+		});
 
-		new Setting(containerEl)
-			.setName("Floating chat")
-			.setDesc(
-				"Choose how to open floating chat: floating button, status bar, or commands only.",
-			)
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("off", "Off")
-					.addOption("button", "Floating button")
-					.addOption("status-bar", "Status bar")
-					.addOption("commands", "Commands only")
-					.setValue(this.plugin.settings.floatingChatEntry)
-					.onChange(async (value) => {
-						const next = value as
-							| "off"
-							| "button"
-							| "status-bar"
-							| "commands";
-						const wasEnabled = this.plugin.isFloatingChatEnabled();
-						await this.plugin.settingsService.updateSettings({
-							floatingChatEntry: next,
-						});
+		renderBody(bodyEl);
+	}
 
-						const isEnabled = next !== "off";
-						if (isEnabled && !wasEnabled) {
-							this.plugin.openNewFloatingChat();
-						} else if (!isEnabled && wasEnabled) {
-							const instances =
-								this.plugin.getFloatingChatInstances();
-							for (const instanceId of instances) {
-								this.plugin.closeFloatingChat(instanceId);
-							}
-						}
-						this.display();
-					}),
-			);
+	private renderGettingStartedSection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(containerEl, "getting-started", "Getting started", (bodyEl) => {
+			this.renderAgentSelector(bodyEl);
 
-		new Setting(containerEl)
-			.setName("Enable floating chat tabs")
-			.setDesc(
-				"Group multiple floating chats as tabs in one window. Focus next/previous still cycles each chat.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableFloatingChatTabs)
-					.setDisabled(!this.plugin.isFloatingChatEnabled())
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							enableFloatingChatTabs: value,
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("One-key toggle")
-			.setDesc(
-				"When on, the Toggle floating chat command opens or minimizes with the same hotkey. Turn off to use separate Open and Minimize hotkeys.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.floatingChatOneKeyToggle)
-					.setDisabled(!this.plugin.isFloatingChatEnabled())
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							floatingChatOneKeyToggle: value,
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Floating button image")
-			.setDesc(
-				"URL or path to an image for the floating button. Leave empty for default icon. Only applies when Floating chat is set to Floating button.",
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("https://example.com/avatar.png")
-					.setValue(this.plugin.settings.floatingButtonImage)
-					.setDisabled(
-						this.plugin.settings.floatingChatEntry !== "button",
-					)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							floatingButtonImage: value.trim(),
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Default window width")
-			.setDesc(
-				`Used when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.width}–${FLOATING_WINDOW_SIZE_MAX.width}px). Position is remembered automatically from the last drag.`,
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder(String(FLOATING_WINDOW_SIZE_MIN.width))
-					.setValue(
-						String(
-							this.plugin.settings.floatingWindowDefaultSize
-								.width,
-						),
-					)
-					.setDisabled(!this.plugin.isFloatingChatEnabled())
-					.onChange(async (value) => {
-						const parsed = parseInt(value, 10);
-						if (isNaN(parsed)) return;
-						const next = clampFloatingWindowSize({
-							width: parsed,
-							height: this.plugin.settings
-								.floatingWindowDefaultSize.height,
-						});
-						await this.plugin.settingsService.updateSettings({
-							floatingWindowDefaultSize: next,
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Default window height")
-			.setDesc(
-				`Used when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.height}–${FLOATING_WINDOW_SIZE_MAX.height}px).`,
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder(String(FLOATING_WINDOW_SIZE_MIN.height))
-					.setValue(
-						String(
-							this.plugin.settings.floatingWindowDefaultSize
-								.height,
-						),
-					)
-					.setDisabled(!this.plugin.isFloatingChatEnabled())
-					.onChange(async (value) => {
-						const parsed = parseInt(value, 10);
-						if (isNaN(parsed)) return;
-						const next = clampFloatingWindowSize({
-							width: this.plugin.settings
-								.floatingWindowDefaultSize.width,
-							height: parsed,
-						});
-						await this.plugin.settingsService.updateSettings({
-							floatingWindowDefaultSize: next,
-						});
-					}),
-			);
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Permissions
-		// ─────────────────────────────────────────────────────────────────────
-
-		new Setting(containerEl).setName("Permissions").setHeading();
-
-		new Setting(containerEl)
-			.setName("Auto-allow permissions")
-			.setDesc(
-				"Automatically allow all permission requests from agents. ⚠️ Use with caution - this gives agents full access to your system.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.autoAllowPermissions)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							autoAllowPermissions: value,
-						});
-						// Propagate to all live AcpClient instances
-						this.plugin.updateAllAutoAllow(value);
-					}),
-			);
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Notifications
-		// ─────────────────────────────────────────────────────────────────────
-
-		new Setting(containerEl).setName("Notifications").setHeading();
-
-		new Setting(containerEl)
-			.setName("System notifications")
-			.setDesc(
-				"Show OS notifications when the agent completes a response or requests permission. Notifications are suppressed while Obsidian is focused.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableSystemNotifications)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							enableSystemNotifications: value,
-						});
-					}),
-			);
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Prompt injection
-		// ───────────��─────────────────────────────────────────────────────────
-
-		new Setting(containerEl).setName("Prompt injection").setHeading();
-
-		new Setting(containerEl)
-			.setName("Inject Obsidian Markdown instructions")
-			.setDesc(
-				"Include formatting guidance in the first message of each session so agents produce Obsidian-compatible Markdown.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.promptInjection.enabled)
-					.onChange(async (value) => {
-						this.plugin.settings.promptInjection.enabled = value;
-						await this.plugin.saveSettings();
-						this.renderContent();
-					}),
-			);
-
-		if (this.plugin.settings.promptInjection.enabled) {
-			new Setting(containerEl)
-				.setName("Wikilink formatting")
-				.setDesc(
-					"Instruct agents to use [[Note Name]] wikilink syntax when referencing notes in their replies. (Distinct from Mentions → Expand wikilink context, which resolves [[links]] inside your notes to file paths.)",
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(
-							this.plugin.settings.promptInjection.wikiLinks,
+			this.renderSettingsCallout(
+				bodyEl,
+				"advanced-runtime",
+				"Advanced runtime",
+				(nestedEl) => {
+					const nodePathSetting = new Setting(nestedEl)
+						.setName("Node.js path")
+						.setDesc(
+							"Path to Node.js. Usually leave blank. Only needed if node is in a non-standard location (enter absolute path, e.g. /usr/local/bin/node).",
 						)
-						.onChange(async (value) => {
-							this.plugin.settings.promptInjection.wikiLinks =
-								value;
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName("Markdown table spacing")
-				.setDesc(
-					"Instruct agents to leave a blank line before Markdown tables so Obsidian renders them correctly.",
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.plugin.settings.promptInjection.tables)
-						.onChange(async (value) => {
-							this.plugin.settings.promptInjection.tables = value;
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName("LaTeX math formatting")
-				.setDesc(
-					"Instruct agents to use $...$ and $$...$$ delimiters for math expressions.",
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.plugin.settings.promptInjection.latex)
-						.onChange(async (value) => {
-							this.plugin.settings.promptInjection.latex = value;
-							await this.plugin.saveSettings();
-						}),
-				);
-		}
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Windows WSL Settings (Windows only)
-		// ─────────────────────────────────────────────────────────────────────
-
-		if (Platform.isWin) {
-			new Setting(containerEl)
-				.setName("Windows Subsystem for Linux")
-				.setHeading();
-
-			new Setting(containerEl)
-				.setName("Enable WSL mode")
-				.setDesc(
-					"Run agents inside Windows Subsystem for Linux. Recommended for agents like Codex that don't work well in native Windows environments.",
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.plugin.settings.windowsWslMode)
-						.onChange(async (value) => {
-							await this.plugin.settingsService.updateSettings({
-								windowsWslMode: value,
-							});
-							this.renderContent(); // Refresh to show/hide distribution setting
-						}),
-				);
-
-			if (this.plugin.settings.windowsWslMode) {
-				new Setting(containerEl)
-					.setName("WSL distribution")
-					.setDesc(
-						"Specify WSL distribution name (leave empty for default). Example: Ubuntu, Debian",
-					)
-					.addText((text) =>
-						text
-							.setPlaceholder("Leave empty for default")
-							.setValue(
-								this.plugin.settings.windowsWslDistribution ||
-									"",
+						.addText((text) => {
+							text.setPlaceholder(
+								"Leave blank (login shell auto-resolves)",
 							)
+								.setValue(this.plugin.settings.nodePath)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											nodePath: value.trim(),
+										},
+									);
+								});
+						});
+					this.addAutoDetectButton(
+						nodePathSetting,
+						"node",
+						async (path) => {
+							await this.plugin.settingsService.updateSettings({
+								nodePath: path,
+							});
+						},
+					);
+				},
+				{ nested: true },
+			);
+		});
+	}
+
+	private renderAgentsSection(containerEl: HTMLElement): void {
+		const trailing = Platform.isWin && this.plugin.settings.windowsWslMode
+			? "WSL on"
+			: undefined;
+		this.renderSettingsCallout(
+			containerEl,
+			"agents",
+			"Agents",
+			(bodyEl) => {
+				if (Platform.isWin && this.plugin.settings.windowsWslMode) {
+					const warn = bodyEl.createDiv({
+						cls: "agent-client-settings-warning-callout",
+					});
+					warn.createSpan({
+						cls: "agent-client-settings-warning-callout-title",
+						text: "Windows",
+					});
+					warn.createSpan({
+						text: "WSL mode is enabled — agents run inside your Linux distribution.",
+					});
+				}
+
+				if (Platform.isWin) {
+					new Setting(bodyEl)
+						.setName("Enable WSL mode")
+						.setDesc(
+							"Run agents inside Windows Subsystem for Linux. Recommended for agents like Codex that don't work well in native Windows environments.",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(this.plugin.settings.windowsWslMode)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											windowsWslMode: value,
+										},
+									);
+									this.renderContent();
+								}),
+						);
+
+					if (this.plugin.settings.windowsWslMode) {
+						new Setting(bodyEl)
+							.setName("WSL distribution")
+							.setDesc(
+								"Specify WSL distribution name (leave empty for default). Example: Ubuntu, Debian",
+							)
+							.addText((text) =>
+								text
+									.setPlaceholder("Leave empty for default")
+									.setValue(
+										this.plugin.settings
+											.windowsWslDistribution || "",
+									)
+									.onChange(async (value) => {
+										await this.plugin.settingsService.updateSettings(
+											{
+												windowsWslDistribution:
+													value.trim() || undefined,
+											},
+										);
+									}),
+							);
+					}
+				}
+
+				new Setting(bodyEl)
+					.setName("Hide unused agents")
+					.setDesc(
+						"Hide disabled agents from the lists below. Turn this off to see and re-enable them.",
+					)
+					.addToggle((toggle) =>
+						toggle
+							.setValue(this.plugin.settings.hideUnusedAgents)
 							.onChange(async (value) => {
 								await this.plugin.settingsService.updateSettings(
 									{
-										windowsWslDistribution:
-											value.trim() || undefined,
+										hideUnusedAgents: value,
+									},
+								);
+								this.renderContent();
+							}),
+					);
+
+				new Setting(bodyEl).setName("Preset agents").setHeading();
+				const sortedPresets = [...PRESET_AGENTS]
+					.filter((def) => {
+						if (!this.plugin.settings.hideUnusedAgents) {
+							return true;
+						}
+						return isAgentEnabled(
+							this.plugin.settings.presetAgents[def.presetId] ?? {
+								enabled: true,
+							},
+						);
+					})
+					.sort((a, b) => {
+						const aEnabled = isAgentEnabled(
+							this.plugin.settings.presetAgents[a.presetId] ?? {
+								enabled: true,
+							},
+						);
+						const bEnabled = isAgentEnabled(
+							this.plugin.settings.presetAgents[b.presetId] ?? {
+								enabled: true,
+							},
+						);
+						if (aEnabled === bEnabled) {
+							return 0;
+						}
+						return aEnabled ? -1 : 1;
+					});
+				if (sortedPresets.length === 0) {
+					bodyEl.createEl("p", {
+						text: "No enabled preset agents. Turn off Hide unused agents to show disabled ones.",
+						cls: "setting-item-description",
+					});
+				} else {
+					for (const def of sortedPresets) {
+						this.renderPresetSettings(bodyEl, def);
+					}
+				}
+
+				new Setting(bodyEl).setName("Custom agents").setHeading();
+				this.renderCustomAgents(bodyEl);
+			},
+			{ trailing },
+		);
+	}
+
+	private renderChatInputSection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(containerEl, "chat-input", "Chat & input", (bodyEl) => {
+			new Setting(bodyEl)
+				.setName("Send message shortcut")
+				.setDesc(
+					"Choose the keyboard shortcut to send messages. Note: If using Cmd/Ctrl+Enter, you may need to remove any hotkeys assigned to Cmd/Ctrl+Enter (Settings â†’ Hotkeys).",
+				)
+				.addDropdown((dropdown) =>
+					dropdown
+						.addOption(
+							"enter",
+							"Enter to send, Shift+Enter for newline",
+						)
+						.addOption(
+							"cmd-enter",
+							"Cmd/Ctrl+Enter to send, Enter for newline",
+						)
+						.setValue(this.plugin.settings.sendMessageShortcut)
+						.onChange(async (value) => {
+							await this.plugin.settingsService.updateSettings({
+								sendMessageShortcut: value as
+									| "enter"
+									| "cmd-enter",
+							});
+						}),
+				);
+
+			this.renderSettingsCallout(
+				bodyEl,
+				"mentions",
+				"Mentions & context",
+				(nestedEl) => {
+					new Setting(nestedEl)
+						.setName("Auto-mention active note")
+						.setDesc(
+							"Include the current note in your messages automatically. The agent will have access to its content without typing @notename.",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.autoMentionActiveNote,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											autoMentionActiveNote: value,
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
+						.setName("Expand wikilink context")
+						.setDesc(
+							"Surface [[wikilinks]] found inside mentioned/auto-mentioned notes as resolved file paths so the agent can choose which to read. Does not embed linked content. (Distinct from Prompt injection â†’ Wikilink formatting, which asks the agent to write [[links]] in its replies.)",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.expandWikilinkContext,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											expandWikilinkContext: value,
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
+						.setName("Max note length")
+						.setDesc(
+							"Maximum characters per mentioned note. Notes longer than this will be truncated.",
+						)
+						.addText((text) =>
+							text
+								.setPlaceholder("10000")
+								.setValue(
+									String(
+										this.plugin.settings.displaySettings
+											.maxNoteLength,
+									),
+								)
+								.onChange(async (value) => {
+									const num = parseInt(value, 10);
+									if (!isNaN(num) && num >= 1) {
+										await this.plugin.settingsService.updateSettings(
+											{
+												displaySettings: {
+													...this.plugin.settings
+														.displaySettings,
+													maxNoteLength: num,
+												},
+											},
+										);
+									}
+								}),
+						);
+
+					new Setting(nestedEl)
+						.setName("Max selection length")
+						.setDesc(
+							"Maximum characters for text selection in auto-mention. Selections longer than this will be truncated.",
+						)
+						.addText((text) =>
+							text
+								.setPlaceholder("10000")
+								.setValue(
+									String(
+										this.plugin.settings.displaySettings
+											.maxSelectionLength,
+									),
+								)
+								.onChange(async (value) => {
+									const num = parseInt(value, 10);
+									if (!isNaN(num) && num >= 1) {
+										await this.plugin.settingsService.updateSettings(
+											{
+												displaySettings: {
+													...this.plugin.settings
+														.displaySettings,
+													maxSelectionLength: num,
+												},
+											},
+										);
+									}
+								}),
+						);
+				},
+				{ nested: true },
+			);
+
+			this.renderSettingsCallout(
+				bodyEl,
+				"display",
+				"Display",
+				(nestedEl) => {
+					new Setting(nestedEl)
+						.setName("Chat view location")
+						.setDesc("Where to open new chat views")
+						.addDropdown((dropdown) =>
+							dropdown
+								.addOption("right-tab", "Right pane (tabs)")
+								.addOption("right-split", "Right pane (split)")
+								.addOption("editor-tab", "Editor area (tabs)")
+								.addOption(
+									"editor-split",
+									"Editor area (split)",
+								)
+								.setValue(this.plugin.settings.chatViewLocation)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											chatViewLocation:
+												value as ChatViewLocation,
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
+						.setName("Chat font size")
+						.setDesc(
+							`Adjust the font size of the chat message area (${CHAT_FONT_SIZE_MIN}-${CHAT_FONT_SIZE_MAX}px).`,
+						)
+						.addText((text) => {
+							const getCurrentDisplayValue = (): string => {
+								const currentFontSize =
+									this.plugin.settings.displaySettings
+										.fontSize;
+								return currentFontSize === null
+									? ""
+									: String(currentFontSize);
+							};
+
+							const persistChatFontSize = async (
+								fontSize: number | null,
+							): Promise<void> => {
+								if (
+									this.plugin.settings.displaySettings
+										.fontSize === fontSize
+								) {
+									return;
+								}
+
+								const nextSettings = {
+									...this.plugin.settings,
+									displaySettings: {
+										...this.plugin.settings.displaySettings,
+										fontSize,
+									},
+								};
+								await this.plugin.saveSettingsAndNotify(
+									nextSettings,
+								);
+							};
+
+							text.setPlaceholder(
+								`${CHAT_FONT_SIZE_MIN}-${CHAT_FONT_SIZE_MAX}`,
+							)
+								.setValue(getCurrentDisplayValue())
+								.onChange(async (value) => {
+									if (value.trim().length === 0) {
+										await persistChatFontSize(null);
+										return;
+									}
+
+									const trimmedValue = value.trim();
+									if (!/^-?\d+$/.test(trimmedValue)) {
+										return;
+									}
+
+									const numericValue = Number.parseInt(
+										trimmedValue,
+										10,
+									);
+									if (
+										numericValue < CHAT_FONT_SIZE_MIN ||
+										numericValue > CHAT_FONT_SIZE_MAX
+									) {
+										return;
+									}
+
+									const parsedFontSize =
+										parseChatFontSize(numericValue);
+									if (parsedFontSize === null) {
+										return;
+									}
+
+									const hasChanged =
+										this.plugin.settings.displaySettings
+											.fontSize !== parsedFontSize;
+									if (hasChanged) {
+										await persistChatFontSize(
+											parsedFontSize,
+										);
+									}
+								});
+
+							text.inputEl.addEventListener("blur", () => {
+								const currentInputValue = text.getValue();
+								const parsedFontSize =
+									parseChatFontSize(currentInputValue);
+
+								if (
+									currentInputValue.trim().length > 0 &&
+									parsedFontSize === null
+								) {
+									text.setValue(getCurrentDisplayValue());
+									return;
+								}
+
+								if (parsedFontSize !== null) {
+									text.setValue(String(parsedFontSize));
+									const hasChanged =
+										this.plugin.settings.displaySettings
+											.fontSize !== parsedFontSize;
+									if (hasChanged) {
+										void persistChatFontSize(
+											parsedFontSize,
+										);
+									}
+									return;
+								}
+
+								text.setValue("");
+							});
+						});
+
+					new Setting(nestedEl)
+						.setName("Show emojis")
+						.setDesc(
+							"Display emoji icons in tool calls, thoughts, plans, and terminal blocks.",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.displaySettings
+										.showEmojis,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											displaySettings: {
+												...this.plugin.settings
+													.displaySettings,
+												showEmojis: value,
+											},
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
+						.setName("Auto-collapse long diffs")
+						.setDesc(
+							"Automatically collapse diffs that exceed the line threshold.",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.displaySettings
+										.autoCollapseDiffs,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											displaySettings: {
+												...this.plugin.settings
+													.displaySettings,
+												autoCollapseDiffs: value,
+											},
+										},
+									);
+									this.renderContent();
+								}),
+						);
+
+					if (this.plugin.settings.displaySettings.autoCollapseDiffs) {
+						new Setting(nestedEl)
+							.setName("Collapse threshold")
+							.setDesc(
+								"Diffs with more lines than this will be collapsed by default.",
+							)
+							.addText((text) =>
+								text
+									.setPlaceholder("10")
+									.setValue(
+										String(
+											this.plugin.settings.displaySettings
+												.diffCollapseThreshold,
+										),
+									)
+									.onChange(async (value) => {
+										const num = parseInt(value, 10);
+										if (!isNaN(num) && num > 0) {
+											await this.plugin.settingsService.updateSettings(
+												{
+													displaySettings: {
+														...this.plugin.settings
+															.displaySettings,
+														diffCollapseThreshold:
+															num,
+													},
+												},
+											);
+										}
+									}),
+							);
+					}
+				},
+				{ nested: true },
+			);
+		});
+	}
+
+	private renderFloatingChatSection(containerEl: HTMLElement): void {
+		const entry = this.plugin.settings.floatingChatEntry;
+		const trailing =
+			entry === "off"
+				? "Off"
+				: entry === "button"
+					? "Button"
+					: entry === "status-bar"
+						? "Status bar"
+						: "Commands";
+
+		this.renderSettingsCallout(
+			containerEl,
+			"floating-chat",
+			"Floating chat",
+			(bodyEl) => {
+				new Setting(bodyEl)
+					.setName("Floating chat")
+					.setDesc(
+						"Choose how to open floating chat: floating button, status bar, or commands only.",
+					)
+					.addDropdown((dropdown) =>
+						dropdown
+							.addOption("off", "Off")
+							.addOption("button", "Floating button")
+							.addOption("status-bar", "Status bar")
+							.addOption("commands", "Commands only")
+							.setValue(this.plugin.settings.floatingChatEntry)
+							.onChange(async (value) => {
+								const next = value as
+									| "off"
+									| "button"
+									| "status-bar"
+									| "commands";
+								const wasEnabled =
+									this.plugin.isFloatingChatEnabled();
+								await this.plugin.settingsService.updateSettings(
+									{
+										floatingChatEntry: next,
+									},
+								);
+
+								const isEnabled = next !== "off";
+								if (isEnabled && !wasEnabled) {
+									this.plugin.openNewFloatingChat();
+									this.openSections.add(
+										"settings:floating-chat",
+									);
+								} else if (!isEnabled && wasEnabled) {
+									const instances =
+										this.plugin.getFloatingChatInstances();
+									for (const instanceId of instances) {
+										this.plugin.closeFloatingChat(
+											instanceId,
+										);
+									}
+								}
+								this.renderContent();
+							}),
+					);
+
+				new Setting(bodyEl)
+					.setName("Enable floating chat tabs")
+					.setDesc(
+						"Group multiple floating chats as tabs in one window. Focus next/previous still cycles each chat.",
+					)
+					.addToggle((toggle) =>
+						toggle
+							.setValue(
+								this.plugin.settings.enableFloatingChatTabs,
+							)
+							.setDisabled(!this.plugin.isFloatingChatEnabled())
+							.onChange(async (value) => {
+								await this.plugin.settingsService.updateSettings(
+									{
+										enableFloatingChatTabs: value,
 									},
 								);
 							}),
 					);
-			}
-		}
 
-		// ─────────────────────────────────────────────────────────────────────
-		// Agents
-		// ─────────────────────────────────────────────────────────────────────
-
-		new Setting(containerEl).setName("Preset agents").setHeading();
-
-		for (const def of PRESET_AGENTS) {
-			this.renderPresetSettings(containerEl, def);
-		}
-
-		new Setting(containerEl).setName("Custom agents").setHeading();
-
-		this.renderCustomAgents(containerEl);
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Export
-		// ─────────────────────────────────────────────────────────────────────
-
-		new Setting(containerEl).setName("Export").setHeading();
-
-		new Setting(containerEl)
-			.setName("Export folder")
-			.setDesc("Folder where chat exports will be saved")
-			.addText((text) =>
-				text
-					.setPlaceholder("Agent Client")
-					.setValue(this.plugin.settings.exportSettings.defaultFolder)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							exportSettings: {
-								...this.plugin.settings.exportSettings,
-								defaultFolder: value,
-							},
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Filename")
-			.setDesc(
-				"Template for exported filenames. Use {date} for date and {time} for time",
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("agent_client_{date}_{time}")
-					.setValue(
-						this.plugin.settings.exportSettings.filenameTemplate,
+				new Setting(bodyEl)
+					.setName("One-key toggle")
+					.setDesc(
+						"When on, the Toggle floating chat command opens or minimizes with the same hotkey. Turn off to use separate Open and Minimize hotkeys.",
 					)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							exportSettings: {
-								...this.plugin.settings.exportSettings,
-								filenameTemplate: value,
-							},
-						});
-					}),
-			);
+					.addToggle((toggle) =>
+						toggle
+							.setValue(
+								this.plugin.settings.floatingChatOneKeyToggle,
+							)
+							.setDisabled(!this.plugin.isFloatingChatEnabled())
+							.onChange(async (value) => {
+								await this.plugin.settingsService.updateSettings(
+									{
+										floatingChatOneKeyToggle: value,
+									},
+								);
+							}),
+					);
 
-		new Setting(containerEl)
-			.setName("Frontmatter tag")
-			.setDesc(
-				"Tag to add to exported notes. Supports nested tags (e.g., projects/agent-client). Leave empty to disable.",
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("agent-client")
-					.setValue(
-						this.plugin.settings.exportSettings.frontmatterTag,
-					)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							exportSettings: {
-								...this.plugin.settings.exportSettings,
-								frontmatterTag: value,
-							},
-						});
-					}),
-			);
+				this.renderSettingsCallout(
+					bodyEl,
+					"floating-appearance",
+					"Window & button appearance",
+					(nestedEl) => {
+						new Setting(nestedEl)
+							.setName("Floating button image")
+							.setDesc(
+								"URL or path to an image for the floating button. Leave empty for default icon. Only applies when Floating chat is set to Floating button.",
+							)
+							.addText((text) =>
+								text
+									.setPlaceholder(
+										"https://example.com/avatar.png",
+									)
+									.setValue(
+										this.plugin.settings
+											.floatingButtonImage,
+									)
+									.setDisabled(
+										this.plugin.settings
+											.floatingChatEntry !== "button",
+									)
+									.onChange(async (value) => {
+										await this.plugin.settingsService.updateSettings(
+											{
+												floatingButtonImage:
+													value.trim(),
+											},
+										);
+									}),
+							);
 
-		new Setting(containerEl)
-			.setName("Include images")
-			.setDesc("Include images in exported markdown files")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.exportSettings.includeImages)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							exportSettings: {
-								...this.plugin.settings.exportSettings,
-								includeImages: value,
-							},
-						});
-						this.renderContent();
-					}),
-			);
+						new Setting(nestedEl)
+							.setName("Default window width")
+							.setDesc(
+								`Used when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.width}â€“${FLOATING_WINDOW_SIZE_MAX.width}px). Position is remembered automatically from the last drag.`,
+							)
+							.addText((text) =>
+								text
+									.setPlaceholder(
+										String(
+											FLOATING_WINDOW_SIZE_MIN.width,
+										),
+									)
+									.setValue(
+										String(
+											this.plugin.settings
+												.floatingWindowDefaultSize
+												.width,
+										),
+									)
+									.setDisabled(
+										!this.plugin.isFloatingChatEnabled(),
+									)
+									.onChange(async (value) => {
+										const parsed = parseInt(value, 10);
+										if (isNaN(parsed)) return;
+										const next = clampFloatingWindowSize({
+											width: parsed,
+											height: this.plugin.settings
+												.floatingWindowDefaultSize
+												.height,
+										});
+										await this.plugin.settingsService.updateSettings(
+											{
+												floatingWindowDefaultSize:
+													next,
+											},
+										);
+									}),
+							);
 
-		if (this.plugin.settings.exportSettings.includeImages) {
-			new Setting(containerEl)
-				.setName("Image location")
-				.setDesc("Where to save exported images")
-				.addDropdown((dropdown) =>
-					dropdown
-						.addOption(
-							"obsidian",
-							"Use Obsidian's attachment setting",
+						new Setting(nestedEl)
+							.setName("Default window height")
+							.setDesc(
+								`Used when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.height}â€“${FLOATING_WINDOW_SIZE_MAX.height}px).`,
+							)
+							.addText((text) =>
+								text
+									.setPlaceholder(
+										String(
+											FLOATING_WINDOW_SIZE_MIN.height,
+										),
+									)
+									.setValue(
+										String(
+											this.plugin.settings
+												.floatingWindowDefaultSize
+												.height,
+										),
+									)
+									.setDisabled(
+										!this.plugin.isFloatingChatEnabled(),
+									)
+									.onChange(async (value) => {
+										const parsed = parseInt(value, 10);
+										if (isNaN(parsed)) return;
+										const next = clampFloatingWindowSize({
+											width: this.plugin.settings
+												.floatingWindowDefaultSize
+												.width,
+											height: parsed,
+										});
+										await this.plugin.settingsService.updateSettings(
+											{
+												floatingWindowDefaultSize:
+													next,
+											},
+										);
+									}),
+							);
+					},
+					{ nested: true },
+				);
+			},
+			{ trailing },
+		);
+	}
+
+	private renderBehaviorSection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(containerEl, "behavior", "Behavior", (bodyEl) => {
+			this.renderSettingsCallout(
+				bodyEl,
+				"permissions",
+				"Permissions",
+				(nestedEl) => {
+					new Setting(nestedEl)
+						.setName("Auto-allow permissions")
+						.setDesc(
+							"Automatically allow all permission requests from agents. âš ï¸ Use with caution - this gives agents full access to your system.",
 						)
-						.addOption("custom", "Save to custom folder")
-						.addOption(
-							"base64",
-							"Embed as Base64 (not recommended)",
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.autoAllowPermissions,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											autoAllowPermissions: value,
+										},
+									);
+									this.plugin.updateAllAutoAllow(value);
+								}),
+						);
+				},
+				{ nested: true },
+			);
+
+			this.renderSettingsCallout(
+				bodyEl,
+				"notifications",
+				"Notifications",
+				(nestedEl) => {
+					new Setting(nestedEl)
+						.setName("System notifications")
+						.setDesc(
+							"Show OS notifications when the agent completes a response or requests permission. Notifications are suppressed while Obsidian is focused.",
 						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings
+										.enableSystemNotifications,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											enableSystemNotifications: value,
+										},
+									);
+								}),
+						);
+				},
+				{ nested: true },
+			);
+
+			this.renderSettingsCallout(
+				bodyEl,
+				"prompt-injection",
+				"Prompt injection",
+				(nestedEl) => {
+					new Setting(nestedEl)
+						.setName("Inject Obsidian Markdown instructions")
+						.setDesc(
+							"Include formatting guidance in the first message of each session so agents produce Obsidian-compatible Markdown.",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.promptInjection
+										.enabled,
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.promptInjection.enabled =
+										value;
+									await this.plugin.saveSettings();
+									this.renderContent();
+								}),
+						);
+
+					if (this.plugin.settings.promptInjection.enabled) {
+						new Setting(nestedEl)
+							.setName("Wikilink formatting")
+							.setDesc(
+								"Instruct agents to use [[Note Name]] wikilink syntax when referencing notes in their replies. (Distinct from Mentions â†’ Expand wikilink context, which resolves [[links]] inside your notes to file paths.)",
+							)
+							.addToggle((toggle) =>
+								toggle
+									.setValue(
+										this.plugin.settings.promptInjection
+											.wikiLinks,
+									)
+									.onChange(async (value) => {
+										this.plugin.settings.promptInjection.wikiLinks =
+											value;
+										await this.plugin.saveSettings();
+									}),
+							);
+
+						new Setting(nestedEl)
+							.setName("Markdown table spacing")
+							.setDesc(
+								"Instruct agents to leave a blank line before Markdown tables so Obsidian renders them correctly.",
+							)
+							.addToggle((toggle) =>
+								toggle
+									.setValue(
+										this.plugin.settings.promptInjection
+											.tables,
+									)
+									.onChange(async (value) => {
+										this.plugin.settings.promptInjection.tables =
+											value;
+										await this.plugin.saveSettings();
+									}),
+							);
+
+						new Setting(nestedEl)
+							.setName("LaTeX math formatting")
+							.setDesc(
+								"Instruct agents to use $...$ and $$...$$ delimiters for math expressions.",
+							)
+							.addToggle((toggle) =>
+								toggle
+									.setValue(
+										this.plugin.settings.promptInjection
+											.latex,
+									)
+									.onChange(async (value) => {
+										this.plugin.settings.promptInjection.latex =
+											value;
+										await this.plugin.saveSettings();
+									}),
+							);
+					}
+				},
+				{ nested: true },
+			);
+		});
+	}
+
+	private renderExportSection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(containerEl, "export", "Export", (bodyEl) => {
+			new Setting(bodyEl)
+				.setName("Export folder")
+				.setDesc("Folder where chat exports will be saved")
+				.addText((text) =>
+					text
+						.setPlaceholder("Agent Client")
 						.setValue(
-							this.plugin.settings.exportSettings.imageLocation,
+							this.plugin.settings.exportSettings.defaultFolder,
 						)
 						.onChange(async (value) => {
 							await this.plugin.settingsService.updateSettings({
 								exportSettings: {
 									...this.plugin.settings.exportSettings,
-									imageLocation: value as
-										| "obsidian"
-										| "custom"
-										| "base64",
+									defaultFolder: value,
 								},
 							});
-							this.renderContent();
 						}),
 				);
 
-			if (
-				this.plugin.settings.exportSettings.imageLocation === "custom"
-			) {
-				new Setting(containerEl)
-					.setName("Custom image folder")
+			new Setting(bodyEl)
+				.setName("Filename")
+				.setDesc(
+					"Template for exported filenames. Use {date} for date and {time} for time",
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("agent_client_{date}_{time}")
+						.setValue(
+							this.plugin.settings.exportSettings
+								.filenameTemplate,
+						)
+						.onChange(async (value) => {
+							await this.plugin.settingsService.updateSettings({
+								exportSettings: {
+									...this.plugin.settings.exportSettings,
+									filenameTemplate: value,
+								},
+							});
+						}),
+				);
+
+			new Setting(bodyEl)
+				.setName("Frontmatter tag")
+				.setDesc(
+					"Tag to add to exported notes. Supports nested tags (e.g., projects/agent-client). Leave empty to disable.",
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("agent-client")
+						.setValue(
+							this.plugin.settings.exportSettings.frontmatterTag,
+						)
+						.onChange(async (value) => {
+							await this.plugin.settingsService.updateSettings({
+								exportSettings: {
+									...this.plugin.settings.exportSettings,
+									frontmatterTag: value,
+								},
+							});
+						}),
+				);
+
+			this.renderSettingsCallout(
+				bodyEl,
+				"export-images",
+				"Images & automation",
+				(nestedEl) => {
+					new Setting(nestedEl)
+						.setName("Include images")
+						.setDesc("Include images in exported markdown files")
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.exportSettings
+										.includeImages,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											exportSettings: {
+												...this.plugin.settings
+													.exportSettings,
+												includeImages: value,
+											},
+										},
+									);
+									this.renderContent();
+								}),
+						);
+
+					if (this.plugin.settings.exportSettings.includeImages) {
+						new Setting(nestedEl)
+							.setName("Image location")
+							.setDesc("Where to save exported images")
+							.addDropdown((dropdown) =>
+								dropdown
+									.addOption(
+										"obsidian",
+										"Use Obsidian's attachment setting",
+									)
+									.addOption(
+										"custom",
+										"Save to custom folder",
+									)
+									.addOption(
+										"base64",
+										"Embed as Base64 (not recommended)",
+									)
+									.setValue(
+										this.plugin.settings.exportSettings
+											.imageLocation,
+									)
+									.onChange(async (value) => {
+										await this.plugin.settingsService.updateSettings(
+											{
+												exportSettings: {
+													...this.plugin.settings
+														.exportSettings,
+													imageLocation: value as
+														| "obsidian"
+														| "custom"
+														| "base64",
+												},
+											},
+										);
+										this.renderContent();
+									}),
+							);
+
+						if (
+							this.plugin.settings.exportSettings
+								.imageLocation === "custom"
+						) {
+							new Setting(nestedEl)
+								.setName("Custom image folder")
+								.setDesc(
+									"Folder path for exported images (relative to vault root)",
+								)
+								.addText((text) =>
+									text
+										.setPlaceholder("Agent Client")
+										.setValue(
+											this.plugin.settings.exportSettings
+												.imageCustomFolder,
+										)
+										.onChange(async (value) => {
+											await this.plugin.settingsService.updateSettings(
+												{
+													exportSettings: {
+														...this.plugin.settings
+															.exportSettings,
+														imageCustomFolder:
+															value,
+													},
+												},
+											);
+										}),
+								);
+						}
+					}
+
+					new Setting(nestedEl)
+						.setName("Auto-export on new chat")
+						.setDesc(
+							"Automatically export the current chat when starting a new chat",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.exportSettings
+										.autoExportOnNewChat,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											exportSettings: {
+												...this.plugin.settings
+													.exportSettings,
+												autoExportOnNewChat: value,
+											},
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
+						.setName("Auto-export on close chat")
+						.setDesc(
+							"Automatically export the current chat when closing the chat view",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.exportSettings
+										.autoExportOnCloseChat,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											exportSettings: {
+												...this.plugin.settings
+													.exportSettings,
+												autoExportOnCloseChat: value,
+											},
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
+						.setName("Open note after export")
+						.setDesc(
+							"Automatically open the exported note after exporting",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.exportSettings
+										.openFileAfterExport,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											exportSettings: {
+												...this.plugin.settings
+													.exportSettings,
+												openFileAfterExport: value,
+											},
+										},
+									);
+								}),
+						);
+				},
+				{ nested: true },
+			);
+		});
+	}
+
+	private renderVoiceInputSection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(
+			containerEl,
+			"voice-input",
+			"Voice input",
+			(bodyEl) => {
+				new Setting(bodyEl)
+					.setName("Enable voice input")
 					.setDesc(
-						"Folder path for exported images (relative to vault root)",
+						"Adds a microphone button to the chat input area for Gemini Live voice transcription.",
 					)
-					.addText((text) =>
-						text
-							.setPlaceholder("Agent Client")
-							.setValue(
-								this.plugin.settings.exportSettings
-									.imageCustomFolder,
-							)
+					.addToggle((toggle) =>
+						toggle
+							.setValue(this.plugin.settings.voiceInput.enabled)
+							.onChange(async (value) => {
+								this.plugin.settings.voiceInput.enabled =
+									value;
+								await this.plugin.saveSettings();
+								if (value) {
+									this.openSections.add(
+										"settings:voice-input",
+									);
+								}
+								this.renderContent();
+							}),
+					);
+
+				if (this.plugin.settings.voiceInput.enabled) {
+					new Setting(bodyEl)
+						.setName("Gemini API key")
+						.setDesc(
+							"Your Google AI Studio API key for Gemini Live transcription.",
+						)
+						.addComponent((el) => {
+							const secretId = VOICE_INPUT_SECRET_ID;
+							const currentValue =
+								this.plugin.app.secretStorage.getSecret(
+									secretId,
+								) ?? "";
+							const secret = new SecretComponent(this.app, el);
+							secret
+								.setValue(
+									currentValue
+										? secretId
+										: this.plugin.settings.voiceInput
+												.geminiApiKeySecretId,
+								)
+								.onChange(async (value) => {
+									if (value.trim()) {
+										this.plugin.app.secretStorage.setSecret(
+											secretId,
+											value.trim(),
+										);
+										this.plugin.settings.voiceInput.geminiApiKeySecretId =
+											secretId;
+									}
+									await this.plugin.saveSettings();
+								});
+							return secret;
+						});
+
+					new Setting(bodyEl)
+						.setName("Model")
+						.setDesc(
+							"Gemini Live model name (e.g. gemini-3.5-transcribe-live).",
+						)
+						.addText((text) =>
+							text
+								.setPlaceholder("gemini-3.5-transcribe-live")
+								.setValue(
+									this.plugin.settings.voiceInput.model,
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.voiceInput.model =
+										value.trim() ||
+										"gemini-3.5-transcribe-live";
+									await this.plugin.saveSettings();
+								}),
+						);
+
+					new Setting(bodyEl)
+						.setName("Transcription mode")
+						.setDesc(
+							"Smart mode for clean transcripts, verbatim for exact word-for-word.",
+						)
+						.addDropdown((dropdown) =>
+							dropdown
+								.addOption("smart", "Smart")
+								.addOption("verbatim", "Verbatim")
+								.setValue(
+									this.plugin.settings.voiceInput
+										.transcriptionMode,
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.voiceInput.transcriptionMode =
+										value as "smart" | "verbatim";
+									await this.plugin.saveSettings();
+								}),
+						);
+
+					new Setting(bodyEl)
+						.setName("Language codes")
+						.setDesc(
+							"Comma-separated BCP-47 language codes (e.g. en-US, fr-CA).",
+						)
+						.addText((text) =>
+							text
+								.setPlaceholder("en-US, fr-CA")
+								.setValue(
+									this.plugin.settings.voiceInput
+										.languageCodes,
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.voiceInput.languageCodes =
+										value;
+									await this.plugin.saveSettings();
+								}),
+						);
+				}
+			},
+		);
+	}
+
+	private renderDeveloperSection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(
+			containerEl,
+			"developer",
+			"Developer",
+			(bodyEl) => {
+				new Setting(bodyEl)
+					.setName("Debug mode")
+					.setDesc(
+						"Enable debug logging to console. Useful for development and troubleshooting.",
+					)
+					.addToggle((toggle) =>
+						toggle
+							.setValue(this.plugin.settings.debugMode)
 							.onChange(async (value) => {
 								await this.plugin.settingsService.updateSettings(
 									{
-										exportSettings: {
-											...this.plugin.settings
-												.exportSettings,
-											imageCustomFolder: value,
-										},
+										debugMode: value,
 									},
 								);
 							}),
 					);
-			}
-		}
-
-		new Setting(containerEl)
-			.setName("Auto-export on new chat")
-			.setDesc(
-				"Automatically export the current chat when starting a new chat",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.exportSettings.autoExportOnNewChat,
-					)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							exportSettings: {
-								...this.plugin.settings.exportSettings,
-								autoExportOnNewChat: value,
-							},
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Auto-export on close chat")
-			.setDesc(
-				"Automatically export the current chat when closing the chat view",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.exportSettings
-							.autoExportOnCloseChat,
-					)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							exportSettings: {
-								...this.plugin.settings.exportSettings,
-								autoExportOnCloseChat: value,
-							},
-						});
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Open note after export")
-			.setDesc("Automatically open the exported note after exporting")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.exportSettings.openFileAfterExport,
-					)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							exportSettings: {
-								...this.plugin.settings.exportSettings,
-								openFileAfterExport: value,
-							},
-						});
-					}),
-			);
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Voice Input
-		// ─────────────────────────────────────────────────────────────────────
-
-		new Setting(containerEl).setName("Voice Input").setHeading();
-
-		new Setting(containerEl)
-			.setName("Enable voice input")
-			.setDesc("Adds a microphone button to the chat input area for Gemini Live voice transcription.")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.voiceInput.enabled)
-					.onChange(async (value) => {
-						this.plugin.settings.voiceInput.enabled = value;
-						await this.plugin.saveSettings();
-						this.renderContent();
-					}),
-			);
-
-		if (this.plugin.settings.voiceInput.enabled) {
-			new Setting(containerEl)
-				.setName("Gemini API key")
-				.setDesc("Your Google AI Studio API key for Gemini Live transcription.")
-				.addComponent((el) => {
-					const secretId = VOICE_INPUT_SECRET_ID;
-					const currentValue =
-						this.plugin.app.secretStorage.getSecret(secretId) ?? "";
-					const secret = new SecretComponent(this.app, el);
-					secret.setValue(
-						currentValue
-							? secretId
-							: this.plugin.settings.voiceInput
-									.geminiApiKeySecretId,
-					).onChange(async (value) => {
-						if (value.trim()) {
-							this.plugin.app.secretStorage.setSecret(
-								secretId,
-								value.trim(),
-							);
-							this.plugin.settings.voiceInput.geminiApiKeySecretId =
-								secretId;
-						}
-						await this.plugin.saveSettings();
-					});
-					return secret;
-				});
-
-			new Setting(containerEl)
-				.setName("Model")
-				.setDesc("Gemini Live model name (e.g. gemini-3.5-transcribe-live).")
-				.addText((text) =>
-					text
-						.setPlaceholder("gemini-3.5-transcribe-live")
-						.setValue(this.plugin.settings.voiceInput.model)
-						.onChange(async (value) => {
-							this.plugin.settings.voiceInput.model =
-								value.trim() || "gemini-3.5-transcribe-live";
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName("Transcription mode")
-				.setDesc("Smart mode for clean transcripts, verbatim for exact word-for-word.")
-				.addDropdown((dropdown) =>
-					dropdown
-						.addOption("smart", "Smart")
-						.addOption("verbatim", "Verbatim")
-						.setValue(
-							this.plugin.settings.voiceInput.transcriptionMode,
-						)
-						.onChange(async (value) => {
-							this.plugin.settings.voiceInput.transcriptionMode =
-								value as "smart" | "verbatim";
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName("Language codes")
-				.setDesc("Comma-separated BCP-47 language codes (e.g. en-US, fr-CA).")
-				.addText((text) =>
-					text
-						.setPlaceholder("en-US, fr-CA")
-						.setValue(
-							this.plugin.settings.voiceInput.languageCodes,
-						)
-						.onChange(async (value) => {
-							this.plugin.settings.voiceInput.languageCodes =
-								value;
-							await this.plugin.saveSettings();
-						}),
-				);
-		}
-
-		// ─────────────────────────────────────────────────────────────────────
-		// Developer
-		// ─────────────────────────────────────────────────────────────────────
-
-		new Setting(containerEl).setName("Developer").setHeading();
-
-		new Setting(containerEl)
-			.setName("Debug mode")
-			.setDesc(
-				"Enable debug logging to console. Useful for development and troubleshooting.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.debugMode)
-					.onChange(async (value) => {
-						await this.plugin.settingsService.updateSettings({
-							debugMode: value,
-						});
-					}),
-			);
+			},
+		);
 	}
 
 	/**
@@ -1113,6 +1530,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			this.unsubscribe = null;
 		}
 		this.openSections.clear();
+		this.settingsCalloutDefaultsApplied = false;
 	}
 
 	private renderAgentSelector(containerEl: HTMLElement) {
@@ -1226,6 +1644,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				this.plugin.ensureDefaultAgentId();
 				await this.flushSettings();
 				this.refreshAgentDropdown();
+				this.renderContent();
 			});
 		toggle.toggleEl.setAttribute("aria-label", "Enabled");
 	}
@@ -1456,9 +1875,33 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				text: "No custom agents configured yet.",
 			});
 		} else {
-			this.plugin.settings.customAgents.forEach((agent, index) => {
-				this.renderCustomAgent(containerEl, agent, index);
-			});
+			const sortedCustoms = this.plugin.settings.customAgents
+				.map((agent, index) => ({ agent, index }))
+				.filter(({ agent }) => {
+					if (!this.plugin.settings.hideUnusedAgents) {
+						return true;
+					}
+					return isAgentEnabled(agent);
+				})
+				.sort((a, b) => {
+					const aEnabled = isAgentEnabled(a.agent);
+					const bEnabled = isAgentEnabled(b.agent);
+					if (aEnabled === bEnabled) {
+						return 0;
+					}
+					return aEnabled ? -1 : 1;
+				});
+			if (sortedCustoms.length === 0) {
+				containerEl.createEl("p", {
+					text: this.plugin.settings.hideUnusedAgents
+						? "No enabled custom agents. Turn off Hide unused agents to show disabled ones."
+						: "No custom agents configured yet.",
+				});
+			} else {
+				sortedCustoms.forEach(({ agent, index }) => {
+					this.renderCustomAgent(containerEl, agent, index);
+				});
+			}
 		}
 
 		new Setting(containerEl)
