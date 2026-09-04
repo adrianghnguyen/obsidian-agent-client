@@ -37,6 +37,11 @@ import {
 } from "../services/settings-normalizer";
 import { VOICE_INPUT_SECRET_ID } from "../voice-input/VoiceInputSettings";
 
+/** Nested (L2) settings sections are foldable only when they have 4+ items. */
+function nestedFoldable(itemCount: number): boolean {
+	return itemCount >= 4;
+}
+
 export class AgentClientSettingTab extends PluginSettingTab {
 	plugin: AgentClientPlugin;
 	private agentSelector: DropdownComponent | null = null;
@@ -122,12 +127,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			"settings:export": false,
 			"settings:voice-input": this.plugin.settings.voiceInput.enabled,
 			"settings:developer": false,
-			"settings:advanced-runtime": false,
 			"settings:mentions": false,
 			"settings:display": false,
-			"settings:floating-appearance": false,
-			"settings:permissions": false,
-			"settings:notifications": false,
 			"settings:prompt-injection": false,
 			"settings:export-images": false,
 		};
@@ -156,8 +157,9 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * Expandable settings callout (top-level or nested). Open state is keyed
-	 * in openSections as "settings:<id>". Defaults are seeded once per visit.
+	 * Settings callout (top-level or nested). Open state is keyed in
+	 * openSections as "settings:<id>". Defaults are seeded once per visit.
+	 * Nested sections with foldable:false render as a static heading.
 	 */
 	private renderSettingsCallout(
 		containerEl: HTMLElement,
@@ -166,11 +168,14 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		renderBody: (bodyEl: HTMLElement) => void,
 		options?: {
 			nested?: boolean;
+			/** Default true. Nested callers should pass nestedFoldable(count). */
+			foldable?: boolean;
 			trailing?: string;
 		},
 	): void {
 		const sectionId = `settings:${id}`;
-		const isOpen = this.openSections.has(sectionId);
+		const foldable = options?.foldable !== false;
+		const isOpen = foldable ? this.openSections.has(sectionId) : true;
 
 		const calloutEl = containerEl.createDiv({
 			cls: "agent-client-settings-callout",
@@ -178,16 +183,55 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		if (options?.nested) {
 			calloutEl.addClass("is-nested");
 		}
+		if (!foldable) {
+			calloutEl.addClass("is-static");
+		}
 		calloutEl.toggleClass("is-open", isOpen);
 
-		const headerEl = calloutEl.createEl("button", {
-			cls: "agent-client-settings-callout-header",
-			attr: { type: "button", "aria-expanded": String(isOpen) },
+		if (foldable) {
+			const headerEl = calloutEl.createEl("button", {
+				cls: "agent-client-settings-callout-header",
+				attr: { type: "button", "aria-expanded": String(isOpen) },
+			});
+			const chevronEl = headerEl.createSpan({
+				cls: "agent-client-settings-callout-chevron",
+			});
+			setIcon(chevronEl, "chevron-right");
+			headerEl.createSpan({
+				cls: "agent-client-settings-callout-title",
+				text: title,
+			});
+			if (options?.trailing) {
+				headerEl.createSpan({
+					cls: "agent-client-settings-callout-trailing",
+					text: options.trailing,
+				});
+			}
+
+			const bodyEl = calloutEl.createDiv({
+				cls: "agent-client-settings-callout-body",
+			});
+			bodyEl.toggleClass("is-collapsed", !isOpen);
+
+			headerEl.addEventListener("click", () => {
+				const open = !this.openSections.has(sectionId);
+				if (open) {
+					this.openSections.add(sectionId);
+				} else {
+					this.openSections.delete(sectionId);
+				}
+				headerEl.setAttribute("aria-expanded", String(open));
+				calloutEl.toggleClass("is-open", open);
+				bodyEl.toggleClass("is-collapsed", !open);
+			});
+
+			renderBody(bodyEl);
+			return;
+		}
+
+		const headerEl = calloutEl.createDiv({
+			cls: "agent-client-settings-callout-header is-static-header",
 		});
-		const chevronEl = headerEl.createSpan({
-			cls: "agent-client-settings-callout-chevron",
-		});
-		setIcon(chevronEl, "chevron-right");
 		headerEl.createSpan({
 			cls: "agent-client-settings-callout-title",
 			text: title,
@@ -202,20 +246,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		const bodyEl = calloutEl.createDiv({
 			cls: "agent-client-settings-callout-body",
 		});
-		bodyEl.toggleClass("is-collapsed", !isOpen);
-
-		headerEl.addEventListener("click", () => {
-			const open = !this.openSections.has(sectionId);
-			if (open) {
-				this.openSections.add(sectionId);
-			} else {
-				this.openSections.delete(sectionId);
-			}
-			headerEl.setAttribute("aria-expanded", String(open));
-			calloutEl.toggleClass("is-open", open);
-			bodyEl.toggleClass("is-collapsed", !open);
-		});
-
 		renderBody(bodyEl);
 	}
 
@@ -256,7 +286,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						},
 					);
 				},
-				{ nested: true },
+				{ nested: true, foldable: nestedFoldable(1) },
 			);
 		});
 	}
@@ -521,7 +551,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								}),
 						);
 				},
-				{ nested: true },
+				{ nested: true, foldable: nestedFoldable(4) },
 			);
 
 			this.renderSettingsCallout(
@@ -743,7 +773,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							);
 					}
 				},
-				{ nested: true },
+				{ nested: true, foldable: nestedFoldable(4) },
 			);
 		});
 	}
@@ -962,7 +992,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 									}),
 							);
 					},
-					{ nested: true },
+					{ nested: true, foldable: nestedFoldable(3) },
 				);
 			},
 			{ trailing },
@@ -996,7 +1026,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								}),
 						);
 				},
-				{ nested: true },
+				{ nested: true, foldable: nestedFoldable(1) },
 			);
 
 			this.renderSettingsCallout(
@@ -1024,7 +1054,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								}),
 						);
 				},
-				{ nested: true },
+				{ nested: true, foldable: nestedFoldable(1) },
 			);
 
 			this.renderSettingsCallout(
@@ -1107,7 +1137,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							);
 					}
 				},
-				{ nested: true },
+				{
+					nested: true,
+					foldable: nestedFoldable(
+						this.plugin.settings.promptInjection.enabled ? 4 : 1,
+					),
+				},
 			);
 		});
 	}
@@ -1347,7 +1382,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								}),
 						);
 				},
-				{ nested: true },
+				{ nested: true, foldable: nestedFoldable(4) },
 			);
 		});
 	}
