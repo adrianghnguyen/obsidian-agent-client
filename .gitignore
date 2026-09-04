@@ -48,3 +48,6 @@ dev/
 
 # Local implementation plans and working documents
 plan/
+
+# Temp artifacts (screenshots, debug dumps, temp scripts)
+.tmp/

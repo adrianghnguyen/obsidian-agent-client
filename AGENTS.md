@@ -8,7 +8,7 @@ Deploy vault path: `C:\Obsidian\.obsidian\plugins\agent-client\` (plugin id `age
 
 **Debug mode:** the plugin has a `debugMode` setting (Settings → Agent Client → Developer Settings → **Debug Mode**). Turn it on when diagnosing ACP spawn/init, floating chat, or session issues — Logger output (`[AcpClient]`, `[AcpHandler]`, etc.) only appears with DevTools open while this flag is enabled. Prefer enabling it over guessing from opaque UI errors.
 
-**Deploy flow:** after copy + reload, **enable Debug Mode** for verification, then **turn it off before finishing** the task (leave the user’s vault without debug logging left on).
+**Deploy flow:** after copy + reload, **enable Debug Mode** for verification, then **turn it off before finishing** the task (leave the user’s vault without debug logging left on). Stale CSS/layout escalation: see `obsidian-multi-vault-cli` global skill. `manifest.json` changes take effect on `plugin:reload` or `app:reload` — no full restart needed.
 
 Upstream sync: merge on `sync/upstream-<version>` (not rebase) from `upstream/master`, then ff-merge to `master`, push origin, deploy, delete temp branch. Prefer upstream for ACP/session/adapter core; prefer fork for local UX once it exists; ask on ambiguous overlaps.
 

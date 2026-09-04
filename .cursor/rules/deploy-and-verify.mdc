@@ -17,12 +17,15 @@ A feature task is **not done** until the plugin is deployed to the Obsidian vaul
    - Repo and vault `main.js` match (size/timestamp or grep for a new symbol/string)
    - `obsidian eval` confirms new settings or runtime behavior (Cursor ACP agents still listed)
 6. **Debug Mode for verify only:** enable `debugMode` (Settings → Developer Settings, or via `obsidian eval`) while checking the new build / ACP spawn logs, then **disable `debugMode` before marking the task done**. Do not leave debug logging on in the vault.
-7. Tell the user to **close and reopen** affected chat views; use `obsidian restart` if CSS or layout looks stale
+7. Tell the user to **close and reopen** affected chat views.
 
 Do not overwrite or clear vault `data.json` or `sessions/` during deploy.
+
+## Stale CSS/layout escalation
+
+See the global skill `obsidian-multi-vault-cli` for the escalation ladder — `app:reload` first, restart only as last resort with user consent. `manifest.json` changes take effect on `plugin:reload` or `app:reload`; no full restart needed.
 
 ## Do not skip
 
 - Never assume deploy succeeded from build output alone
-- If `manifest.json` changed, restart Obsidian (reload is not enough)
 - Out-of-vault workflow: the vault does not see repo changes until copy + reload
