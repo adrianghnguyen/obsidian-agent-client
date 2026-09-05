@@ -1,6 +1,5 @@
 import {
 	Plugin,
-	WorkspaceLeaf,
 	Notice,
 } from "obsidian";
 import { ChatView, VIEW_TYPE_CHAT } from "./ui/ChatView";
@@ -75,6 +74,7 @@ import { DEFAULT_SETTINGS } from "./services/default-settings";
 import { checkPluginForUpdates } from "./services/plugin-update-checker";
 import { AgentBlockProcessor } from "./services/agent-block-processor";
 import { FloatingChatHost } from "./services/floating-chat-host";
+import { ChatLeafHost } from "./services/chat-leaf";
 import { registerSessionScopedCommands } from "./commands/register-plugin-commands";
 import type { SavedSessionInfo } from "./types/session";
 import { initializeLogger, getLogger } from "./utils/logger";
@@ -115,6 +115,8 @@ export default class AgentClientPlugin extends Plugin {
 	private agentBlocks = new AgentBlockProcessor(this);
 	/** Floating chat window / tab orchestration */
 	private floatingChatHost = new FloatingChatHost(this);
+	/** Workspace leaf / ChatView activation helpers */
+	private chatLeaf = new ChatLeafHost(this);
 	/** Floating button container (independent from chat view instances) */
 	private floatingButton: FloatingButtonContainer | null = null;
 	/** Status-bar entry for floating chat (Session Manager hover popover) */
@@ -164,7 +166,7 @@ export default class AgentClientPlugin extends Plugin {
 			id: "focus-next-chat-view",
 			name: "Focus next chat view",
 			callback: () => {
-				this.focusChatView("next");
+				this.chatLeaf.focusChatView("next");
 			},
 		});
 
@@ -172,7 +174,7 @@ export default class AgentClientPlugin extends Plugin {
 			id: "focus-previous-chat-view",
 			name: "Focus previous chat view",
 			callback: () => {
-				this.focusChatView("previous");
+				this.chatLeaf.focusChatView("previous");
 			},
 		});
 
@@ -388,56 +390,12 @@ export default class AgentClientPlugin extends Plugin {
 		}
 	}
 
-	async activateView() {
-		const { workspace } = this.app;
-
-		let leaf: WorkspaceLeaf | null = null;
-		const leaves = workspace.getLeavesOfType(VIEW_TYPE_CHAT);
-
-		if (leaves.length > 0) {
-			// Find the leaf matching lastActiveChatViewId, or fall back to first leaf
-			const focusedId = this.lastActiveChatViewId;
-			if (focusedId) {
-				leaf =
-					leaves.find(
-						(l) => (l.view as ChatView)?.viewId === focusedId,
-					) || leaves[0];
-			} else {
-				leaf = leaves[0];
-			}
-		} else {
-			leaf = this.createNewChatLeaf(false);
-			if (leaf) {
-				await leaf.setViewState({
-					type: VIEW_TYPE_CHAT,
-					active: true,
-				});
-			}
-		}
-
-		if (leaf) {
-			await workspace.revealLeaf(leaf);
-			this.focusTextarea(leaf);
-		}
+	async activateView(): Promise<void> {
+		return this.chatLeaf.activateView();
 	}
 
 	async activateSessionManager(): Promise<void> {
-		const { workspace } = this.app;
-
-		const leaves = workspace.getLeavesOfType(VIEW_TYPE_SESSION_MANAGER);
-		if (leaves.length > 0) {
-			await workspace.revealLeaf(leaves[0]);
-			return;
-		}
-
-		const leaf = workspace.getLeftLeaf(false);
-		if (leaf) {
-			await leaf.setViewState({
-				type: VIEW_TYPE_SESSION_MANAGER,
-				active: true,
-			});
-			await workspace.revealLeaf(leaf);
-		}
+		return this.chatLeaf.activateSessionManager();
 	}
 
 	/**
@@ -446,92 +404,7 @@ export default class AgentClientPlugin extends Plugin {
 	 * need to know the concrete container class.
 	 */
 	closeView(viewId: string): void {
-		this.viewRegistry.get(viewId)?.closeContainer();
-	}
-
-	/**
-	 * Focus the textarea in a ChatView leaf.
-	 */
-	private focusTextarea(leaf: WorkspaceLeaf): void {
-		const viewContainerEl = leaf.view?.containerEl;
-		if (viewContainerEl) {
-			window.setTimeout(() => {
-				const textarea = viewContainerEl.querySelector(
-					"textarea.agent-client-chat-input-textarea",
-				);
-				if (textarea instanceof HTMLTextAreaElement) {
-					textarea.focus();
-				}
-			}, 50);
-		}
-	}
-
-	/**
-	 * Focus the next or previous ChatView in the list.
-	 * Uses ChatViewRegistry which includes both sidebar and floating views.
-	 */
-	private focusChatView(direction: "next" | "previous"): void {
-		if (direction === "next") {
-			this.viewRegistry.focusNext();
-		} else {
-			this.viewRegistry.focusPrevious();
-		}
-	}
-
-	/**
-	 * Create a new leaf for ChatView based on the configured location setting.
-	 * @param isAdditional - true when opening additional views (e.g., Open New View)
-	 */
-	private createNewChatLeaf(isAdditional: boolean): WorkspaceLeaf | null {
-		const { workspace } = this.app;
-		const location = this.settings.chatViewLocation;
-
-		switch (location) {
-			case "right-tab":
-				if (isAdditional) {
-					return this.createSidebarTab("right");
-				}
-				return workspace.getRightLeaf(false);
-			case "right-split":
-				return workspace.getRightLeaf(isAdditional);
-			case "editor-tab":
-				return workspace.getLeaf("tab");
-			case "editor-split":
-				return workspace.getLeaf("split");
-			default:
-				return workspace.getRightLeaf(false);
-		}
-	}
-
-	/**
-	 * Create a new tab within an existing sidebar tab group.
-	 * Uses the parent of an existing chat leaf to add a sibling tab,
-	 * avoiding the vertical split caused by getRightLeaf(true).
-	 */
-	private createSidebarTab(side: "right" | "left"): WorkspaceLeaf | null {
-		const { workspace } = this.app;
-		const split =
-			side === "right" ? workspace.rightSplit : workspace.leftSplit;
-
-		// Find an existing chat leaf in this sidebar to get its tab group
-		const existingLeaves = workspace.getLeavesOfType(VIEW_TYPE_CHAT);
-		const sidebarLeaf = existingLeaves.find(
-			(leaf) => leaf.getRoot() === split,
-		);
-
-		if (sidebarLeaf) {
-			const tabGroup = sidebarLeaf.parent;
-			// Index is clamped by Obsidian, so a large value appends to the end
-			return workspace.createLeafInParent(
-				tabGroup,
-				Number.MAX_SAFE_INTEGER,
-			);
-		}
-
-		// Fallback: no existing chat leaf in sidebar, create first one
-		return side === "right"
-			? workspace.getRightLeaf(false)
-			: workspace.getLeftLeaf(false);
+		this.chatLeaf.closeView(viewId);
 	}
 
 	/**
@@ -542,38 +415,7 @@ export default class AgentClientPlugin extends Plugin {
 		agentId: string,
 		locationOverride?: "right-pane",
 	): Promise<string | null> {
-		const leaf =
-			locationOverride === "right-pane"
-				? this.createSidebarTab("right")
-				: this.createNewChatLeaf(true);
-		if (!leaf) {
-			getLogger().warn("[AgentClient] Failed to create new leaf");
-			return null;
-		}
-
-		await leaf.setViewState({
-			type: VIEW_TYPE_CHAT,
-			active: true,
-			state: { initialAgentId: agentId },
-		});
-
-		await this.app.workspace.revealLeaf(leaf);
-		const view = leaf.view as ChatView | null;
-		const viewId = view?.viewId ?? null;
-
-		// Focus textarea after revealing the leaf
-		const viewContainerEl = leaf.view?.containerEl;
-		if (viewContainerEl) {
-			window.setTimeout(() => {
-				const textarea = viewContainerEl.querySelector(
-					"textarea.agent-client-chat-input-textarea",
-				);
-				if (textarea instanceof HTMLTextAreaElement) {
-					textarea.focus();
-				}
-			}, 0);
-		}
-		return viewId;
+		return this.chatLeaf.openNewChatViewWithAgent(agentId, locationOverride);
 	}
 
 	/** Open a new floating chat window (or tab when tabs mode is enabled). */
