@@ -2167,6 +2167,16 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 }
 
+.agent-client-session-history-item-agent {
+	font-size: 12px;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 10em;
+	flex-shrink: 0;
+}
+
 .agent-client-session-history-item-cwd {
 	font-size: 12px;
 	color: var(--text-muted);
