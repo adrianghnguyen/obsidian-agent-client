@@ -27,7 +27,8 @@ function inputHasFocus(windowEl: HTMLDivElement): boolean {
 
 /**
  * Fade floating chat when the input is not focused: after the cursor leaves
- * the text box, wait X ms then fade. Focusing the text box restores opacity.
+ * the text box, wait X ms then fade. Clicking the window (including tabs) or
+ * focusing the text box restores full opacity.
  */
 export function useFloatingIdleOpacity(
 	plugin: AgentClientPlugin,
@@ -93,8 +94,16 @@ export function useFloatingIdleOpacity(
 			}
 		};
 
+		const onPointerDown = () => {
+			showOpaque();
+			if (!inputHasFocus(windowEl)) {
+				scheduleFade();
+			}
+		};
+
 		windowEl.addEventListener("focusin", onFocusIn);
 		windowEl.addEventListener("focusout", onFocusOut);
+		windowEl.addEventListener("pointerdown", onPointerDown);
 
 		if (!inputHasFocus(windowEl)) {
 			scheduleFade();
@@ -104,6 +113,7 @@ export function useFloatingIdleOpacity(
 			clearTimer();
 			windowEl.removeEventListener("focusin", onFocusIn);
 			windowEl.removeEventListener("focusout", onFocusOut);
+			windowEl.removeEventListener("pointerdown", onPointerDown);
 			target.classList.remove(IDLE_CLASS);
 		};
 	}, [
