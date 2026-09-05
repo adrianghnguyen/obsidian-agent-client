@@ -19,6 +19,7 @@ import { ChatContextProvider } from "./ChatContext";
 
 // Component imports
 import { ChatPanel, type ChatPanelCallbacks } from "./ChatPanel";
+import { ChatPanelDelegate } from "./chat-panel-delegate";
 
 // Service imports
 import { VaultService } from "../services/vault-service";
@@ -102,7 +103,7 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	vaultService!: VaultService;
 
 	// Callbacks from ChatPanel for IChatViewContainer delegation
-	private callbacks: ChatPanelCallbacks | null = null;
+	private panelDelegate = new ChatPanelDelegate();
 
 	constructor(leaf: WorkspaceLeaf, plugin: AgentClientPlugin) {
 		super(leaf);
@@ -178,23 +179,23 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	 * Register callbacks from ChatPanel for IChatViewContainer delegation.
 	 */
 	setCallbacks(callbacks: ChatPanelCallbacks): void {
-		this.callbacks = callbacks;
+		this.panelDelegate.setCallbacks(callbacks);
 	}
 
 	getDisplayName(): string {
-		return this.callbacks?.getDisplayName() ?? "Chat";
+		return this.panelDelegate.getDisplayName();
 	}
 
 	getSessionStatus(): SessionStatus {
-		return this.callbacks?.getSessionStatus() ?? "disconnected";
+		return this.panelDelegate.getSessionStatus();
 	}
 
 	getSessionTitle(): string {
-		return this.callbacks?.getSessionTitle() ?? "New session";
+		return this.panelDelegate.getSessionTitle();
 	}
 
 	getSessionId(): string | null {
-		return this.callbacks?.getSessionId() ?? null;
+		return this.panelDelegate.getSessionId();
 	}
 
 	closeContainer(): void {
@@ -212,35 +213,35 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	 * Returns null if React component not mounted.
 	 */
 	getInputState(): ChatInputState | null {
-		return this.callbacks?.getInputState() ?? null;
+		return this.panelDelegate.getInputState();
 	}
 
 	/**
 	 * Set input state (text + images).
 	 */
 	setInputState(state: ChatInputState): void {
-		this.callbacks?.setInputState(state);
+		this.panelDelegate.setInputState(state);
 	}
 
 	/**
 	 * Trigger send message. Returns true if message was sent.
 	 */
 	async sendMessage(): Promise<boolean> {
-		return (await this.callbacks?.sendMessage()) ?? false;
+		return this.panelDelegate.sendMessage();
 	}
 
 	/**
 	 * Check if this view can send a message.
 	 */
 	canSend(): boolean {
-		return this.callbacks?.canSend() ?? false;
+		return this.panelDelegate.canSend();
 	}
 
 	/**
 	 * Cancel current operation.
 	 */
 	async cancelOperation(): Promise<void> {
-		await this.callbacks?.cancelOperation();
+		await this.panelDelegate.cancelOperation();
 	}
 
 	// ============================================================

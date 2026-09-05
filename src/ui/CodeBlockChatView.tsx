@@ -6,6 +6,7 @@ import { MarkdownView, type WorkspaceLeaf } from "obsidian";
 import type AgentClientPlugin from "../plugin";
 import { ChatContextProvider } from "./ChatContext";
 import { ChatPanel, type ChatPanelCallbacks } from "./ChatPanel";
+import { ChatPanelDelegate } from "./chat-panel-delegate";
 import { VaultService } from "../services/vault-service";
 import type { AgentChatBlockConfig } from "../utils/agent-block-parser";
 import type {
@@ -122,7 +123,7 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 	private plugin: AgentClientPlugin;
 	private containerEl: HTMLElement;
 	private root: Root | null = null;
-	private callbacks: ChatPanelCallbacks | null = null;
+	private panelDelegate = new ChatPanelDelegate();
 
 	constructor(
 		plugin: AgentClientPlugin,
@@ -149,7 +150,7 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 				config={config}
 				mountCtx={mountCtx}
 				onRegisterCallbacks={(cbs) => {
-					this.callbacks = cbs;
+					this.panelDelegate.setCallbacks(cbs);
 				}}
 			/>,
 		);
@@ -173,19 +174,19 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 	// ============================================================
 
 	getDisplayName(): string {
-		return this.callbacks?.getDisplayName() ?? "Chat";
+		return this.panelDelegate.getDisplayName();
 	}
 
 	getSessionStatus(): SessionStatus {
-		return this.callbacks?.getSessionStatus() ?? "disconnected";
+		return this.panelDelegate.getSessionStatus();
 	}
 
 	getSessionTitle(): string {
-		return this.callbacks?.getSessionTitle() ?? "New session";
+		return this.panelDelegate.getSessionTitle();
 	}
 
 	getSessionId(): string | null {
-		return this.callbacks?.getSessionId() ?? null;
+		return this.panelDelegate.getSessionId();
 	}
 
 	onActivate(): void {
@@ -287,23 +288,23 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 	closeContainer(): void {}
 
 	getInputState(): ChatInputState | null {
-		return this.callbacks?.getInputState() ?? null;
+		return this.panelDelegate.getInputState();
 	}
 
 	setInputState(state: ChatInputState): void {
-		this.callbacks?.setInputState(state);
+		this.panelDelegate.setInputState(state);
 	}
 
 	canSend(): boolean {
-		return this.callbacks?.canSend() ?? false;
+		return this.panelDelegate.canSend();
 	}
 
 	async sendMessage(): Promise<boolean> {
-		return (await this.callbacks?.sendMessage()) ?? false;
+		return this.panelDelegate.sendMessage();
 	}
 
 	async cancelOperation(): Promise<void> {
-		await this.callbacks?.cancelOperation();
+		await this.panelDelegate.cancelOperation();
 	}
 
 	getContainerEl(): HTMLElement {
