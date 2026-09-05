@@ -1,5 +1,5 @@
 import * as React from "react";
-const { useState, useRef, useEffect, useCallback, useMemo } = React;
+const { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } = React;
 import { useSyncExternalStore } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
@@ -760,14 +760,14 @@ function FloatingChatComponent({
 	const dragOffset = useRef({ x: 0, y: 0 });
 	const containerRef = useRef<HTMLDivElement | null>(null);
 
-	const setWindowRef = useCallback((el: HTMLDivElement | null) => {
-		containerRef.current = el;
-		setContainerEl(el);
-	}, []);
+	// Keep containerEl in sync after the object ref attaches.
+	useLayoutEffect(() => {
+		setContainerEl(containerRef.current);
+	});
 
 	usePersistFloatingLayout(plugin, size, position, onRegisterPersist);
 
-	useFloatingIdleOpacity(plugin, containerRef, isExpanded);
+	useFloatingIdleOpacity(plugin, containerEl, isExpanded);
 
 	// Notify parent of expanded state changes
 	useEffect(() => {
@@ -911,7 +911,7 @@ function FloatingChatComponent({
 	// ============================================================
 	return (
 		<div
-			ref={setWindowRef}
+			ref={containerRef}
 			className="agent-client-floating-window"
 			style={{
 				left: position.x,
@@ -1080,15 +1080,21 @@ function FloatingTabbedShellComponent({
 	const [isDragging, setIsDragging] = useState(false);
 	const dragOffset = useRef({ x: 0, y: 0 });
 	const containerRef = useRef<HTMLDivElement | null>(null);
+	const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
 	const activeTabIdRef = useRef<string | null>(null);
 	const isExpandedRef = useRef(isExpanded);
 	const showMenuByTabRef = useRef(
 		new Map<string, (e: React.MouseEvent<HTMLElement>) => void>(),
 	);
 
+	// Keep containerEl in sync after the object ref attaches.
+	useLayoutEffect(() => {
+		setContainerEl(containerRef.current);
+	});
+
 	usePersistFloatingLayout(plugin, size, position, onRegisterPersist);
 
-	useFloatingIdleOpacity(plugin, containerRef, isExpanded);
+	useFloatingIdleOpacity(plugin, containerEl, isExpanded);
 
 	const registerTabShowMenu = useCallback(
 		(

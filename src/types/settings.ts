@@ -125,8 +125,9 @@ export interface AgentClientPluginSettings {
 	floatingWindowLastPosition: { x: number; y: number } | null;
 	floatingButtonPosition: { x: number; y: number } | null;
 	/**
-	 * Fade the floating window this many ms after the input loses focus
-	 * (or the user clicks elsewhere in the window). 0 disables idle transparency.
+	 * Fade the floating window this many ms after engagement ends (pointer
+	 * leaves, focus leaves the window, and any pointer gesture ends).
+	 * 0 disables idle transparency.
 	 */
 	floatingIdleTimeoutMs: number;
 	/**

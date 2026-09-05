@@ -5,7 +5,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## [Unreleased]
 
 ### Added
-- **Floating chat idle transparency.** Optionally fade the floating window when the cursor leaves the input, after a configurable delay. **Idle opacity (%)** controls how visible the faded window stays (slider + number; lower = more transparent). Clicking the window or a tab restores full opacity. Set fade delay to 0 to disable.
+- **Floating chat idle transparency.** Optionally fade the floating window after you leave it (pointer out, no focus inside), after a configurable delay. Hover, scroll, focus inside, or drag/resize keeps it opaque. **Idle opacity (%)** controls how visible the faded window stays (slider + number; lower = more transparent). Set fade delay to 0 to disable.
 
 ## 0.17.0
 

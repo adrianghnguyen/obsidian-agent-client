@@ -1012,7 +1012,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						new Setting(nestedEl)
 							.setName("Idle fade delay (ms)")
 							.setDesc(
-								`Fade the floating window this many ms after the cursor leaves the input. Set to 0 to disable (max ${FLOATING_IDLE_TIMEOUT_MAX_MS}).`,
+								`Fade the floating window this many ms after you leave it (pointer out, no focus inside). Hover, scroll, or focus keeps it opaque. Set to 0 to disable (max ${FLOATING_IDLE_TIMEOUT_MAX_MS}).`,
 							)
 							.addText((text) =>
 								text

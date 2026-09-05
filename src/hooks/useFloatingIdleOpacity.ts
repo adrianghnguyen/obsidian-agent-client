@@ -1,8 +1,23 @@
-import { useLayoutEffect, type RefObject } from "react";
+/**
+ * Floating chat idle transparency.
+ *
+ * Engaged (stay opaque, clear timer) while any of:
+ * - Pointer is inside the floating window (pointerenter / pointerleave on windowEl)
+ * - Focus is inside the floating window (windowEl.contains(document.activeElement)
+ *   on focusin / focusout)
+ * - An active pointer gesture started on the window (pointerdown → latch until
+ *   pointerup / pointercancel on document) — covers drag, resize, text selection
+ *   that briefly leaves the bounds
+ * - Scroll/wheel activity inside the window (wheel + scroll capture) —
+ *   belt-and-suspenders with hover; also refreshes opacity if already faded while
+ *   scrolling under the cursor
+ *
+ * Schedule fade only when none of the above remain true.
+ */
+import { useLayoutEffect } from "react";
 import type AgentClientPlugin from "../plugin";
 import { useSettings } from "./useSettings";
 
-const TEXTAREA_SELECTOR = "textarea.agent-client-chat-input-textarea";
 const IDLE_OPACITY_VAR = "--agent-client-floating-idle-opacity";
 const IDLE_CLASS = "is-idle-transparent";
 const VIEW_ROOT_SELECTOR = ".agent-client-floating-view-root";
@@ -11,28 +26,22 @@ function resolveIdleTarget(windowEl: HTMLDivElement): HTMLElement {
 	return windowEl.closest<HTMLElement>(VIEW_ROOT_SELECTOR) ?? windowEl;
 }
 
-function isChatTextarea(
-	target: EventTarget | null,
-): target is HTMLTextAreaElement {
-	return (
-		target instanceof HTMLTextAreaElement &&
-		target.matches(TEXTAREA_SELECTOR)
-	);
-}
-
-function inputHasFocus(windowEl: HTMLDivElement): boolean {
+function windowHasFocus(windowEl: HTMLDivElement): boolean {
 	const active = document.activeElement;
-	return isChatTextarea(active) && windowEl.contains(active);
+	return active instanceof Node && windowEl.contains(active);
 }
 
 /**
- * Fade floating chat when the input is not focused: after the cursor leaves
- * the text box, wait X ms then fade. Clicking the window (including tabs) or
- * focusing the text box restores full opacity.
+ * Fade floating chat when the user is no longer engaged with the window:
+ * after pointer leaves, focus leaves, and any pointer gesture ends, wait X ms
+ * then fade. Hover, scroll, focus inside, or interacting restores full opacity.
+ *
+ * `windowEl` must be the mounted floating window node (not only a ref) so the
+ * effect rebinds when React attaches the DOM node.
  */
 export function useFloatingIdleOpacity(
 	plugin: AgentClientPlugin,
-	containerRef: RefObject<HTMLDivElement | null>,
+	windowEl: HTMLDivElement | null,
 	isExpanded: boolean,
 ): void {
 	const { floatingIdleTimeoutMs: timeoutMs, floatingIdleOpacityPercent: opacityPercent } =
@@ -40,7 +49,6 @@ export function useFloatingIdleOpacity(
 	const featureEnabled = timeoutMs > 0;
 
 	useLayoutEffect(() => {
-		const windowEl = containerRef.current;
 		if (!windowEl) return;
 
 		const target = resolveIdleTarget(windowEl);
@@ -60,6 +68,8 @@ export function useFloatingIdleOpacity(
 		}
 
 		let timer: ReturnType<typeof setTimeout> | null = null;
+		let pointerInside = false;
+		let gestureActive = false;
 
 		const clearTimer = () => {
 			if (timer !== null) {
@@ -67,6 +77,9 @@ export function useFloatingIdleOpacity(
 				timer = null;
 			}
 		};
+
+		const isEngaged = () =>
+			pointerInside || gestureActive || windowHasFocus(windowEl);
 
 		const showOpaque = () => {
 			clearTimer();
@@ -76,44 +89,89 @@ export function useFloatingIdleOpacity(
 		const scheduleFade = () => {
 			clearTimer();
 			timer = setTimeout(() => {
-				if (!inputHasFocus(windowEl)) {
+				if (!isEngaged()) {
 					target.classList.add(IDLE_CLASS);
 				}
 			}, timeoutMs);
 		};
 
-		const onFocusIn = (e: FocusEvent) => {
-			if (isChatTextarea(e.target)) {
+		const syncIdle = () => {
+			if (isEngaged()) {
+				showOpaque();
+			} else {
+				scheduleFade();
+			}
+		};
+
+		const onPointerEnter = () => {
+			pointerInside = true;
+			showOpaque();
+		};
+
+		const onPointerLeave = () => {
+			pointerInside = false;
+			syncIdle();
+		};
+
+		const onFocusIn = () => {
+			showOpaque();
+		};
+
+		const onFocusOut = () => {
+			// focusout fires before activeElement updates; defer to next tick
+			queueMicrotask(syncIdle);
+		};
+
+		const onPointerUp = () => {
+			gestureActive = false;
+			document.removeEventListener("pointerup", onPointerUp, true);
+			document.removeEventListener("pointercancel", onPointerUp, true);
+			syncIdle();
+		};
+
+		const onPointerDown = () => {
+			gestureActive = true;
+			showOpaque();
+			document.addEventListener("pointerup", onPointerUp, true);
+			document.addEventListener("pointercancel", onPointerUp, true);
+		};
+
+		// Wheel implies the cursor is over the window (covers missed pointerenter).
+		const onWheel = () => {
+			pointerInside = true;
+			showOpaque();
+		};
+
+		// User scroll while already engaged; ignore programmatic scroll when idle.
+		const onScroll = () => {
+			if (isEngaged()) {
 				showOpaque();
 			}
 		};
 
-		const onFocusOut = (e: FocusEvent) => {
-			if (isChatTextarea(e.target)) {
-				scheduleFade();
-			}
-		};
-
-		const onPointerDown = () => {
-			showOpaque();
-			if (!inputHasFocus(windowEl)) {
-				scheduleFade();
-			}
-		};
-
+		windowEl.addEventListener("pointerenter", onPointerEnter);
+		windowEl.addEventListener("pointerleave", onPointerLeave);
 		windowEl.addEventListener("focusin", onFocusIn);
 		windowEl.addEventListener("focusout", onFocusOut);
 		windowEl.addEventListener("pointerdown", onPointerDown);
+		windowEl.addEventListener("wheel", onWheel, { capture: true });
+		windowEl.addEventListener("scroll", onScroll, { capture: true });
 
-		if (!inputHasFocus(windowEl)) {
+		if (!isEngaged()) {
 			scheduleFade();
 		}
 
 		return () => {
 			clearTimer();
+			document.removeEventListener("pointerup", onPointerUp, true);
+			document.removeEventListener("pointercancel", onPointerUp, true);
+			windowEl.removeEventListener("pointerenter", onPointerEnter);
+			windowEl.removeEventListener("pointerleave", onPointerLeave);
 			windowEl.removeEventListener("focusin", onFocusIn);
 			windowEl.removeEventListener("focusout", onFocusOut);
 			windowEl.removeEventListener("pointerdown", onPointerDown);
+			windowEl.removeEventListener("wheel", onWheel, true);
+			windowEl.removeEventListener("scroll", onScroll, true);
 			target.classList.remove(IDLE_CLASS);
 		};
 	}, [
@@ -121,6 +179,6 @@ export function useFloatingIdleOpacity(
 		isExpanded,
 		timeoutMs,
 		opacityPercent,
-		containerRef,
+		windowEl,
 	]);
 }
