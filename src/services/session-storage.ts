@@ -111,6 +111,10 @@ export class SessionStorage {
 	/**
 	 * Save a session to local storage.
 	 *
+	 * `info.agentId` is required — it is the durable harness identity for
+	 * Session History display and cross-agent restore. Callers must pass the
+	 * live connected agent id on create and on full replace.
+	 *
 	 * Updates existing session if sessionId matches.
 	 * Maintains max 50 sessions, removing oldest when exceeded.
 	 */
@@ -280,6 +284,7 @@ export class SessionStorage {
 	 * Update fields of an existing saved session.
 	 * Silently no-op if the session does not exist (no create).
 	 * `updatedAt` is set to now unless explicitly provided in `patch`.
+	 * Prefer including `agentId` on activity bumps so legacy rows heal.
 	 */
 	async updateSession(
 		sessionId: string,

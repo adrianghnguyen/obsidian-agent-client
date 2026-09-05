@@ -5,6 +5,8 @@ import {
 	toHistorySessionInfos,
 	mergeAgentListWithLocalHistory,
 	executeHistoryRestore,
+	buildHistoryActivityPatch,
+	buildMissingHistoryIndexEntry,
 } from "../src/services/session-history-restore";
 
 const CWD = "/vault";
@@ -116,6 +118,99 @@ describe("session history harness recall", () => {
 				agentDisplayName: "Harness B",
 				title: "Codex conversation",
 				cwd: CWD,
+			});
+		});
+
+		it("uses fallbackAgentId for agent-list rows with no local match", () => {
+			const agentList: SessionInfo[] = [
+				{
+					sessionId: "agent-only",
+					cwd: CWD,
+					title: "Untitled Session",
+					updatedAt: "2026-04-01T00:00:00.000Z",
+				},
+			];
+
+			const merged = mergeAgentListWithLocalHistory(
+				agentList,
+				[],
+				resolveDisplayName,
+				"harness-a",
+			);
+
+			expect(merged).toHaveLength(1);
+			expect(merged[0]).toMatchObject({
+				sessionId: "agent-only",
+				agentId: "harness-a",
+				agentDisplayName: "Harness A",
+			});
+		});
+
+		it("prefers local agentId over fallbackAgentId", () => {
+			const agentList: SessionInfo[] = [
+				{
+					sessionId: "sess-b",
+					cwd: CWD,
+					title: "From agent list",
+				},
+			];
+
+			const merged = mergeAgentListWithLocalHistory(
+				agentList,
+				[harnessB],
+				resolveDisplayName,
+				"harness-a",
+			);
+
+			expect(merged[0]?.agentId).toBe("harness-b");
+			expect(merged[0]?.agentDisplayName).toBe("Harness B");
+		});
+		it("uses fallbackAgentId when agent-list agentId is empty string", () => {
+			const agentList: SessionInfo[] = [
+				{
+					sessionId: "empty-agent",
+					cwd: CWD,
+					title: "Untitled",
+					agentId: "",
+				},
+			];
+
+			const merged = mergeAgentListWithLocalHistory(
+				agentList,
+				[],
+				resolveDisplayName,
+				"harness-a",
+			);
+
+			expect(merged[0]?.agentId).toBe("harness-a");
+			expect(merged[0]?.agentDisplayName).toBe("Harness A");
+		});
+	});
+
+	describe("history activity writes", () => {
+		it("buildHistoryActivityPatch stamps agentId and updatedAt", () => {
+			const now = "2026-05-01T12:00:00.000Z";
+			expect(buildHistoryActivityPatch("harness-b", now)).toEqual({
+				agentId: "harness-b",
+				updatedAt: now,
+			});
+		});
+
+		it("buildMissingHistoryIndexEntry creates a durable index row", () => {
+			const now = "2026-05-01T12:00:00.000Z";
+			expect(
+				buildMissingHistoryIndexEntry(
+					"sess-new",
+					"harness-a",
+					CWD,
+					now,
+				),
+			).toEqual({
+				sessionId: "sess-new",
+				agentId: "harness-a",
+				cwd: CWD,
+				createdAt: now,
+				updatedAt: now,
 			});
 		});
 	});

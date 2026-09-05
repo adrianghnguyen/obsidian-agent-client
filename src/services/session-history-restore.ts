@@ -69,11 +69,16 @@ export function toHistorySessionInfos(
  * Merge agent session/list rows with local metadata, stamp agentId from
  * local matches, and append local sessions from other harnesses that the
  * live agent did not return.
+ *
+ * `fallbackAgentId` covers agent/list rows with no local index yet (ACP does
+ * not send plugin harness ids). Prefer durable writes via
+ * {@link buildHistoryActivityPatch} / saveSession when the user continues.
  */
 export function mergeAgentListWithLocalHistory(
 	agentSessions: SessionInfo[],
 	localSessions: SavedSessionInfo[],
 	resolveDisplayName?: (agentId: string) => string | undefined,
+	fallbackAgentId?: string,
 ): SessionInfo[] {
 	const localMap = new Map(localSessions.map((s) => [s.sessionId, s]));
 	const seen = new Set<string>();
@@ -81,7 +86,7 @@ export function mergeAgentListWithLocalHistory(
 	const merged: SessionInfo[] = agentSessions.map((s) => {
 		seen.add(s.sessionId);
 		const local = localMap.get(s.sessionId);
-		const agentId = local?.agentId ?? s.agentId;
+		const agentId = local?.agentId || s.agentId || fallbackAgentId;
 		return {
 			...s,
 			title: local?.title ?? s.title,
@@ -105,6 +110,36 @@ export function mergeAgentListWithLocalHistory(
 	}
 
 	return merged;
+}
+
+/**
+ * Turn-end / activity patch for savedSessions: always stamp the live harness
+ * so history metadata heals agentId on next write (upstream-friendly).
+ */
+export function buildHistoryActivityPatch(
+	agentId: string,
+	now: string = new Date().toISOString(),
+): Pick<SavedSessionInfo, "agentId" | "updatedAt"> {
+	return { agentId, updatedAt: now };
+}
+
+/**
+ * Create a minimal index row when turn-end runs before saveSessionLocally
+ * (e.g. restore-from-agent then continue).
+ */
+export function buildMissingHistoryIndexEntry(
+	sessionId: string,
+	agentId: string,
+	cwd: string,
+	now: string = new Date().toISOString(),
+): SavedSessionInfo {
+	return {
+		sessionId,
+		agentId,
+		cwd,
+		createdAt: now,
+		updatedAt: now,
+	};
 }
 
 /**

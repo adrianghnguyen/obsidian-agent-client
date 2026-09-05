@@ -8,6 +8,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Session History recalls agent harness.** History lists sessions from all agents (for the current vault filter), shows which agent each session used, and switches to that agent before restore so cross-agent restore succeeds.
 - **Floating chat idle transparency.** Optionally fade the floating window after you leave it (pointer out, no focus inside), after a configurable delay. Hover, scroll, focus inside, or drag/resize keeps it opaque. **Idle opacity (%)** controls how visible the faded window stays (slider + number; lower = more transparent). Set fade delay to 0 to disable.
 
+### Fixed
+- **Session History harness chip.** Each row shows the agent in a muted chip; turn-end history writes always stamp the harness id, and agent-list rows without local data fall back to the current agent for display.
+
 ## 0.17.0
 
 - Settings: reorganized into expandable sections (Getting started, Agents, Chat & input, Floating chat, Behavior, Export, Voice input, Developer) so common options are easier to find; agents sit near the top.

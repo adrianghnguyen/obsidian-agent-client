@@ -15,6 +15,8 @@ import { getCurrentAgent } from "../services/session-helpers";
 import {
 	toHistorySessionInfos,
 	mergeAgentListWithLocalHistory,
+	buildHistoryActivityPatch,
+	buildMissingHistoryIndexEntry,
 } from "../services/session-history-restore";
 import { extractErrorMessage } from "../utils/error-utils";
 import { truncateTitle } from "../utils/text";
@@ -299,12 +301,14 @@ export function useSessionHistory(
 
 			// All harnesses — history must recall agentId across agents.
 			const localSessions = settingsAccess.getSavedSessions();
+			const fallbackAgentId = session.agentId;
 			setSessions((prev) => {
 				if (prev.length === 0) return prev;
 				const merged = mergeAgentListWithLocalHistory(
 					prev,
 					localSessions,
 					resolveDisplayName,
+					fallbackAgentId,
 				);
 				const unchanged =
 					merged.length === prev.length &&
@@ -318,7 +322,7 @@ export function useSessionHistory(
 			});
 			setLocalSessionIds(new Set(localSessions.map((s) => s.sessionId)));
 		});
-	}, [settingsAccess, resolveDisplayName]);
+	}, [settingsAccess, resolveDisplayName, session.agentId]);
 
 	/**
 	 * Check if cache is valid.
@@ -392,6 +396,7 @@ export function useSessionHistory(
 					cacheRef.current!.sessions,
 					localSessions,
 					resolveDisplayName,
+					session.agentId,
 				);
 				setSessions(sessionsWithLocal);
 				setNextCursor(cacheRef.current!.nextCursor);
@@ -415,6 +420,7 @@ export function useSessionHistory(
 					result.sessions,
 					localSessions,
 					resolveDisplayName,
+					session.agentId,
 				);
 
 				setSessions(sessionsWithLocal);
@@ -445,6 +451,7 @@ export function useSessionHistory(
 			isCacheValid,
 			settingsAccess,
 			resolveDisplayName,
+			session.agentId,
 		],
 	);
 
@@ -475,6 +482,7 @@ export function useSessionHistory(
 				result.sessions,
 				localSessions,
 				resolveDisplayName,
+				session.agentId,
 			);
 			// Pagination append: only add rows not already shown (cross-harness
 			// locals were already merged on the first page).
@@ -507,6 +515,7 @@ export function useSessionHistory(
 		nextCursor,
 		settingsAccess,
 		resolveDisplayName,
+		session.agentId,
 	]);
 
 	/**
@@ -791,9 +800,9 @@ export function useSessionHistory(
 	 * Called when a turn ends (agent response complete).
 	 * Fire-and-forget (does not block UI).
 	 *
-	 * Also bumps the session's `updatedAt` metadata so that
-	 * `getSavedSessions()` (sorted by updatedAt desc) reflects actual
-	 * activity rather than just session-creation time (#257).
+	 * Also bumps the session's `updatedAt` metadata and re-stamps `agentId`
+	 * so harness identity heals on activity. If the index row is missing
+	 * (restore-from-agent then continue), creates a minimal entry.
 	 */
 	const saveSessionMessages = useCallback(
 		(
@@ -809,15 +818,25 @@ export function useSessionHistory(
 				messages,
 			);
 
-			// Bump updatedAt on session metadata so "last used" ordering
-			// reflects real activity. `updateSession` is a no-op if the entry
-			// hasn't landed yet — saveSessionLocally will create it on the
-			// first-message path.
-			void settingsAccess.updateSession(sessionId, {
-				updatedAt: new Date().toISOString(),
-			});
+			const existing = settingsAccess
+				.getSavedSessions()
+				.find((s) => s.sessionId === sessionId);
+			if (existing) {
+				void settingsAccess.updateSession(
+					sessionId,
+					buildHistoryActivityPatch(session.agentId),
+				);
+			} else {
+				void settingsAccess.saveSession(
+					buildMissingHistoryIndexEntry(
+						sessionId,
+						session.agentId,
+						agentCwd,
+					),
+				);
+			}
 		},
-		[session.agentId, settingsAccess],
+		[session.agentId, agentCwd, settingsAccess],
 	);
 
 	return useMemo(
