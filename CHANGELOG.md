@@ -5,6 +5,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## [Unreleased]
 
 ### Added
+- **Session History recalls agent harness.** History lists sessions from all agents (for the current vault filter), shows which agent each session used, and switches to that agent before restore so cross-agent restore succeeds.
 - **Floating chat idle transparency.** Optionally fade the floating window when the cursor leaves the input, after a configurable delay. **Idle opacity (%)** controls how visible the faded window stays (slider + number; lower = more transparent). Clicking the window or a tab restores full opacity. Set fade delay to 0 to disable.
 
 ## 0.17.0

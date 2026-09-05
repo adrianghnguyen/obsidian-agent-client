@@ -11,6 +11,11 @@ import type {
 	AgentCapabilities,
 } from "../types/session";
 import type { ChatMessage } from "../types/chat";
+import { getCurrentAgent } from "../services/session-helpers";
+import {
+	toHistorySessionInfos,
+	mergeAgentListWithLocalHistory,
+} from "../services/session-history-restore";
 import { extractErrorMessage } from "../utils/error-utils";
 import { truncateTitle } from "../utils/text";
 
@@ -223,33 +228,6 @@ interface SessionCache {
 /** Cache expiry time in milliseconds (5 minutes) */
 const CACHE_EXPIRY_MS = 5 * 60 * 1000;
 
-/**
- * Merge agent sessions with locally saved titles.
- * Prefers local titles over agent-provided titles for better UX.
- *
- * Some agents return poor quality titles (e.g., "ACP Session {id}" or
- * system prompt text), so we prefer locally saved titles when available.
- *
- * @param agentSessions - Sessions from agent's session/list
- * @param localSessions - Locally saved session metadata
- * @returns Sessions with local titles merged in
- */
-function mergeWithLocalTitles(
-	agentSessions: SessionInfo[],
-	localSessions: SavedSessionInfo[],
-): SessionInfo[] {
-	// Create a map for O(1) lookup
-	const localMap = new Map(localSessions.map((s) => [s.sessionId, s]));
-
-	return agentSessions.map((s) => {
-		const local = localMap.get(s.sessionId);
-		return {
-			...s,
-			title: local?.title ?? s.title,
-		};
-	});
-}
-
 // ============================================================================
 // Hook Implementation
 // ============================================================================
@@ -286,6 +264,12 @@ export function useSessionHistory(
 		[session.agentCapabilities],
 	);
 
+	const resolveDisplayName = useCallback(
+		(agentId: string) =>
+			getCurrentAgent(settingsAccess.getSnapshot(), agentId).displayName,
+		[settingsAccess],
+	);
+
 	// State
 	const [sessions, setSessions] = useState<SessionInfo[]>([]);
 	const [loading, setLoading] = useState(false);
@@ -313,21 +297,28 @@ export function useSessionHistory(
 			if (next === lastSavedSessionsRef.current) return;
 			lastSavedSessionsRef.current = next;
 
-			const localSessions = settingsAccess.getSavedSessions(
-				session.agentId,
-			);
+			// All harnesses — history must recall agentId across agents.
+			const localSessions = settingsAccess.getSavedSessions();
 			setSessions((prev) => {
 				if (prev.length === 0) return prev;
-				const merged = mergeWithLocalTitles(prev, localSessions);
-				// Skip render if no title actually changed
+				const merged = mergeAgentListWithLocalHistory(
+					prev,
+					localSessions,
+					resolveDisplayName,
+				);
 				const unchanged =
 					merged.length === prev.length &&
-					merged.every((s, i) => s.title === prev[i].title);
+					merged.every(
+						(s, i) =>
+							s.title === prev[i].title &&
+							s.agentId === prev[i].agentId &&
+							s.agentDisplayName === prev[i].agentDisplayName,
+					);
 				return unchanged ? prev : merged;
 			});
 			setLocalSessionIds(new Set(localSessions.map((s) => s.sessionId)));
 		});
-	}, [settingsAccess, session.agentId]);
+	}, [settingsAccess, resolveDisplayName]);
 
 	/**
 	 * Check if cache is valid.
@@ -369,19 +360,15 @@ export function useSessionHistory(
 				!capabilities.canList || !canPerformAnyOperation;
 
 			if (shouldUseLocalSessions) {
-				// Get locally saved sessions for this agent
+				// All harnesses for this cwd — history recalls agentId on restore.
 				const localSessions = settingsAccess.getSavedSessions(
-					session.agentId,
+					undefined,
 					cwd,
 				);
-
-				// Convert SavedSessionInfo to SessionInfo format
-				const sessionInfos: SessionInfo[] = localSessions.map((s) => ({
-					sessionId: s.sessionId,
-					cwd: s.cwd,
-					title: s.title,
-					updatedAt: s.updatedAt,
-				}));
+				const sessionInfos = toHistorySessionInfos(
+					localSessions,
+					resolveDisplayName,
+				);
 
 				setSessions(sessionInfos);
 				setLocalSessionIds(
@@ -394,20 +381,19 @@ export function useSessionHistory(
 
 			// Check cache first
 			if (isCacheValid(cwd)) {
-				// Update localSessionIds even on cache hit
 				const localSessions = settingsAccess.getSavedSessions(
-					session.agentId,
+					undefined,
 					cwd,
 				);
 				setLocalSessionIds(
 					new Set(localSessions.map((s) => s.sessionId)),
 				);
-				// Re-merge with local titles to pick up newly saved session titles
-				const sessionsWithLocalTitles = mergeWithLocalTitles(
+				const sessionsWithLocal = mergeAgentListWithLocalHistory(
 					cacheRef.current!.sessions,
 					localSessions,
+					resolveDisplayName,
 				);
-				setSessions(sessionsWithLocalTitles);
+				setSessions(sessionsWithLocal);
 				setNextCursor(cacheRef.current!.nextCursor);
 				setError(null);
 				return;
@@ -421,27 +407,24 @@ export function useSessionHistory(
 				const result: ListSessionsResult =
 					await agentClient.listSessions(cwd);
 
-				// Merge with local titles for better UX
-				// (some agents return poor quality titles)
 				const localSessions = settingsAccess.getSavedSessions(
-					session.agentId,
+					undefined,
 					cwd,
 				);
-				const sessionsWithLocalTitles = mergeWithLocalTitles(
+				const sessionsWithLocal = mergeAgentListWithLocalHistory(
 					result.sessions,
 					localSessions,
+					resolveDisplayName,
 				);
 
-				// Update state
-				setSessions(sessionsWithLocalTitles);
+				setSessions(sessionsWithLocal);
 				setLocalSessionIds(
 					new Set(localSessions.map((s) => s.sessionId)),
 				);
 				setNextCursor(result.nextCursor);
 
-				// Update cache (with merged titles)
 				cacheRef.current = {
-					sessions: sessionsWithLocalTitles,
+					sessions: sessionsWithLocal,
 					nextCursor: result.nextCursor,
 					cwd,
 					timestamp: Date.now(),
@@ -461,7 +444,7 @@ export function useSessionHistory(
 			canPerformAnyOperation,
 			isCacheValid,
 			settingsAccess,
-			session.agentId,
+			resolveDisplayName,
 		],
 	);
 
@@ -484,30 +467,30 @@ export function useSessionHistory(
 				nextCursor,
 			);
 
-			// Merge with local titles for better UX
-			// (some agents return poor quality titles)
 			const localSessions = settingsAccess.getSavedSessions(
-				session.agentId,
+				undefined,
 				currentCwdRef.current,
 			);
-			const sessionsWithLocalTitles = mergeWithLocalTitles(
+			const pageWithLocal = mergeAgentListWithLocalHistory(
 				result.sessions,
 				localSessions,
+				resolveDisplayName,
+			);
+			// Pagination append: only add rows not already shown (cross-harness
+			// locals were already merged on the first page).
+			const pageIds = new Set(result.sessions.map((s) => s.sessionId));
+			const stampedPage = pageWithLocal.filter((s) =>
+				pageIds.has(s.sessionId),
 			);
 
-			// Append new sessions to existing list (use functional setState)
-			setSessions((prev) => [...prev, ...sessionsWithLocalTitles]);
+			setSessions((prev) => [...prev, ...stampedPage]);
 			setLocalSessionIds(new Set(localSessions.map((s) => s.sessionId)));
 			setNextCursor(result.nextCursor);
 
-			// Update cache with appended sessions (with merged titles)
 			if (cacheRef.current) {
 				cacheRef.current = {
 					...cacheRef.current,
-					sessions: [
-						...cacheRef.current.sessions,
-						...sessionsWithLocalTitles,
-					],
+					sessions: [...cacheRef.current.sessions, ...stampedPage],
 					nextCursor: result.nextCursor,
 					timestamp: Date.now(),
 				};
@@ -523,7 +506,7 @@ export function useSessionHistory(
 		capabilities.canList,
 		nextCursor,
 		settingsAccess,
-		session.agentId,
+		resolveDisplayName,
 	]);
 
 	/**

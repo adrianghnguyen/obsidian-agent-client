@@ -17,6 +17,7 @@ import {
 	computeSessionTitle,
 	getDefaultAgentId,
 } from "../services/session-helpers";
+import { planHistoryRestore } from "../services/session-history-restore";
 import { useHistoryModal } from "../hooks/useHistoryModal";
 import { useChatActions } from "../hooks/useChatActions";
 import { ChangeDirectoryModal } from "./ChangeDirectoryModal";
@@ -890,13 +891,14 @@ export const ChatPanel = React.memo(function ChatPanel({
 		// first (adopting its cwd), then let this effect re-run to perform the
 		// load. setAgentCwd is safe here because the mount-init effect is
 		// guarded to run once (hasInitializedRef).
+		const restorePlan = planHistoryRestore(savedSession, session.agentId);
 		if (
-			savedSession.agentId !== session.agentId &&
+			restorePlan.action === "restart-then-restore" &&
 			!persistRestartedRef.current
 		) {
 			persistRestartedRef.current = true;
 			setAgentCwd(savedSession.cwd);
-			void agent.restartSession(savedSession.agentId, savedSession.cwd);
+			void agent.restartSession(restorePlan.agentId, restorePlan.cwd);
 			return;
 		}
 
