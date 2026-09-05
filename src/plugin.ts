@@ -59,6 +59,9 @@ import {
 	needsFloatingChatEntryMigration,
 	migrateFloatingWindowLayoutFields,
 	needsFloatingWindowLayoutMigration,
+	parseFloatingIdleTimeoutMs,
+	resolveFloatingIdleOpacityPercent,
+	needsFloatingIdleOpacityMigration,
 } from "./services/settings-normalizer";
 import { PRESET_AGENTS } from "./services/preset-agents";
 import { VoiceInputModule } from "./voice-input/VoiceInputModule";
@@ -206,6 +209,16 @@ export interface AgentClientPluginSettings {
 	/** Last position from drag; preferred over default on open. */
 	floatingWindowLastPosition: { x: number; y: number } | null;
 	floatingButtonPosition: { x: number; y: number } | null;
+	/**
+	 * Fade the floating window this many ms after the input loses focus
+	 * (or the user clicks elsewhere in the window). 0 disables idle transparency.
+	 */
+	floatingIdleTimeoutMs: number;
+	/**
+	 * How visible the floating window stays when faded (10–100%).
+	 * Lower values are more transparent. Only applies when floatingIdleTimeoutMs > 0.
+	 */
+	floatingIdleOpacityPercent: number;
 	/** Voice Input (Gemini Live) settings */
 	voiceInput: VoiceInputSettings;
 }
@@ -268,6 +281,8 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	floatingWindowLastSize: null,
 	floatingWindowLastPosition: null,
 	floatingButtonPosition: null,
+	floatingIdleTimeoutMs: 0,
+	floatingIdleOpacityPercent: 50,
 	voiceInput: { ...DEFAULT_VOICE_INPUT },
 };
 
@@ -1738,6 +1753,14 @@ export default class AgentClientPlugin extends Plugin {
 				D.floatingWindowDefaultSize,
 			),
 			floatingButtonPosition: xyPoint(raw.floatingButtonPosition),
+			floatingIdleTimeoutMs: parseFloatingIdleTimeoutMs(
+				raw.floatingIdleTimeoutMs,
+				D.floatingIdleTimeoutMs,
+			),
+			floatingIdleOpacityPercent: resolveFloatingIdleOpacityPercent(
+				raw as Record<string, unknown>,
+				D.floatingIdleOpacityPercent,
+			),
 			voiceInput: normalizeVoiceInputSettings(
 				obj(raw.voiceInput) as Partial<VoiceInputSettings> | undefined,
 			),
@@ -1750,7 +1773,8 @@ export default class AgentClientPlugin extends Plugin {
 			migratedSecrets ||
 			absorption.absorbed.length > 0 ||
 			needsFloatingChatEntryMigration(raw) ||
-			needsFloatingWindowLayoutMigration(raw)
+			needsFloatingWindowLayoutMigration(raw) ||
+			needsFloatingIdleOpacityMigration(raw as Record<string, unknown>)
 		) {
 			await this.saveSettings();
 		}

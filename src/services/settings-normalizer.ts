@@ -646,6 +646,81 @@ export function needsFloatingWindowLayoutMigration(
 	return false;
 }
 
+/** Max idle fade delay (10 minutes). */
+export const FLOATING_IDLE_TIMEOUT_MAX_MS = 600_000;
+/** Min idle opacity so the window stays hoverable. Lower = more transparent. */
+export const FLOATING_IDLE_OPACITY_MIN = 10;
+export const FLOATING_IDLE_OPACITY_MAX = 100;
+
+export function clampFloatingIdleTimeoutMs(value: number): number {
+	if (!Number.isFinite(value)) return 0;
+	return Math.min(
+		FLOATING_IDLE_TIMEOUT_MAX_MS,
+		Math.max(0, Math.round(value)),
+	);
+}
+
+export function clampFloatingIdleOpacityPercent(value: number): number {
+	if (!Number.isFinite(value)) return 50;
+	return Math.min(
+		FLOATING_IDLE_OPACITY_MAX,
+		Math.max(FLOATING_IDLE_OPACITY_MIN, Math.round(value)),
+	);
+}
+
+export function parseFloatingIdleTimeoutMs(
+	raw: unknown,
+	fallback: number,
+): number {
+	if (typeof raw !== "number" || !Number.isFinite(raw)) {
+		return clampFloatingIdleTimeoutMs(fallback);
+	}
+	return clampFloatingIdleTimeoutMs(raw);
+}
+
+export function parseFloatingIdleOpacityPercent(
+	raw: unknown,
+	fallback: number,
+): number {
+	if (typeof raw !== "number" || !Number.isFinite(raw)) {
+		return clampFloatingIdleOpacityPercent(fallback);
+	}
+	return clampFloatingIdleOpacityPercent(raw);
+}
+
+/**
+ * Resolve idle opacity from settings, migrating legacy transparency percent
+ * (higher = more transparent) to opacity percent (lower = more transparent).
+ */
+export function resolveFloatingIdleOpacityPercent(
+	raw: Record<string, unknown>,
+	fallback: number,
+): number {
+	if (raw.floatingIdleOpacityPercent !== undefined) {
+		return parseFloatingIdleOpacityPercent(
+			raw.floatingIdleOpacityPercent,
+			fallback,
+		);
+	}
+	if (raw.floatingIdleTransparencyPercent !== undefined) {
+		const legacy =
+			typeof raw.floatingIdleTransparencyPercent === "number"
+				? raw.floatingIdleTransparencyPercent
+				: 0;
+		return clampFloatingIdleOpacityPercent(100 - legacy);
+	}
+	return clampFloatingIdleOpacityPercent(fallback);
+}
+
+export function needsFloatingIdleOpacityMigration(
+	raw: Record<string, unknown>,
+): boolean {
+	return (
+		raw.floatingIdleTransparencyPercent !== undefined &&
+		raw.floatingIdleOpacityPercent === undefined
+	);
+}
+
 export const FLOATING_CHAT_ENTRIES: FloatingChatEntry[] = [
 	"off",
 	"button",
