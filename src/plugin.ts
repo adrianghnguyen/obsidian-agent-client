@@ -2,17 +2,9 @@ import {
 	Plugin,
 	WorkspaceLeaf,
 	Notice,
-	MarkdownRenderChild,
-	type MarkdownPostProcessorContext,
-	TFile,
 } from "obsidian";
 import { ChatView, VIEW_TYPE_CHAT } from "./ui/ChatView";
-import {
-	mountCodeBlockChat,
-	EmbeddedChatViewContainer,
-} from "./ui/CodeBlockChatView";
-import { mountAgentButtonBlock } from "./ui/AgentButtonBlock";
-import { parseAgentBlock } from "./utils/agent-block-parser";
+import { EmbeddedChatViewContainer } from "./ui/CodeBlockChatView";
 import {
 	SessionManagerView,
 	VIEW_TYPE_SESSION_MANAGER,
@@ -69,8 +61,6 @@ import type { VoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import { normalizeVoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import {
 	getAvailableAgentsFromSettings,
-	findAgentSettings,
-	isAgentEnabled,
 	firstEnabledAgentId,
 	repairNoEnabledAgents,
 } from "./services/session-helpers";
@@ -87,6 +77,7 @@ import type {
 } from "./types/settings";
 import { DEFAULT_SETTINGS } from "./services/default-settings";
 import { checkPluginForUpdates } from "./services/plugin-update-checker";
+import { AgentBlockProcessor } from "./services/agent-block-processor";
 import { registerSessionScopedCommands } from "./commands/register-plugin-commands";
 import type { SavedSessionInfo } from "./types/session";
 import { initializeLogger, getLogger } from "./utils/logger";
@@ -101,16 +92,6 @@ export type {
 	ChatViewLocation,
 	FloatingChatEntry,
 };
-
-/**
- * Generate a short, device-neutral block id for persist embedded chats.
- * 16 hex chars derived from crypto.randomUUID — enough entropy for per-note
- * blocks, short enough to hand-edit. Mirrors crypto.randomUUID usage already
- * present across the codebase (e.g. ui/ChatView.tsx, services/message-state.ts).
- */
-function generateEmbedId(): string {
-	return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-}
 
 export default class AgentClientPlugin extends Plugin {
 	settings: AgentClientPluginSettings;
@@ -133,6 +114,8 @@ export default class AgentClientPlugin extends Plugin {
 	 * Pending-prompt handshake (ChatPanel register ↔ runPromptInChat deliver).
 	 */
 	private pendingPrompts = new PendingPrompts();
+	/** Markdown agent / agent-client code block renderer */
+	private agentBlocks = new AgentBlockProcessor(this);
 	/** Floating button container (independent from chat view instances) */
 	private floatingButton: FloatingButtonContainer | null = null;
 	/** Status-bar entry for floating chat (Session Manager hover popover) */
@@ -141,8 +124,6 @@ export default class AgentClientPlugin extends Plugin {
 	private floatingTabbedShell: FloatingTabbedShell | null = null;
 	/** Counter for generating unique floating chat instance IDs */
 	private floatingChatCounter = 0;
-	/** Guards against concurrent embed-id injection for the same block. */
-	private embedIdInjectionInFlight = new Set<string>();
 	/** Voice Input module (Gemini Live). */
 	voiceInput: VoiceInputModule | null = null;
 
@@ -270,10 +251,10 @@ export default class AgentClientPlugin extends Plugin {
 
 		this.registerMarkdownCodeBlockProcessor(
 			"agent-client",
-			(source, el, ctx) => this.renderAgentBlock(source, el, ctx),
+			(source, el, ctx) => this.agentBlocks.render(source, el, ctx),
 		);
 		this.registerMarkdownCodeBlockProcessor("agent", (source, el, ctx) =>
-			this.renderAgentBlock(source, el, ctx),
+			this.agentBlocks.render(source, el, ctx),
 		);
 
 		// Mount floating button (always present; visibility controlled by settings inside component)
@@ -775,189 +756,6 @@ export default class AgentClientPlugin extends Plugin {
 		const view = this.viewRegistry.get(viewId);
 		if (view) {
 			view.expand();
-		}
-	}
-
-	/**
-	 * Render an `agent-client` code block. Dispatches to embedded chat or
-	 * quick-action button based on the parsed `type` field.
-	 */
-	private renderAgentBlock(
-		source: string,
-		el: HTMLElement,
-		ctx: MarkdownPostProcessorContext,
-	): void {
-		const child = new MarkdownRenderChild(el);
-		const parsed = parseAgentBlock(source);
-
-		if (!parsed.ok) {
-			const errorEl = el.createDiv({
-				cls: "agent-client-code-block-error",
-			});
-			errorEl.createSpan({
-				cls: "agent-client-code-block-error-label",
-				text: "agent-client block error: ",
-			});
-			errorEl.createSpan({ text: parsed.error });
-			const sourceEl = errorEl.createEl("pre", {
-				cls: "agent-client-code-block-error-source",
-			});
-			sourceEl.setText(source);
-			ctx.addChild(child);
-			return;
-		}
-
-		// Collect non-fatal warnings: parser warnings plus a mount-side check
-		// on the pinned agent id (#28). Copy the parser array rather than
-		// mutating it, since parse results may be shared once cached.
-		// Warnings match actual behavior, which differs by block type: a chat
-		// block spawns the pinned agent as-is (unknown → startup error), a
-		// button block falls back to the default agent when the id is unknown.
-		// Both use a pinned agent even while it is disabled. Computed at
-		// render time — a later toggle doesn't update an already-rendered
-		// block (known limitation).
-		const warnings = parsed.warnings ? [...parsed.warnings] : [];
-		const requestedAgent = parsed.config.agent;
-		if (requestedAgent) {
-			const agentSettings = findAgentSettings(
-				this.settings,
-				requestedAgent,
-			);
-			if (!agentSettings) {
-				warnings.push(
-					parsed.config.type === "chat"
-						? `Unknown agent "${requestedAgent}" — this block will fail to start. Check the agent id in Settings → Agent Client.`
-						: `Unknown agent "${requestedAgent}", using the default agent instead.`,
-				);
-			} else if (!isAgentEnabled(agentSettings)) {
-				warnings.push(
-					`Agent "${requestedAgent}" is disabled in settings; this block pins it and will still use it.`,
-				);
-			}
-		}
-
-		if (warnings.length > 0) {
-			const warnEl = el.createDiv({
-				cls: "agent-client-code-block-warning",
-			});
-			for (const warning of warnings) {
-				warnEl.createDiv({
-					cls: "agent-client-code-block-warning-item",
-					text: warning,
-				});
-			}
-		}
-
-		const sectionInfo = ctx.getSectionInfo(el);
-		const sourcePath = ctx.sourcePath || "";
-		const lineStart = sectionInfo?.lineStart ?? 0;
-		const blockId = `${sourcePath || "untitled"}:${lineStart}`;
-
-		if (parsed.config.type === "chat") {
-			// Persist blocks lacking an id get a stable id auto-injected into
-			// the fence, so the device-local persist mapping survives note
-			// rename/move. Requires real section bounds. Runs once: the
-			// re-render the edit triggers sees config.id and the guard inside
-			// ensureEmbedId short-circuits.
-			if (parsed.config.persist && !parsed.config.id && sectionInfo) {
-				void this.ensureEmbedId(
-					sourcePath,
-					sectionInfo.lineStart,
-					sectionInfo.lineEnd,
-				);
-			}
-			const container = mountCodeBlockChat(this, el, parsed.config, {
-				sourcePath,
-				blockId: parsed.config.id ?? blockId,
-				lineStart,
-			});
-			child.onunload = () => container.unmount();
-		} else {
-			const root = mountAgentButtonBlock(this, el, parsed.config, {
-				sourcePath,
-				lineStart,
-			});
-			child.onunload = () => root.unmount();
-		}
-		ctx.addChild(child);
-	}
-
-	/**
-	 * Inject a generated stable id into a persist chat fence that lacks one.
-	 *
-	 * Device-neutral persist mapping keys on this id (not the note path), so
-	 * rename/move stays safe. Idempotent: an in-flight guard prevents
-	 * concurrent double-injection, and a content check skips fences that
-	 * already declare an id (covering the re-render the edit itself triggers).
-	 *
-	 * Uses app.vault.process (atomic read-modify-write) rather than
-	 * vault.modify, per the settled design.
-	 */
-	private async ensureEmbedId(
-		sourcePath: string,
-		lineStart: number,
-		lineEnd: number,
-	): Promise<void> {
-		if (!sourcePath) return;
-		const guardKey = `${sourcePath}:${lineStart}`;
-		if (this.embedIdInjectionInFlight.has(guardKey)) return;
-
-		const file = this.app.vault.getAbstractFileByPath(sourcePath);
-		if (!(file instanceof TFile)) return;
-
-		this.embedIdInjectionInFlight.add(guardKey);
-		try {
-			await this.app.vault.process(file, (content) => {
-				const lines = content.split("\n");
-				// Bounds + fence sanity: section info must still match the file.
-				if (
-					lineStart < 0 ||
-					lineEnd >= lines.length ||
-					lineStart >= lineEnd
-				) {
-					return content;
-				}
-				// Fence sanity: the captured section may be stale (a user
-				// edit can move/replace the block before this async pass).
-				// Require the live fence to still be an agent-client/agent
-				// fence so an unrelated fence never gets an id spliced in.
-				if (
-					!/^\s*`{3,}\s*(agent-client|agent)(?:\s|$)/.test(
-						lines[lineStart],
-					)
-				) {
-					return content;
-				}
-
-				// Re-validate the live body through the real parser (single
-				// source of truth). Inject only when it is still a persist
-				// chat block lacking an id — this also short-circuits the
-				// re-render the edit itself triggers.
-				const body = lines.slice(lineStart + 1, lineEnd);
-				const liveParsed = parseAgentBlock(body.join("\n"));
-				if (
-					!liveParsed.ok ||
-					liveParsed.config.type !== "chat" ||
-					!liveParsed.config.persist ||
-					liveParsed.config.id
-				) {
-					return content;
-				}
-
-				const indent = lines[lineStart].match(/^\s*/)?.[0] ?? "";
-				lines.splice(
-					lineStart + 1,
-					0,
-					`${indent}id: ${generateEmbedId()}`,
-				);
-				return lines.join("\n");
-			});
-		} catch (error) {
-			getLogger().error(
-				`[AgentClient] Failed to inject embed id: ${error}`,
-			);
-		} finally {
-			this.embedIdInjectionInFlight.delete(guardKey);
 		}
 	}
 
