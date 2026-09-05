@@ -6,6 +6,11 @@ import {
 	normalizeCustomAgent,
 	ensureUniqueCustomAgentIds,
 	resolveDefaultAgentId,
+	clampFloatingIdleTimeoutMs,
+	clampFloatingIdleOpacityPercent,
+	parseFloatingIdleTimeoutMs,
+	parseFloatingIdleOpacityPercent,
+	resolveFloatingIdleOpacityPercent,
 	type ApiKeyMigrator,
 } from "../src/services/settings-normalizer";
 import { PRESET_AGENTS } from "../src/services/preset-agents";
@@ -393,5 +398,50 @@ describe("resolveDefaultAgentId", () => {
 		expect(
 			resolveDefaultAgentId({ defaultAgentId: "ghost" }, available),
 		).toBe("claude-code-acp");
+	});
+});
+
+describe("floating idle opacity clamps", () => {
+	it("clamps timeout to 0…600000", () => {
+		expect(clampFloatingIdleTimeoutMs(-1)).toBe(0);
+		expect(clampFloatingIdleTimeoutMs(0)).toBe(0);
+		expect(clampFloatingIdleTimeoutMs(3000)).toBe(3000);
+		expect(clampFloatingIdleTimeoutMs(999_999)).toBe(600_000);
+		expect(clampFloatingIdleTimeoutMs(Number.NaN)).toBe(0);
+	});
+
+	it("clamps opacity to 10…100 (lower = more transparent)", () => {
+		expect(clampFloatingIdleOpacityPercent(5)).toBe(10);
+		expect(clampFloatingIdleOpacityPercent(50)).toBe(50);
+		expect(clampFloatingIdleOpacityPercent(150)).toBe(100);
+		expect(clampFloatingIdleOpacityPercent(Number.NaN)).toBe(50);
+	});
+
+	it("parses raw settings with fallbacks", () => {
+		expect(parseFloatingIdleTimeoutMs(undefined, 0)).toBe(0);
+		expect(parseFloatingIdleTimeoutMs(2500, 0)).toBe(2500);
+		expect(parseFloatingIdleOpacityPercent("x", 50)).toBe(50);
+		expect(parseFloatingIdleOpacityPercent(80, 50)).toBe(80);
+	});
+
+	it("migrates legacy transparency percent to inverted opacity", () => {
+		expect(
+			resolveFloatingIdleOpacityPercent(
+				{ floatingIdleTransparencyPercent: 90 },
+				50,
+			),
+		).toBe(10);
+		expect(
+			resolveFloatingIdleOpacityPercent(
+				{ floatingIdleTransparencyPercent: 50 },
+				50,
+			),
+		).toBe(50);
+		expect(
+			resolveFloatingIdleOpacityPercent(
+				{ floatingIdleOpacityPercent: 30 },
+				50,
+			),
+		).toBe(30);
 	});
 });

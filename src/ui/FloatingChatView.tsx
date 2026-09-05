@@ -28,6 +28,7 @@ import { VaultService } from "../services/vault-service";
 
 // Hooks imports
 import { resolveFloatingWindowLayout } from "../services/settings-normalizer";
+import { useFloatingIdleOpacity } from "../hooks/useFloatingIdleOpacity";
 
 // ============================================================
 // Helpers
@@ -756,14 +757,16 @@ function FloatingChatComponent({
 	});
 	const [isDragging, setIsDragging] = useState(false);
 	const dragOffset = useRef({ x: 0, y: 0 });
-	const containerRef = useRef<HTMLDivElement>(null);
+	const containerRef = useRef<HTMLDivElement | null>(null);
+
+	const setWindowRef = useCallback((el: HTMLDivElement | null) => {
+		containerRef.current = el;
+		setContainerEl(el);
+	}, []);
 
 	usePersistFloatingLayout(plugin, size, position, onRegisterPersist);
 
-	// Expose container element for ChatPanel focus tracking
-	useEffect(() => {
-		setContainerEl(containerRef.current);
-	}, []);
+	useFloatingIdleOpacity(plugin, containerRef, isExpanded);
 
 	// Notify parent of expanded state changes
 	useEffect(() => {
@@ -907,7 +910,7 @@ function FloatingChatComponent({
 	// ============================================================
 	return (
 		<div
-			ref={containerRef}
+			ref={setWindowRef}
 			className="agent-client-floating-window"
 			style={{
 				left: position.x,
@@ -1075,7 +1078,7 @@ function FloatingTabbedShellComponent({
 	});
 	const [isDragging, setIsDragging] = useState(false);
 	const dragOffset = useRef({ x: 0, y: 0 });
-	const containerRef = useRef<HTMLDivElement>(null);
+	const containerRef = useRef<HTMLDivElement | null>(null);
 	const activeTabIdRef = useRef<string | null>(null);
 	const isExpandedRef = useRef(isExpanded);
 	const showMenuByTabRef = useRef(
@@ -1083,6 +1086,8 @@ function FloatingTabbedShellComponent({
 	);
 
 	usePersistFloatingLayout(plugin, size, position, onRegisterPersist);
+
+	useFloatingIdleOpacity(plugin, containerRef, isExpanded);
 
 	const registerTabShowMenu = useCallback(
 		(

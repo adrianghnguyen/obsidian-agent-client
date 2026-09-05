@@ -2456,10 +2456,15 @@ If your plugin does not need CSS, delete this file.
 	position: fixed;
 	z-index: 20;
 	pointer-events: none;
+	transition: opacity 200ms ease;
 }
 
 .agent-client-floating-view-root.is-focused {
 	z-index: 21;
+}
+
+.agent-client-floating-view-root.is-idle-transparent {
+	opacity: var(--agent-client-floating-idle-opacity, 0.5);
 }
 
 .agent-client-floating-view-root > * {

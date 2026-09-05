@@ -4,7 +4,12 @@ This working copy is the **fork**, not the parent. Day-to-day push/PR targets `o
 
 `gh` may resolve to upstream. Pass `--repo adrianghnguyen/obsidian-agent-client` for fork PRs/API. Do not open routine feature PRs against RAIT-09 unless asked.
 
-Deploy vault path: `C:\Obsidian\.obsidian\plugins\agent-client\` (plugin id `agent-client`). Finish bar: `.cursor/rules/deploy-and-verify.mdc`. Copy `main.js`, `manifest.json`, `styles.css` then `obsidian plugin:reload id=agent-client vault=Obsidian`. Do not touch vault `data.json` or `sessions/`. Community Update overwrites the fork build.
+**Deploy (default = sandbox):** When the user says **deploy**, copy the build to the **sandbox** vault unless they explicitly ask for production/main (`Obsidian` vault).
+
+- **Sandbox (default):** `C:\plugin-sandbox-Obsidian\.obsidian\plugins\agent-client\` → `obsidian plugin:reload id=agent-client vault=plugin-sandbox-Obsidian`
+- **Production (explicit only):** `C:\Obsidian\.obsidian\plugins\agent-client\` → `obsidian plugin:reload id=agent-client vault=Obsidian`
+
+Plugin id: `agent-client`. Finish bar: `.cursor/rules/deploy-and-verify.mdc`. Copy `main.js`, `manifest.json`, and `styles.css`. Do not touch vault `data.json` or `sessions/`. Community Update overwrites the fork build.
 
 **Debug mode:** the plugin has a `debugMode` setting (Settings → Agent Client → Developer Settings → **Debug Mode**). Turn it on when diagnosing ACP spawn/init, floating chat, or session issues — Logger output (`[AcpClient]`, `[AcpHandler]`, etc.) only appears with DevTools open while this flag is enabled. Prefer enabling it over guessing from opaque UI errors.
 

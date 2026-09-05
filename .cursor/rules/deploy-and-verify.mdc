@@ -11,8 +11,8 @@ A feature task is **not done** until the plugin is deployed to the Obsidian vaul
 
 1. `npm test` (or the relevant subset) when behavior is covered by tests
 2. `npm run build`
-3. Copy `main.js`, `manifest.json`, and `styles.css` to `C:\Obsidian\.obsidian\plugins\agent-client\`
-4. `obsidian plugin:reload id=agent-client vault=Obsidian`
+3. Copy `main.js`, `manifest.json`, and `styles.css` to `C:\plugin-sandbox-Obsidian\.obsidian\plugins\agent-client\` (default sandbox deploy; use `C:\Obsidian\.obsidian\plugins\agent-client\` only when the user explicitly asks for production)
+4. `obsidian plugin:reload id=agent-client vault=plugin-sandbox-Obsidian` (production: `vault=Obsidian`)
 5. **Verify** — at least one of:
    - Repo and vault `main.js` match (size/timestamp or grep for a new symbol/string)
    - `obsidian eval` confirms new settings or runtime behavior (Cursor ACP agents still listed)

@@ -9,6 +9,8 @@ import {
 	ToggleComponent,
 	ExtraButtonComponent,
 	setIcon,
+	SliderComponent,
+	TextComponent,
 } from "obsidian";
 import type AgentClientPlugin from "../plugin";
 import type {
@@ -33,7 +35,12 @@ import {
 	parseChatFontSize,
 	FLOATING_WINDOW_SIZE_MIN,
 	FLOATING_WINDOW_SIZE_MAX,
+	FLOATING_IDLE_TIMEOUT_MAX_MS,
+	FLOATING_IDLE_OPACITY_MIN,
+	FLOATING_IDLE_OPACITY_MAX,
 	clampFloatingWindowSize,
+	clampFloatingIdleTimeoutMs,
+	clampFloatingIdleOpacityPercent,
 } from "../services/settings-normalizer";
 import { VOICE_INPUT_SECRET_ID } from "../voice-input/VoiceInputSettings";
 
@@ -46,6 +53,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	plugin: AgentClientPlugin;
 	private agentSelector: DropdownComponent | null = null;
 	private unsubscribe: (() => void) | null = null;
+	private idleOpacitySlider: SliderComponent | null = null;
+	private idleOpacityText: TextComponent | null = null;
 	/**
 	 * Open sections: agent rows ("preset:<id>" / "custom:<id>") and
 	 * settings callouts ("settings:<id>"). Deliberately non-persisted
@@ -779,6 +788,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	private renderFloatingChatSection(containerEl: HTMLElement): void {
+		this.idleOpacitySlider = null;
+		this.idleOpacityText = null;
 		const entry = this.plugin.settings.floatingChatEntry;
 		const trailing =
 			entry === "off"
@@ -991,12 +1002,111 @@ export class AgentClientSettingTab extends PluginSettingTab {
 										);
 									}),
 							);
+
+						const idleFadeEnabled =
+							this.plugin.settings.floatingIdleTimeoutMs > 0;
+						const idleOpacityDisabled =
+							!this.plugin.isFloatingChatEnabled() ||
+							!idleFadeEnabled;
+
+						new Setting(nestedEl)
+							.setName("Idle fade delay (ms)")
+							.setDesc(
+								`Fade the floating window this many ms after the cursor leaves the input. Set to 0 to disable (max ${FLOATING_IDLE_TIMEOUT_MAX_MS}).`,
+							)
+							.addText((text) =>
+								text
+									.setPlaceholder("0")
+									.setValue(
+										String(
+											this.plugin.settings
+												.floatingIdleTimeoutMs,
+										),
+									)
+									.setDisabled(
+										!this.plugin.isFloatingChatEnabled(),
+									)
+									.onChange(async (value) => {
+										const parsed = parseInt(value, 10);
+										if (isNaN(parsed)) return;
+										const next =
+											clampFloatingIdleTimeoutMs(parsed);
+										await this.plugin.settingsService.updateSettings(
+											{
+												floatingIdleTimeoutMs: next,
+											},
+										);
+										this.setIdleOpacityControlsEnabled(
+											next > 0,
+										);
+									}),
+							);
+
+						const applyIdleOpacity = async (
+							value: number,
+						): Promise<void> => {
+							const next =
+								clampFloatingIdleOpacityPercent(value);
+							await this.plugin.settingsService.updateSettings({
+								floatingIdleOpacityPercent: next,
+							});
+							this.idleOpacitySlider?.setValue(next);
+							this.idleOpacityText?.setValue(String(next));
+						};
+
+						new Setting(nestedEl)
+							.setName("Idle opacity (%)")
+							.setDesc(
+								`How visible the window stays when faded (${FLOATING_IDLE_OPACITY_MIN}–${FLOATING_IDLE_OPACITY_MAX}). Lower values are more transparent. Disabled when fade delay is 0.`,
+							)
+							.addSlider((slider) => {
+								this.idleOpacitySlider = slider;
+								slider
+									.setLimits(
+										FLOATING_IDLE_OPACITY_MIN,
+										FLOATING_IDLE_OPACITY_MAX,
+										5,
+									)
+									.setValue(
+										this.plugin.settings
+											.floatingIdleOpacityPercent,
+									)
+									.setDynamicTooltip()
+									.setDisabled(idleOpacityDisabled)
+									.onChange(applyIdleOpacity);
+							})
+							.addText((text) => {
+								this.idleOpacityText = text;
+								text
+									.setPlaceholder(
+										String(FLOATING_IDLE_OPACITY_MIN),
+									)
+									.setValue(
+										String(
+											this.plugin.settings
+												.floatingIdleOpacityPercent,
+										),
+									)
+									.setDisabled(idleOpacityDisabled)
+									.onChange(async (value) => {
+										const parsed = parseInt(value, 10);
+										if (isNaN(parsed)) return;
+										await applyIdleOpacity(parsed);
+									});
+							});
 					},
-					{ nested: true, foldable: nestedFoldable(3) },
+					{ nested: true, foldable: nestedFoldable(5) },
 				);
 			},
 			{ trailing },
 		);
+	}
+
+	private setIdleOpacityControlsEnabled(enabled: boolean): void {
+		const disabled =
+			!enabled || !this.plugin.isFloatingChatEnabled();
+		this.idleOpacitySlider?.setDisabled(disabled);
+		this.idleOpacityText?.setDisabled(disabled);
 	}
 
 	private renderBehaviorSection(containerEl: HTMLElement): void {
