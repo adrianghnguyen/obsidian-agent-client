@@ -32,6 +32,7 @@ import {
 	ChatViewRegistry,
 	type IChatViewContainer,
 } from "./services/view-registry";
+import { PendingPrompts } from "./services/pending-prompts";
 import {
 	createSettingsService,
 	type SettingsService,
@@ -296,19 +297,9 @@ export default class AgentClientPlugin extends Plugin {
 	/** Map of viewId to AcpClient for multi-session support */
 	private _acpClients: Map<string, AcpClient> = new Map();
 	/**
-	 * Pending-prompt handlers keyed by viewId. A ChatPanel registers its
-	 * handler on mount; runPromptInChat delivers through it (deterministic
-	 * handshake that replaces a timed workspace broadcast).
+	 * Pending-prompt handshake (ChatPanel register ↔ runPromptInChat deliver).
 	 */
-	private _pendingPromptHandlers = new Map<
-		string,
-		(prompt: string, autoSend: boolean) => void
-	>();
-	/** Prompts queued before their target ChatPanel registered a handler. */
-	private _pendingPrompts = new Map<
-		string,
-		Array<{ prompt: string; autoSend: boolean }>
-	>();
+	private pendingPrompts = new PendingPrompts();
 	/**
 	 * Pending graceful AcpClient teardown timers, keyed by viewId. An embedded
 	 * block schedules teardown on unmount and cancels it on (re)mount, so
@@ -561,9 +552,7 @@ export default class AgentClientPlugin extends Plugin {
 		}
 		this._acpClients.clear();
 
-		// Drop any undelivered pending-prompt handlers and queued prompts.
-		this._pendingPromptHandlers.clear();
-		this._pendingPrompts.clear();
+		this.pendingPrompts.clear();
 
 		// Cancel any pending graceful AcpClient teardowns.
 		for (const timer of this._acpTeardownTimers.values()) {
@@ -1274,7 +1263,7 @@ export default class AgentClientPlugin extends Plugin {
 		// registered its handler, otherwise queue until it mounts. Replaces a
 		// 100ms setTimeout + workspace broadcast that could drop the prompt if
 		// the React root mounted late.
-		this.deliverPrompt(targetViewId, prompt, autoSend);
+		this.pendingPrompts.deliver(targetViewId, prompt, autoSend);
 	}
 
 	/**
@@ -1286,38 +1275,7 @@ export default class AgentClientPlugin extends Plugin {
 		viewId: string,
 		handler: (prompt: string, autoSend: boolean) => void,
 	): () => void {
-		this._pendingPromptHandlers.set(viewId, handler);
-		const queued = this._pendingPrompts.get(viewId);
-		if (queued) {
-			this._pendingPrompts.delete(viewId);
-			for (const item of queued) {
-				handler(item.prompt, item.autoSend);
-			}
-		}
-		return () => {
-			if (this._pendingPromptHandlers.get(viewId) === handler) {
-				this._pendingPromptHandlers.delete(viewId);
-			}
-		};
-	}
-
-	private deliverPrompt(
-		viewId: string,
-		prompt: string,
-		autoSend: boolean,
-	): void {
-		const handler = this._pendingPromptHandlers.get(viewId);
-		if (handler) {
-			handler(prompt, autoSend);
-		} else {
-			// Panel not mounted yet; drained by registerPendingPromptHandler.
-			const queue = this._pendingPrompts.get(viewId);
-			if (queue) {
-				queue.push({ prompt, autoSend });
-			} else {
-				this._pendingPrompts.set(viewId, [{ prompt, autoSend }]);
-			}
-		}
+		return this.pendingPrompts.register(viewId, handler);
 	}
 
 	/**
