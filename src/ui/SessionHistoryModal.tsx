@@ -128,7 +128,11 @@ interface SessionHistoryContentProps {
 	debugMode: boolean;
 
 	/** Callback when a session is restored */
-	onRestoreSession: (sessionId: string, cwd: string) => Promise<void>;
+	onRestoreSession: (
+		sessionId: string,
+		cwd: string,
+		agentId?: string,
+	) => Promise<void>;
 	/** Callback when a session is forked (create new branch) */
 	onForkSession: (sessionId: string, cwd: string) => Promise<void>;
 	/** Callback when a session is deleted */
@@ -220,7 +224,11 @@ function DebugForm({
 	onClose,
 }: {
 	currentCwd: string;
-	onRestoreSession: (sessionId: string, cwd: string) => Promise<void>;
+	onRestoreSession: (
+		sessionId: string,
+		cwd: string,
+		agentId?: string,
+	) => Promise<void>;
 	onForkSession: (sessionId: string, cwd: string) => Promise<void>;
 	onClose: () => void;
 }) {
@@ -307,15 +315,23 @@ function SessionItem({
 	canRestore: boolean;
 	canFork: boolean;
 	currentCwd: string;
-	onRestoreSession: (sessionId: string, cwd: string) => Promise<void>;
+	onRestoreSession: (
+		sessionId: string,
+		cwd: string,
+		agentId?: string,
+	) => Promise<void>;
 	onForkSession: (sessionId: string, cwd: string) => Promise<void>;
 	onDeleteSession: (sessionId: string) => void | Promise<void>;
 	onEditTitle: (sessionId: string) => void;
 	onClose: () => void;
 }) {
+	// Offer restore when the live agent can restore, or when the row carries
+	// a harness id (restore path will switch agents first).
+	const showRestore = canRestore || Boolean(session.agentId);
+
 	const handleRestore = useCallback(() => {
 		onClose();
-		void onRestoreSession(session.sessionId, session.cwd);
+		void onRestoreSession(session.sessionId, session.cwd, session.agentId);
 	}, [session, onRestoreSession, onClose]);
 
 	const handleFork = useCallback(() => {
@@ -331,6 +347,8 @@ function SessionItem({
 		onEditTitle(session.sessionId);
 	}, [session.sessionId, onEditTitle]);
 
+	const agentLabel = session.agentDisplayName || session.agentId;
+
 	return (
 		<div className="agent-client-session-history-item">
 			<div className="agent-client-session-history-item-content">
@@ -340,6 +358,14 @@ function SessionItem({
 					</span>
 				</div>
 				<div className="agent-client-session-history-item-metadata">
+					{agentLabel && (
+						<span
+							className="agent-client-session-history-item-agent"
+							title={session.agentId}
+						>
+							{agentLabel}
+						</span>
+					)}
 					{session.updatedAt && (
 						<span className="agent-client-session-history-item-timestamp">
 							{formatRelativeTime(new Date(session.updatedAt))}
@@ -363,7 +389,7 @@ function SessionItem({
 					className="agent-client-session-history-action-icon agent-client-session-history-edit-icon"
 					onClick={handleEditTitle}
 				/>
-				{canRestore && (
+				{showRestore && (
 					<IconButton
 						iconName="play"
 						label="Restore session"

@@ -4,9 +4,16 @@ import { SessionHistoryModal } from "../ui/SessionHistoryModal";
 import { getLogger } from "../utils/logger";
 import { convertWslPathToWindows } from "../utils/platform";
 import { extractErrorMessage } from "../utils/error-utils";
+import { planHistoryRestore } from "../services/session-history-restore";
 import type AgentClientPlugin from "../plugin";
 import type { UseAgentReturn } from "./useAgent";
 import type { UseSessionHistoryReturn } from "./useSessionHistory";
+
+interface PendingHistoryRestore {
+	sessionId: string;
+	cwd: string;
+	agentId: string;
+}
 
 /**
  * Hook for managing the session history modal lifecycle.
@@ -14,8 +21,13 @@ import type { UseSessionHistoryReturn } from "./useSessionHistory";
  * Encapsulates modal creation, props synchronization, and
  * session operation callbacks (restore, fork, delete).
  *
+ * Cross-harness restore: if the saved session's agentId differs from the
+ * live connection, restart under that harness first, then restore once the
+ * new session is ready (avoids stale capability closures — same two-phase
+ * pattern as embedded persist restore in ChatPanel).
+ *
  * @param plugin - Plugin instance for app access
- * @param agent - Agent hook for clearMessages
+ * @param agent - Agent hook for clearMessages / restartSession
  * @param sessionHistory - Session history hook for operations
  * @param vaultPath - Current working directory
  * @param isSessionReady - Whether the session is ready
@@ -34,18 +46,58 @@ export function useHistoryModal(
 } {
 	const logger = getLogger();
 	const historyModalRef = useRef<SessionHistoryModal | null>(null);
+	const pendingRestoreRef = useRef<PendingHistoryRestore | null>(null);
+
+	const finishRestore = useCallback(
+		async (sessionId: string, cwd: string) => {
+			agent.clearMessages();
+			await sessionHistory.restoreSession(sessionId, cwd);
+			onAgentCwdChange?.(
+				Platform.isWin ? convertWslPathToWindows(cwd) : cwd,
+			);
+			new Notice("[Agent Client] Session restored");
+		},
+		[agent.clearMessages, sessionHistory.restoreSession, onAgentCwdChange],
+	);
 
 	const handleRestoreSession = useCallback(
-		async (sessionId: string, cwd: string) => {
+		async (sessionId: string, cwd: string, agentId?: string) => {
 			try {
 				logger.log(`[ChatPanel] Restoring session: ${sessionId}`);
-				agent.clearMessages();
-				await sessionHistory.restoreSession(sessionId, cwd);
-				onAgentCwdChange?.(
-					Platform.isWin ? convertWslPathToWindows(cwd) : cwd,
-				);
-				new Notice("[Agent Client] Session restored");
+
+				let resolvedAgentId = agentId;
+				if (!resolvedAgentId) {
+					const saved = plugin.settingsService
+						.getSavedSessions()
+						.find((s) => s.sessionId === sessionId);
+					resolvedAgentId = saved?.agentId;
+				}
+
+				if (resolvedAgentId) {
+					const plan = planHistoryRestore(
+						{ sessionId, agentId: resolvedAgentId, cwd },
+						agent.session.agentId,
+					);
+					if (plan.action === "restart-then-restore") {
+						pendingRestoreRef.current = {
+							sessionId: plan.sessionId,
+							cwd: plan.cwd,
+							agentId: plan.agentId,
+						};
+						onAgentCwdChange?.(
+							Platform.isWin
+								? convertWslPathToWindows(plan.cwd)
+								: plan.cwd,
+						);
+						agent.clearMessages();
+						void agent.restartSession(plan.agentId, plan.cwd);
+						return;
+					}
+				}
+
+				await finishRestore(sessionId, cwd);
 			} catch (error) {
+				pendingRestoreRef.current = null;
 				const errorMessage = extractErrorMessage(error);
 				new Notice(
 					`[Agent Client] Failed to restore session: ${errorMessage}`,
@@ -56,11 +108,50 @@ export function useHistoryModal(
 		},
 		[
 			logger,
+			plugin.settingsService,
+			agent.session.agentId,
 			agent.clearMessages,
-			sessionHistory.restoreSession,
+			agent.restartSession,
+			finishRestore,
 			onAgentCwdChange,
 		],
 	);
+
+	// After a harness switch for history restore, wait until the new agent is
+	// ready with matching agentId, then load (fresh restoreSession closure).
+	useEffect(() => {
+		const pending = pendingRestoreRef.current;
+		if (!pending) return;
+		if (agent.session.state === "error") {
+			pendingRestoreRef.current = null;
+			return;
+		}
+		if (!isSessionReady) return;
+		if (agent.session.agentId !== pending.agentId) return;
+
+		pendingRestoreRef.current = null;
+		void (async () => {
+			try {
+				logger.log(
+					`[ChatPanel] Completing harness restore: ${pending.sessionId}`,
+				);
+				await finishRestore(pending.sessionId, pending.cwd);
+			} catch (error) {
+				const errorMessage = extractErrorMessage(error);
+				new Notice(
+					`[Agent Client] Failed to restore session: ${errorMessage}`,
+					8000,
+				);
+				logger.error("Session restore error:", error);
+			}
+		})();
+	}, [
+		isSessionReady,
+		agent.session.agentId,
+		agent.session.state,
+		finishRestore,
+		logger,
+	]);
 
 	const handleForkSession = useCallback(
 		async (sessionId: string, cwd: string) => {
@@ -209,6 +300,7 @@ export function useHistoryModal(
 		sessionHistory.canRestore,
 		sessionHistory.canFork,
 		sessionHistory.isUsingLocalSessions,
+		sessionHistory.localSessionIds,
 		vaultPath,
 		isSessionReady,
 		debugMode,

@@ -519,6 +519,14 @@ export interface SessionInfo {
 	title?: string;
 	/** ISO 8601 timestamp of last update */
 	updatedAt?: string;
+	/**
+	 * ACP harness (preset/custom agent id) that owns this session.
+	 * Present on locally saved / merged history rows; omitted on raw
+	 * agent session/list responses.
+	 */
+	agentId?: string;
+	/** Display name for agentId when known from settings */
+	agentDisplayName?: string;
 }
 
 /**
