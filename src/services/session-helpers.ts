@@ -3,7 +3,7 @@
  * Extracted from useSession hook for reusability and testability.
  */
 
-import type { AgentClientPluginSettings } from "../plugin";
+import type { AgentClientPluginSettings } from "../types/settings";
 import type {
 	BaseAgentSettings,
 	PresetAgentUserSettings,

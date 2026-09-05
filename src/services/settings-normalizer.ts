@@ -5,13 +5,11 @@
  * Used by plugin.ts (loadSettings) and SettingsTab.ts.
  */
 
+import type { FloatingChatEntry } from "../types/settings";
 import type {
 	AgentEnvVar,
-	CustomAgentSettings,
-	FloatingChatEntry,
-} from "../plugin";
-import type {
 	BaseAgentSettings,
+	CustomAgentSettings,
 	PresetAgentUserSettings,
 } from "../types/agent";
 import type { AgentConfig } from "../acp/acp-client";
