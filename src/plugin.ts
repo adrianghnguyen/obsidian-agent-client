@@ -69,7 +69,6 @@ import type { VoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import { normalizeVoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import {
 	getAvailableAgentsFromSettings,
-	getAllAgentsFromSettings,
 	findAgentSettings,
 	isAgentEnabled,
 	firstEnabledAgentId,
@@ -88,6 +87,7 @@ import type {
 } from "./types/settings";
 import { DEFAULT_SETTINGS } from "./services/default-settings";
 import { checkPluginForUpdates } from "./services/plugin-update-checker";
+import { registerSessionScopedCommands } from "./commands/register-plugin-commands";
 import type { SavedSessionInfo } from "./types/session";
 import { initializeLogger, getLogger } from "./utils/logger";
 
@@ -219,10 +219,7 @@ export default class AgentClientPlugin extends Plugin {
 		});
 
 		// Register agent-specific commands
-		this.registerAgentCommands();
-		this.registerPermissionCommands();
-		this.registerSessionModeCommands();
-		this.registerBroadcastCommands();
+		registerSessionScopedCommands(this);
 
 		// Floating chat window commands
 		this.addCommand({
@@ -1049,224 +1046,6 @@ export default class AgentClientPlugin extends Plugin {
 	 */
 	getAvailableAgents(): Array<{ id: string; displayName: string }> {
 		return getAvailableAgentsFromSettings(this.settings);
-	}
-
-	/**
-	 * Register commands for each configured agent.
-	 *
-	 * All presets register unconditionally; a checkCallback hides the command
-	 * while its agent is disabled, so the palette follows the Enabled toggles
-	 * without re-registration. Custom agents remain a load-time snapshot
-	 * (a newly added custom gets its command after a reload — existing
-	 * limitation), but their enabled state is also checked live.
-	 */
-	private registerAgentCommands(): void {
-		for (const agent of getAllAgentsFromSettings(this.settings)) {
-			this.addCommand({
-				id: `switch-agent-to-${agent.id}`,
-				name: `Switch agent to ${agent.displayName}`,
-				checkCallback: (checking) => {
-					const found = findAgentSettings(this.settings, agent.id);
-					if (!found || !isAgentEnabled(found)) return false;
-					if (checking) return true;
-					this.app.workspace.trigger(
-						"agent-client:new-chat-requested",
-						this.lastActiveChatViewId,
-						agent.id,
-					);
-				},
-			});
-		}
-	}
-
-	private registerPermissionCommands(): void {
-		this.addCommand({
-			id: "approve-active-permission",
-			name: "Approve active permission",
-			callback: () => {
-				this.app.workspace.trigger(
-					"agent-client:approve-active-permission",
-					this.lastActiveChatViewId,
-				);
-			},
-		});
-
-		this.addCommand({
-			id: "reject-active-permission",
-			name: "Reject active permission",
-			callback: () => {
-				this.app.workspace.trigger(
-					"agent-client:reject-active-permission",
-					this.lastActiveChatViewId,
-				);
-			},
-		});
-
-		this.addCommand({
-			id: "toggle-auto-mention",
-			name: "Toggle auto-mention",
-			callback: () => {
-				this.app.workspace.trigger(
-					"agent-client:toggle-auto-mention",
-					this.lastActiveChatViewId,
-				);
-			},
-		});
-
-		this.addCommand({
-			id: "new-chat",
-			name: "New chat",
-			callback: () => {
-				this.app.workspace.trigger(
-					"agent-client:new-chat-requested",
-					this.lastActiveChatViewId,
-				);
-			},
-		});
-
-		this.addCommand({
-			id: "cancel-current-message",
-			name: "Cancel current message",
-			callback: () => {
-				this.app.workspace.trigger(
-					"agent-client:cancel-message",
-					this.lastActiveChatViewId,
-				);
-			},
-		});
-
-		this.addCommand({
-			id: "export-chat",
-			name: "Export chat",
-			callback: () => {
-				this.app.workspace.trigger(
-					"agent-client:export-chat",
-					this.lastActiveChatViewId,
-				);
-			},
-		});
-	}
-
-	private registerSessionModeCommands(): void {
-		this.addCommand({
-			id: "cycle-session-mode",
-			name: "Cycle session mode",
-			callback: () => {
-				this.app.workspace.trigger(
-					"agent-client:cycle-session-mode",
-					this.lastActiveChatViewId,
-				);
-			},
-		});
-
-		this.addCommand({
-			id: "switch-session-mode",
-			name: "Switch session mode",
-			callback: () => {
-				this.app.workspace.trigger(
-					"agent-client:switch-session-mode",
-					this.lastActiveChatViewId,
-				);
-			},
-		});
-	}
-
-	/**
-	 * Register broadcast commands for multi-view operations
-	 */
-	private registerBroadcastCommands(): void {
-		// Broadcast prompt: Copy prompt from active view to all other views
-		this.addCommand({
-			id: "broadcast-prompt",
-			name: "Broadcast prompt",
-			callback: () => {
-				this.broadcastPrompt();
-			},
-		});
-
-		// Broadcast send: Send message in all views that can send
-		this.addCommand({
-			id: "broadcast-send",
-			name: "Broadcast send",
-			callback: () => {
-				void this.broadcastSend();
-			},
-		});
-
-		// Broadcast cancel: Cancel operation in all views
-		this.addCommand({
-			id: "broadcast-cancel",
-			name: "Broadcast cancel",
-			callback: () => {
-				void this.broadcastCancel();
-			},
-		});
-	}
-
-	/**
-	 * Copy prompt from active view to all other views
-	 */
-	private broadcastPrompt(): void {
-		const allViews = this.viewRegistry.getAll();
-		if (allViews.length === 0) {
-			new Notice("[Agent Client] No chat views open");
-			return;
-		}
-
-		const inputState = this.viewRegistry.toFocused((v) =>
-			v.getInputState(),
-		);
-		if (
-			!inputState ||
-			(inputState.text.trim() === "" && inputState.files.length === 0)
-		) {
-			new Notice("[Agent Client] No prompt to broadcast");
-			return;
-		}
-
-		const focusedId = this.viewRegistry.getFocusedId();
-		const targetViews = allViews.filter((v) => v.viewId !== focusedId);
-		if (targetViews.length === 0) {
-			new Notice("[Agent Client] No other chat views to broadcast to");
-			return;
-		}
-
-		for (const view of targetViews) {
-			view.setInputState(inputState);
-		}
-	}
-
-	/**
-	 * Send message in all views that can send
-	 */
-	private async broadcastSend(): Promise<void> {
-		const allViews = this.viewRegistry.getAll();
-		if (allViews.length === 0) {
-			new Notice("[Agent Client] No chat views open");
-			return;
-		}
-
-		const sendableViews = allViews.filter((v) => v.canSend());
-		if (sendableViews.length === 0) {
-			new Notice("[Agent Client] No views ready to send");
-			return;
-		}
-
-		await Promise.allSettled(sendableViews.map((v) => v.sendMessage()));
-	}
-
-	/**
-	 * Cancel operation in all views
-	 */
-	private async broadcastCancel(): Promise<void> {
-		const allViews = this.viewRegistry.getAll();
-		if (allViews.length === 0) {
-			new Notice("[Agent Client] No chat views open");
-			return;
-		}
-
-		await Promise.allSettled(allViews.map((v) => v.cancelOperation()));
-		new Notice("[Agent Client] Cancel broadcast to all views");
 	}
 
 	async loadSettings() {
