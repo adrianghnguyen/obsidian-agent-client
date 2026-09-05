@@ -10,7 +10,7 @@ import {
 	firstEnabledAgentId,
 	repairNoEnabledAgents,
 } from "../src/services/session-helpers";
-import type { AgentClientPluginSettings } from "../src/plugin";
+import type { AgentClientPluginSettings } from "../src/types/settings";
 import type {
 	PresetAgentUserSettings,
 	CustomAgentSettings,

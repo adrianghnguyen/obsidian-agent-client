@@ -6,7 +6,7 @@
  * via useSyncExternalStore, and handles persistence to Obsidian's data.json.
  */
 
-import type { AgentClientPluginSettings } from "../plugin";
+import type { AgentClientPluginSettings } from "../types/settings";
 import type AgentClientPlugin from "../plugin";
 import { updateDebugMode } from "../utils/logger";
 import type { ChatMessage } from "../types/chat";

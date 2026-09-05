@@ -8,7 +8,7 @@
 
 import { Platform } from "obsidian";
 
-import type { AgentClientPluginSettings } from "../plugin";
+import type { AgentClientPluginSettings } from "../types/settings";
 import type AgentClientPlugin from "../plugin";
 import type { ChatMessage, MessageContent } from "../types/chat";
 import type { SavedSessionInfo } from "../types/session";
