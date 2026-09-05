@@ -34,6 +34,7 @@ import {
 } from "./services/view-registry";
 import { PendingPrompts } from "./services/pending-prompts";
 import { AcpClientPool } from "./services/acp-client-pool";
+import { findNearestEmbeddedChat as lookupNearestEmbeddedChat } from "./services/embedded-chat-lookup";
 import {
 	createSettingsService,
 	type SettingsService,
@@ -868,31 +869,18 @@ export default class AgentClientPlugin extends Plugin {
 		sourcePath: string,
 		lineStart: number,
 	): string | null {
-		// Prefer the embedded chat closest at/above the target line (a button
-		// usually sits just below its chat). If none are at/above, fall back to
-		// the highest chat below. The secondary sort by lineStart keeps the
-		// "below" pick deterministic without relying on registry iteration
-		// order (which shifts when a block unregisters/re-registers on
-		// re-render).
-		let above: EmbeddedChatViewContainer | null = null;
-		let aboveDistance = Number.POSITIVE_INFINITY;
-		let below: EmbeddedChatViewContainer | null = null;
-
-		for (const container of this.viewRegistry.getByType("embedded")) {
-			if (!(container instanceof EmbeddedChatViewContainer)) continue;
-			if (container.sourcePath !== sourcePath) continue;
-			const distance = lineStart - container.lineStart;
-			if (distance >= 0) {
-				if (distance < aboveDistance) {
-					above = container;
-					aboveDistance = distance;
-				}
-			} else if (!below || container.lineStart < below.lineStart) {
-				below = container;
-			}
-		}
-
-		return (above ?? below)?.viewId ?? null;
+		const embeds = this.viewRegistry
+			.getByType("embedded")
+			.filter(
+				(container): container is EmbeddedChatViewContainer =>
+					container instanceof EmbeddedChatViewContainer,
+			)
+			.map((container) => ({
+				viewId: container.viewId,
+				sourcePath: container.sourcePath,
+				lineStart: container.lineStart,
+			}));
+		return lookupNearestEmbeddedChat(embeds, sourcePath, lineStart);
 	}
 
 	/**
