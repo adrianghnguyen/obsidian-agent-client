@@ -33,6 +33,7 @@ import {
 	type IChatViewContainer,
 } from "./services/view-registry";
 import { PendingPrompts } from "./services/pending-prompts";
+import { AcpClientPool } from "./services/acp-client-pool";
 import {
 	createSettingsService,
 	type SettingsService,
@@ -294,18 +295,20 @@ export default class AgentClientPlugin extends Plugin {
 	/** Registry for all chat view containers (sidebar + floating) */
 	viewRegistry = new ChatViewRegistry();
 
-	/** Map of viewId to AcpClient for multi-session support */
-	private _acpClients: Map<string, AcpClient> = new Map();
+	/** Per-view AcpClient pool with embedded remount grace teardown */
+	private acpClientPool = new AcpClientPool<AcpClient>({
+		create: () => new AcpClient(this),
+		onDisconnectError: (viewId, error) => {
+			getLogger().warn(
+				`[AgentClient] Failed to disconnect client for view ${viewId}:`,
+				error,
+			);
+		},
+	});
 	/**
 	 * Pending-prompt handshake (ChatPanel register ↔ runPromptInChat deliver).
 	 */
 	private pendingPrompts = new PendingPrompts();
-	/**
-	 * Pending graceful AcpClient teardown timers, keyed by viewId. An embedded
-	 * block schedules teardown on unmount and cancels it on (re)mount, so
-	 * re-processing churn keeps one client while genuine removal reaps it.
-	 */
-	private _acpTeardownTimers = new Map<string, number>();
 	/** Floating button container (independent from chat view instances) */
 	private floatingButton: FloatingButtonContainer | null = null;
 	/** Status-bar entry for floating chat (Session Manager hover popover) */
@@ -474,15 +477,7 @@ export default class AgentClientPlugin extends Plugin {
 				this.flushFloatingWindowLayouts();
 
 				// Fire and forget - don't block Obsidian from quitting
-				for (const [viewId, client] of this._acpClients) {
-					client.disconnect().catch((error) => {
-						getLogger().warn(
-							`[AgentClient] Quit cleanup error for view ${viewId}:`,
-							error,
-						);
-					});
-				}
-				this._acpClients.clear();
+				this.acpClientPool.disconnectAllFireAndForget();
 			}),
 		);
 
@@ -547,18 +542,9 @@ export default class AgentClientPlugin extends Plugin {
 		this.viewRegistry.clear();
 
 		// Disconnect all ACP clients (kill agent processes)
-		for (const [, client] of this._acpClients) {
-			client.disconnect().catch(() => {});
-		}
-		this._acpClients.clear();
+		void this.acpClientPool.clear();
 
 		this.pendingPrompts.clear();
-
-		// Cancel any pending graceful AcpClient teardowns.
-		for (const timer of this._acpTeardownTimers.values()) {
-			window.clearTimeout(timer);
-		}
-		this._acpTeardownTimers.clear();
 	}
 
 	/**
@@ -566,12 +552,7 @@ export default class AgentClientPlugin extends Plugin {
 	 * Each ChatView has its own AcpClient for independent sessions.
 	 */
 	getOrCreateAcpClient(viewId: string): AcpClient {
-		let client = this._acpClients.get(viewId);
-		if (!client) {
-			client = new AcpClient(this);
-			this._acpClients.set(viewId, client);
-		}
-		return client;
+		return this.acpClientPool.getOrCreate(viewId);
 	}
 
 	/**
@@ -579,9 +560,7 @@ export default class AgentClientPlugin extends Plugin {
 	 * Called when the setting changes at runtime.
 	 */
 	updateAllAutoAllow(autoAllow: boolean): void {
-		for (const client of this._acpClients.values()) {
-			client.updateAutoAllow(autoAllow);
-		}
+		this.acpClientPool.updateAllAutoAllow(autoAllow);
 	}
 
 	/**
@@ -589,32 +568,12 @@ export default class AgentClientPlugin extends Plugin {
 	 * Called when a ChatView is closed.
 	 */
 	async removeAcpClient(viewId: string): Promise<void> {
-		const client = this._acpClients.get(viewId);
-		if (client) {
-			try {
-				await client.disconnect();
-			} catch (error) {
-				getLogger().warn(
-					`[AgentClient] Failed to disconnect client for view ${viewId}:`,
-					error,
-				);
-			}
-			this._acpClients.delete(viewId);
-		}
-		// Note: lastActiveChatViewId is now managed by viewRegistry
-		// Clearing happens automatically when view is unregistered
+		await this.acpClientPool.remove(viewId);
 	}
-
-	/** Grace window before an embedded AcpClient is actually disconnected. */
-	private static readonly ACP_TEARDOWN_GRACE_MS = 250;
 
 	/** Cancel a pending graceful teardown for a viewId (called on (re)mount). */
 	acquireAcpClient(viewId: string): void {
-		const timer = this._acpTeardownTimers.get(viewId);
-		if (timer !== undefined) {
-			window.clearTimeout(timer);
-			this._acpTeardownTimers.delete(viewId);
-		}
+		this.acpClientPool.acquire(viewId);
 	}
 
 	/**
@@ -623,12 +582,7 @@ export default class AgentClientPlugin extends Plugin {
 	 * keeps one client; only genuine removal disconnects the agent process.
 	 */
 	releaseAcpClient(viewId: string): void {
-		if (this._acpTeardownTimers.has(viewId)) return;
-		const timer = window.setTimeout(() => {
-			this._acpTeardownTimers.delete(viewId);
-			void this.removeAcpClient(viewId);
-		}, AgentClientPlugin.ACP_TEARDOWN_GRACE_MS);
-		this._acpTeardownTimers.set(viewId, timer);
+		this.acpClientPool.release(viewId);
 	}
 
 	/**
