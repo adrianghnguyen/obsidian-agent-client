@@ -29,6 +29,8 @@ export interface LiveAudioSource {
 		onStop?: () => void,
 	): Promise<void>;
 	stop(): void;
+	/** Instantaneous mic amplitude in [0, 1]. Optional for test fakes. */
+	getLevel?(): number;
 }
 
 export interface LiveSessionDeps {
@@ -86,6 +88,12 @@ export class LiveTranscriber {
 
 	get isActive(): boolean {
 		return this._isActive;
+	}
+
+	/** Instantaneous mic amplitude in [0, 1]. Returns 0 when inactive. */
+	getLevel(): number {
+		if (!this._isActive) return 0;
+		return this.audioSource.getLevel?.() ?? 0;
 	}
 
 	async start(sink: TranscriptSink): Promise<void> {

@@ -16,7 +16,9 @@ export class AudioCapture {
 	private mediaStream: MediaStream | null = null;
 	private source: MediaStreamAudioSourceNode | null = null;
 	private processor: ScriptProcessorNode | null = null;
+	private analyser: AnalyserNode | null = null;
 	private silentGain: GainNode | null = null;
+	private frequencyData: Uint8Array<ArrayBuffer> | null = null;
 	private onChunk: ((base64Pcm: string) => void) | null = null;
 	private isRecording = false;
 	private deviceId: string | null = null;
@@ -57,6 +59,13 @@ export class AudioCapture {
 			this.mediaStream,
 		);
 
+		this.analyser = this.audioContext.createAnalyser();
+		this.analyser.fftSize = 256;
+		this.analyser.smoothingTimeConstant = 0.7;
+		this.frequencyData = new Uint8Array(
+			new ArrayBuffer(this.analyser.frequencyBinCount),
+		);
+
 		// ScriptProcessorNode for PCM access
 		const bufferSize = 4096;
 		this.processor = this.audioContext.createScriptProcessor(
@@ -77,6 +86,7 @@ export class AudioCapture {
 		// Keep the processor graph alive without playing through speakers
 		this.silentGain = this.audioContext.createGain();
 		this.silentGain.gain.value = 0;
+		this.source.connect(this.analyser);
 		this.source.connect(this.processor);
 		this.processor.connect(this.silentGain);
 		this.silentGain.connect(this.audioContext.destination);
@@ -88,6 +98,7 @@ export class AudioCapture {
 		this.isRecording = false;
 
 		this.processor?.disconnect();
+		this.analyser?.disconnect();
 		this.source?.disconnect();
 		this.silentGain?.disconnect();
 
@@ -100,7 +111,27 @@ export class AudioCapture {
 		this.mediaStream = null;
 		this.source = null;
 		this.processor = null;
+		this.analyser = null;
+		this.frequencyData = null;
 		this.silentGain = null;
+	}
+
+	/**
+	 * Instantaneous mic amplitude in [0, 1]. Returns 0 when not recording.
+	 * Uses frequency-domain RMS from the AnalyserNode on the capture graph.
+	 */
+	getLevel(): number {
+		if (!this.isRecording || !this.analyser || !this.frequencyData) {
+			return 0;
+		}
+		this.analyser.getByteFrequencyData(this.frequencyData);
+		let sum = 0;
+		for (let i = 0; i < this.frequencyData.length; i++) {
+			const v = this.frequencyData[i] / 255;
+			sum += v * v;
+		}
+		const rms = Math.sqrt(sum / this.frequencyData.length);
+		return Math.min(1, rms * 2.2);
 	}
 
 	get isActive(): boolean {

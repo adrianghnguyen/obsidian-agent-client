@@ -506,4 +506,21 @@ describe("LiveTranscriber", () => {
 			expect(t.isActive).toBe(false);
 		});
 	});
+
+	describe("getLevel()", () => {
+		it("returns 0 when inactive", () => {
+			const t = createTranscriber();
+			expect(t.getLevel()).toBe(0);
+		});
+
+		it("delegates to the audio source while active", async () => {
+			const t = createTranscriber();
+			await startAndSetup(t);
+			const rec = recorder as ReturnType<typeof createFakeRecorder>;
+			rec.setLevel(0.42);
+			expect(t.getLevel()).toBeCloseTo(0.42);
+			await t.stop();
+			expect(t.getLevel()).toBe(0);
+		});
+	});
 });

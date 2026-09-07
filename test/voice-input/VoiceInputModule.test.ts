@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Plugin } from "obsidian";
 import { VoiceInputModule } from "../../src/voice-input/VoiceInputModule";
 import { createFakeSocket, createFakeRecorder, createFakeSink } from "./fixtures";
 import { LiveTranscriber } from "../../src/voice-input/LiveTranscriber";
@@ -104,5 +105,34 @@ describe("VoiceInputModule", () => {
 		expect(plugin.addCommand).toHaveBeenCalledWith(
 			expect.objectContaining({ id: "voice-input-toggle" }),
 		);
+	});
+
+	it("getAudioLevel is 0 when idle and matches recorder when active", async () => {
+		const recorder = createFakeRecorder();
+		fakeTranscriber = new LiveTranscriber("key", "model", {
+			createSocket: () => socketBundle.socket,
+			audioSource: recorder,
+			flushDelayMs: 0,
+		});
+		module = new VoiceInputModule(
+			plugin,
+			{ ...TEST_SETTINGS },
+			() => fakeTranscriber,
+		);
+
+		expect(module.getAudioLevel()).toBe(0);
+
+		const startPromise = module.startListening(sink);
+		socketBundle.socket.onopen?.();
+		socketBundle.socket.onmessage?.({
+			data: JSON.stringify({ setupComplete: true }),
+		});
+		await startPromise;
+
+		recorder.setLevel(0.55);
+		expect(module.getAudioLevel()).toBeCloseTo(0.55);
+
+		await module.stopListening();
+		expect(module.getAudioLevel()).toBe(0);
 	});
 });

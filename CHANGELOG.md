@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Changed
+- Voice input: mic moves inline with the chat textarea (circular control). While recording, a capsule shows stop, timer, live audio level bars, and a circular send that stops dictation and submits like Enter.
+
 ## 0.18.0
 
 ### Added
