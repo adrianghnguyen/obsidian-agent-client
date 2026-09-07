@@ -19,6 +19,7 @@ import type { ISettingsAccess } from "../services/settings-service";
 import type { ErrorInfo } from "../types/errors";
 import { extractErrorMessage } from "../utils/error-utils";
 import { getLogger } from "../utils/logger";
+import { isSameDirectory } from "../utils/platform";
 import {
 	type AgentDisplayInfo,
 	getDefaultAgentId,
@@ -220,14 +221,30 @@ export function useAgentSession(
 					effectiveCwd,
 				);
 
-				const initResult =
-					!agentClient.isInitialized() ||
-					agentClient.getCurrentAgentId() !== agentId
+				// Warm handoff: client already has initialize + session/new
+				// for this agent and cwd — skip both RPCs (snappy first open).
+				const warmSession = agentClient.getLastSessionResult();
+				const warmInit = agentClient.getLastInitResult();
+				const canReuseWarm =
+					agentClient.isInitialized() &&
+					agentClient.getCurrentAgentId() === agentId &&
+					!!agentClient.getCurrentSessionId() &&
+					!!warmSession &&
+					isSameDirectory(
+						agentClient.getWorkingDirectory(),
+						effectiveCwd,
+					);
+
+				const initResult = canReuseWarm
+					? warmInit
+					: !agentClient.isInitialized() ||
+						  agentClient.getCurrentAgentId() !== agentId
 						? await agentClient.initialize(agentConfig)
 						: null;
 
-				const sessionResult =
-					await agentClient.newSession(effectiveCwd);
+				const sessionResult = canReuseWarm
+					? warmSession!
+					: await agentClient.newSession(effectiveCwd);
 
 				// Pre-compute restored modes/configOptions BEFORE
 				// marking state as "ready" to avoid a UI race: without this,
