@@ -1239,11 +1239,20 @@ If your plugin does not need CSS, delete this file.
 	height: var(--textarea-height, auto);
 }
 
+/* Textarea + inline voice row */
+.agent-client-input-main-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
 /* Textarea wrapper for hint overlay */
 .agent-client-textarea-wrapper {
 	position: relative;
 	flex: 1;
 	min-height: 80px;
+	min-width: 0;
 }
 
 /* Hint overlay for slash commands */
@@ -1495,48 +1504,140 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 }
 
-/* Voice (mic) button */
-.agent-client-chat-voice-button {
-	width: 20px;
-	height: 20px;
+/* Inline voice input (Cursor-style mic / recording capsule) */
+.agent-client-voice-inline {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+	padding-right: 12px;
+	align-self: center;
+}
+
+.agent-client-voice-mic-button {
+	width: 32px;
+	height: 32px;
 	padding: 0 !important;
 	margin: 0 !important;
 	border: none !important;
-	border-radius: 0 !important;
-	background-color: transparent !important;
+	border-radius: 50% !important;
+	background-color: var(--background-modifier-hover) !important;
 	cursor: pointer;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 16px;
 	outline: none !important;
 	appearance: none;
 	box-shadow: none !important;
-	transition: color 0.2s ease;
+	transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.agent-client-chat-voice-button svg {
+.agent-client-voice-mic-button svg {
+	width: 16px;
+	height: 16px;
 	color: var(--text-muted);
-	transition: color 0.2s ease;
 }
 
-.agent-client-chat-voice-button:hover svg {
+.agent-client-voice-mic-button:hover:not(:disabled) {
+	background-color: var(--background-modifier-border-hover) !important;
+}
+
+.agent-client-voice-mic-button:hover:not(:disabled) svg {
 	color: var(--text-normal);
 }
 
-.agent-client-chat-voice-button.is-recording svg {
-	color: var(--color-yellow);
-	animation: agent-client-voice-pulse 1.4s ease-in-out infinite;
+.agent-client-voice-mic-button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed !important;
 }
 
-@keyframes agent-client-voice-pulse {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.35;
-	}
+.agent-client-voice-recording {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 10px;
+	border-radius: 16px;
+	background-color: var(--background-modifier-hover);
+	min-height: 28px;
+}
+
+.agent-client-voice-stop-button {
+	width: 18px;
+	height: 18px;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: none !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	outline: none !important;
+	appearance: none;
+	box-shadow: none !important;
+}
+
+.agent-client-voice-stop-button svg {
+	width: 12px;
+	height: 12px;
+	color: var(--text-normal);
+}
+
+.agent-client-voice-timer {
+	font-variant-numeric: tabular-nums;
+	font-size: 12px;
+	color: var(--text-muted);
+	min-width: 2.5em;
+	text-align: center;
+	user-select: none;
+}
+
+.agent-client-voice-level-bars {
+	display: flex;
+	align-items: flex-end;
+	gap: 2px;
+	height: 16px;
+	width: 22px;
+}
+
+.agent-client-voice-level-bar {
+	display: block;
+	width: 3px;
+	height: 100%;
+	border-radius: 1px;
+	background-color: var(--text-normal);
+	transform-origin: bottom center;
+	transition: transform 0.05s linear;
+}
+
+.agent-client-voice-send-button {
+	width: 32px;
+	height: 32px;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: none !important;
+	border-radius: 50% !important;
+	background-color: var(--text-normal) !important;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	outline: none !important;
+	appearance: none;
+	box-shadow: none !important;
+	flex-shrink: 0;
+	transition: opacity 0.15s ease;
+}
+
+.agent-client-voice-send-button svg {
+	width: 16px;
+	height: 16px;
+	color: var(--background-primary);
+}
+
+.agent-client-voice-send-button:hover {
+	opacity: 0.85;
 }
 
 /* ===== Other Chat Components ===== */

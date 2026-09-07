@@ -17,8 +17,12 @@ import { SuggestionPopup } from "./SuggestionPopup";
 import { ErrorBanner } from "./ErrorBanner";
 import { AttachmentStrip } from "./shared/AttachmentStrip";
 import { InputToolbar } from "./InputToolbar";
+import { VoiceInputInline } from "./VoiceInputInline";
+import { useFloatingPresence } from "./FloatingPresenceContext";
 import type { TranscriptSink } from "../voice-input/types";
 import { VoiceTranscriptAccumulator } from "../voice-input/transcript-accumulation";
+import { captureVoiceMessageForSend } from "../voice-input/format-voice-duration";
+import { ENGAGEMENT_VOICE_INPUT } from "../services/engagement-latch";
 import { getLogger } from "../utils/logger";
 import type { ErrorInfo } from "../types/errors";
 import type { AgentUpdateNotification } from "../services/update-checker";
@@ -755,9 +759,15 @@ export function InputArea({
 
 	// Voice input
 	const [isVoiceListening, setIsVoiceListening] = useState(false);
+	const [audioLevel, setAudioLevel] = useState(0);
 	// Accumulates streamed transcripts so each dictated segment appends to
 	// the prompt (and to earlier segments) instead of overwriting it.
 	const voiceAccumulatorRef = useRef(new VoiceTranscriptAccumulator());
+	const inputValueRef = useRef(inputValue);
+	inputValueRef.current = inputValue;
+	const isVoiceListeningRef = useRef(isVoiceListening);
+	isVoiceListeningRef.current = isVoiceListening;
+	const presenceLatch = useFloatingPresence();
 
 	const stopVoiceListening = useCallback(async () => {
 		const voiceInput = plugin.voiceInput;
@@ -768,11 +778,14 @@ export function InputArea({
 		// Drop any lingering interim preview; committed finals stay.
 		onInputChange(acc.discardInterim());
 		setIsVoiceListening(false);
-	}, [plugin, onInputChange]);
+		setAudioLevel(0);
+		presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
+	}, [plugin, onInputChange, presenceLatch]);
 
-	const handleToggleVoice = useCallback(() => {
+	const handleStartVoice = useCallback(() => {
 		const voiceInput = plugin.voiceInput;
 		if (!voiceInput) return;
+		if (voiceInput.isListening || isVoiceListening) return;
 		if (!isSessionReady) {
 			new Notice(
 				"[Agent Client] Wait for the agent session to be ready before using voice input.",
@@ -780,30 +793,113 @@ export function InputArea({
 			return;
 		}
 
-		if (voiceInput.isListening) {
-			void stopVoiceListening();
-		} else {
-			const acc = voiceAccumulatorRef.current;
-			acc.begin(inputValue);
-			const sink: TranscriptSink = {
-				onInterim: (text) => {
-					const preview = acc.applyInterim(text);
-					if (preview !== null) onInputChange(preview);
-				},
-				onFinal: (text) => {
-					const committed = acc.applyFinal(text);
-					if (committed !== null) onInputChange(committed);
-				},
-				onError: (error) => {
-					onInputChange(acc.discardInterim());
-					new Notice("[Agent Client] Voice: " + error);
-					setIsVoiceListening(false);
-				},
-			};
-			void voiceInput.startListening(sink);
-			setIsVoiceListening(true);
+		const acc = voiceAccumulatorRef.current;
+		acc.begin(inputValue);
+		const sink: TranscriptSink = {
+			onInterim: (text) => {
+				const preview = acc.applyInterim(text);
+				if (preview !== null) onInputChange(preview);
+			},
+			onFinal: (text) => {
+				const committed = acc.applyFinal(text);
+				if (committed !== null) onInputChange(committed);
+			},
+			onError: (error) => {
+				onInputChange(acc.discardInterim());
+				new Notice("[Agent Client] Voice: " + error);
+				setIsVoiceListening(false);
+				setAudioLevel(0);
+				presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
+			},
+		};
+		void voiceInput.startListening(sink);
+		setIsVoiceListening(true);
+		presenceLatch?.hold(ENGAGEMENT_VOICE_INPUT);
+	}, [
+		plugin,
+		inputValue,
+		onInputChange,
+		isSessionReady,
+		isVoiceListening,
+		presenceLatch,
+	]);
+
+	const handleVoiceStopAndSend = useCallback(async () => {
+		const messageToSend = captureVoiceMessageForSend(inputValueRef.current);
+		const filesToSend =
+			attachedFiles.length > 0 ? [...attachedFiles] : undefined;
+
+		await stopVoiceListening();
+
+		onInputChange("");
+		onAttachedFilesChange([]);
+		setHintText(null);
+		setCommandText("");
+		resetHistory();
+
+		if (!messageToSend && (!filesToSend || filesToSend.length === 0)) {
+			return;
 		}
-	}, [plugin, inputValue, onInputChange, isSessionReady, stopVoiceListening]);
+		await onSendMessage(messageToSend, filesToSend);
+	}, [
+		attachedFiles,
+		stopVoiceListening,
+		onInputChange,
+		onAttachedFilesChange,
+		resetHistory,
+		onSendMessage,
+	]);
+
+	// Poll mic amplitude while recording for the inline level bars
+	useEffect(() => {
+		if (!isVoiceListening) {
+			setAudioLevel(0);
+			return;
+		}
+		let rafId = 0;
+		const tick = () => {
+			const level = plugin.voiceInput?.getAudioLevel() ?? 0;
+			setAudioLevel(level);
+			rafId = requestAnimationFrame(tick);
+		};
+		rafId = requestAnimationFrame(tick);
+		return () => cancelAnimationFrame(rafId);
+	}, [isVoiceListening, plugin]);
+
+	// Release presence hold if this input unmounts mid-dictation
+	useEffect(() => {
+		return () => {
+			presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
+		};
+	}, [presenceLatch]);
+
+	// Command palette: agent-client:voice-input-toggle
+	const handleStartVoiceRef = useRef(handleStartVoice);
+	const stopVoiceListeningRef = useRef(stopVoiceListening);
+	handleStartVoiceRef.current = handleStartVoice;
+	stopVoiceListeningRef.current = stopVoiceListening;
+
+	useEffect(() => {
+		if (!plugin.voiceInput) return;
+		const workspace = plugin.app.workspace;
+		const ws = workspace as unknown as {
+			on: (
+				name: string,
+				callback: (...args: never[]) => void,
+			) => { e?: unknown };
+			offref: (ref: { e?: unknown }) => void;
+		};
+		const ref = ws.on("agent-client:voice-input-toggle", (() => {
+			if (isVoiceListeningRef.current) {
+				void stopVoiceListeningRef.current();
+			} else {
+				handleStartVoiceRef.current();
+			}
+		}) as (...args: never[]) => void);
+		return () => {
+			ws.offref(ref);
+		};
+	}, [plugin]);
 
 	/**
 	 * Handle dropdown keyboard navigation.
@@ -1102,31 +1198,43 @@ export function InputArea({
 					</button>
 				)}
 
-				{/* Textarea with Hint Overlay */}
-				<div className="agent-client-textarea-wrapper">
-					<textarea
-						ref={textareaRef}
-						value={inputValue}
-						onChange={handleInputChange}
-						onKeyDown={handleKeyDown}
-						onPaste={(e) => void handlePaste(e)}
-						placeholder={placeholder}
-						className={`agent-client-chat-input-textarea ${mentions.activeNote ? "has-auto-mention" : ""}`}
-						rows={1}
-						spellCheck={obsidianSpellcheck}
-					/>
-					{hintText && (
-						<div
-							className="agent-client-hint-overlay"
-							aria-hidden="true"
-						>
-							<span className="agent-client-invisible">
-								{commandText}
-							</span>
-							<span className="agent-client-hint-text">
-								{hintText}
-							</span>
-						</div>
+				{/* Textarea with Hint Overlay + inline voice controls */}
+				<div className="agent-client-input-main-row">
+					<div className="agent-client-textarea-wrapper">
+						<textarea
+							ref={textareaRef}
+							value={inputValue}
+							onChange={handleInputChange}
+							onKeyDown={handleKeyDown}
+							onPaste={(e) => void handlePaste(e)}
+							placeholder={placeholder}
+							className={`agent-client-chat-input-textarea ${mentions.activeNote ? "has-auto-mention" : ""}`}
+							rows={1}
+							spellCheck={obsidianSpellcheck}
+						/>
+						{hintText && (
+							<div
+								className="agent-client-hint-overlay"
+								aria-hidden="true"
+							>
+								<span className="agent-client-invisible">
+									{commandText}
+								</span>
+								<span className="agent-client-hint-text">
+									{hintText}
+								</span>
+							</div>
+						)}
+					</div>
+					{plugin.voiceInput && (
+						<VoiceInputInline
+							isListening={isVoiceListening}
+							audioLevel={audioLevel}
+							onStart={handleStartVoice}
+							onStop={() => void stopVoiceListening()}
+							onStopAndSend={() => void handleVoiceStopAndSend()}
+							disabled={!isSessionReady || isRestoringSession}
+						/>
 					)}
 				</div>
 
@@ -1147,8 +1255,6 @@ export function InputArea({
 					onConfigOptionChange={onConfigOptionChange}
 					usage={usage}
 					isSessionReady={isSessionReady}
-					isListening={isVoiceListening}
-					onToggleVoice={handleToggleVoice}
 				/>
 			</div>
 		</div>

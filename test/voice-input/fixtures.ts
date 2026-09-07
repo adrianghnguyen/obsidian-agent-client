@@ -64,15 +64,28 @@ export function createFakeSocket(bundle?: Partial<FakeSocketBundle>): FakeSocket
 	};
 }
 
-export function createFakeRecorder(): LiveAudioSource & { emitChunk(pcm: string): void } {
+export function createFakeRecorder(): LiveAudioSource & {
+	emitChunk(pcm: string): void;
+	setLevel(level: number): void;
+} {
 	let _onChunk: ((base64Pcm: string) => void) | null = null;
+	let _active = false;
+	let _level = 0;
 	return {
 		setDeviceId: vi.fn(),
 		start: vi.fn(async (cb: (base64Pcm: string) => void) => {
 			_onChunk = cb;
+			_active = true;
 		}),
-		stop: vi.fn(),
+		stop: vi.fn(() => {
+			_active = false;
+			_level = 0;
+		}),
+		getLevel: () => (_active ? _level : 0),
 		emitChunk: (pcm: string) => _onChunk?.(pcm),
+		setLevel: (level: number) => {
+			_level = level;
+		},
 	};
 }
 

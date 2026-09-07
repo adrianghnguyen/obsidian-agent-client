@@ -11,11 +11,14 @@
  * - Scroll/wheel activity inside the window (wheel + scroll capture) —
  *   belt-and-suspenders with hover; also refreshes opacity if already faded while
  *   scrolling under the cursor
+ * - Floating presence EngagementLatch has any hold (e.g. voice-input) — window
+ *   stays engaged even if pointer/focus leave
  *
  * Schedule fade only when none of the above remain true.
  */
 import { useLayoutEffect } from "react";
 import type AgentClientPlugin from "../plugin";
+import type { EngagementLatch } from "../services/engagement-latch";
 import { useSettings } from "./useSettings";
 
 const IDLE_OPACITY_VAR = "--agent-client-floating-idle-opacity";
@@ -34,7 +37,8 @@ function windowHasFocus(windowEl: HTMLDivElement): boolean {
 /**
  * Fade floating chat when the user is no longer engaged with the window:
  * after pointer leaves, focus leaves, and any pointer gesture ends, wait X ms
- * then fade. Hover, scroll, focus inside, or interacting restores full opacity.
+ * then fade. Hover, scroll, focus inside, interacting, or presence holds
+ * restore / keep full opacity.
  *
  * `windowEl` must be the mounted floating window node (not only a ref) so the
  * effect rebinds when React attaches the DOM node.
@@ -43,6 +47,7 @@ export function useFloatingIdleOpacity(
 	plugin: AgentClientPlugin,
 	windowEl: HTMLDivElement | null,
 	isExpanded: boolean,
+	presenceLatch: EngagementLatch | null = null,
 ): void {
 	const { floatingIdleTimeoutMs: timeoutMs, floatingIdleOpacityPercent: opacityPercent } =
 		useSettings(plugin);
@@ -79,7 +84,10 @@ export function useFloatingIdleOpacity(
 		};
 
 		const isEngaged = () =>
-			pointerInside || gestureActive || windowHasFocus(windowEl);
+			pointerInside ||
+			gestureActive ||
+			windowHasFocus(windowEl) ||
+			(presenceLatch?.isHeld() ?? false);
 
 		const showOpaque = () => {
 			clearTimer();
@@ -157,12 +165,17 @@ export function useFloatingIdleOpacity(
 		windowEl.addEventListener("wheel", onWheel, { capture: true });
 		windowEl.addEventListener("scroll", onScroll, { capture: true });
 
+		const unsubPresence = presenceLatch?.subscribe(syncIdle) ?? null;
+
 		if (!isEngaged()) {
 			scheduleFade();
+		} else {
+			showOpaque();
 		}
 
 		return () => {
 			clearTimer();
+			unsubPresence?.();
 			document.removeEventListener("pointerup", onPointerUp, true);
 			document.removeEventListener("pointercancel", onPointerUp, true);
 			windowEl.removeEventListener("pointerenter", onPointerEnter);
@@ -180,5 +193,6 @@ export function useFloatingIdleOpacity(
 		timeoutMs,
 		opacityPercent,
 		windowEl,
+		presenceLatch,
 	]);
 }

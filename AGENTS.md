@@ -350,6 +350,8 @@ interface ISettingsAccess {
 
 Use this when ACP connection or spawn fails — console lines like `[AcpClient] Prepared spawn command:` and `[AcpClient] Initialization Error:` are gated on debug mode.
 
+**Voice live smoke (optional, not CI):** `GEMINI_API_KEY=... npm run smoke:voice` feeds `test/voice-input/fixtures/sample-speech.wav` into Gemini Live and asserts a final transcript.
+
 ## ACP Protocol
 
 **Communication**: JSON-RPC 2.0 over stdin/stdout
