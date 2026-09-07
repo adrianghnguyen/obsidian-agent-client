@@ -17,11 +17,11 @@ Plugin id: `agent-client`. Finish bar: `.cursor/rules/deploy-and-verify.mdc`. Co
 
 Upstream sync: merge on `sync/upstream-<version>` (not rebase) from `upstream/master`, then ff-merge to `master`, push origin, deploy, delete temp branch. Prefer upstream for ACP/session/adapter core; prefer fork for local UX once it exists; ask on ambiguous overlaps.
 
-Vault catalog: `Notes/obsidian plugin tweaks.md`. Skill: `.agents/skills/obsidian-plugin-tweaks/SKILL.md` (vault).
+Vault catalog: `Notes/obsidian plugin tweaks.md`. Fork/deploy workflow: plugin skill `obsidian-plugin-tweaks` (Obsidian Plugin Development).
 
 ### Versioning and changelog
 
-User-facing changes: log under `CHANGELOG.md` `[Unreleased]` when ready; version bump on `main` only — global skill `~/.cursor/skills/obsidian-plugin-dev/SKILL.md` (Release notes and semantic versioning). This repo also syncs `package.json` and `versions.json` at release (or via `npm version` / release script).
+User-facing changes: log under `CHANGELOG.md` `[Unreleased]` when ready; version bump on `main` only — see plugin skill `obsidian-plugin-dev` (Obsidian Plugin Development) — Release notes and semantic versioning. This repo also syncs `package.json` and `versions.json` at release (or via `npm version` / release script).
 
 ---
 
