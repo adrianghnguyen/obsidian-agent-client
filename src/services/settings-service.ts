@@ -12,6 +12,7 @@ import { updateDebugMode } from "../utils/logger";
 import type { ChatMessage } from "../types/chat";
 import type { SavedSessionInfo } from "../types/session";
 import { SessionStorage } from "./session-storage";
+import type { SessionHistoryClearRange } from "./session-history-clear";
 
 // ============================================================================
 // Port Types (from settings-access.port.ts)
@@ -98,6 +99,15 @@ export interface ISettingsAccess {
 	 * @returns Promise that resolves when session is deleted
 	 */
 	deleteSession(sessionId: string): Promise<void>;
+
+	/**
+	 * Delete local sessions in a time window across all agent harnesses.
+	 * @returns Number of sessions removed
+	 */
+	deleteSessionsInRange(
+		range: SessionHistoryClearRange,
+		nowMs?: number,
+	): Promise<number>;
 
 	/**
 	 * Update the title of a saved session.
@@ -284,6 +294,13 @@ export class SettingsService implements ISettingsAccess {
 
 	async deleteSession(sessionId: string): Promise<void> {
 		return this.sessionStorage.deleteSession(sessionId);
+	}
+
+	async deleteSessionsInRange(
+		range: SessionHistoryClearRange,
+		nowMs?: number,
+	): Promise<number> {
+		return this.sessionStorage.deleteSessionsInRange(range, nowMs);
 	}
 
 	async updateSessionTitle(

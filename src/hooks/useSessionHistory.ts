@@ -18,6 +18,11 @@ import {
 	buildHistoryActivityPatch,
 	buildMissingHistoryIndexEntry,
 } from "../services/session-history-restore";
+import { buildOpenHistoryLocalList } from "../services/session-history-list";
+import {
+	sessionsMatchingClearRange,
+	type SessionHistoryClearRange,
+} from "../services/session-history-clear";
 import { extractErrorMessage } from "../utils/error-utils";
 import { truncateTitle } from "../utils/text";
 
@@ -211,6 +216,12 @@ export interface UseSessionHistoryReturn {
 	 * Call this when creating a new session to refresh the list.
 	 */
 	invalidateCache: () => void;
+
+	/**
+	 * Delete local sessions whose updatedAt falls in the time window.
+	 * Wipes across all agent harnesses. Removes metadata and transcript files.
+	 */
+	clearSessionsInRange: (range: SessionHistoryClearRange) => Promise<number>;
 }
 
 /**
@@ -265,6 +276,8 @@ export function useSessionHistory(
 		() => getSessionCapabilityFlags(session.agentCapabilities),
 		[session.agentCapabilities],
 	);
+	const capabilitiesRef = useRef(capabilities);
+	capabilitiesRef.current = capabilities;
 
 	const resolveDisplayName = useCallback(
 		(agentId: string) =>
@@ -363,12 +376,13 @@ export function useSessionHistory(
 			const shouldUseLocalSessions =
 				!capabilities.canList || !canPerformAnyOperation;
 
+			const allLocal = settingsAccess.getSavedSessions();
+			const localSessions = buildOpenHistoryLocalList(allLocal, {
+				filterByCurrentVault: cwd !== undefined,
+				currentCwd: cwd,
+			});
+
 			if (shouldUseLocalSessions) {
-				// All harnesses for this cwd — history recalls agentId on restore.
-				const localSessions = settingsAccess.getSavedSessions(
-					undefined,
-					cwd,
-				);
 				const sessionInfos = toHistorySessionInfos(
 					localSessions,
 					resolveDisplayName,
@@ -378,17 +392,12 @@ export function useSessionHistory(
 				setLocalSessionIds(
 					new Set(localSessions.map((s) => s.sessionId)),
 				);
-				setNextCursor(undefined); // No pagination for local sessions
+				setNextCursor(undefined);
 				setError(null);
 				return;
 			}
 
-			// Check cache first
 			if (isCacheValid(cwd)) {
-				const localSessions = settingsAccess.getSavedSessions(
-					undefined,
-					cwd,
-				);
 				setLocalSessionIds(
 					new Set(localSessions.map((s) => s.sessionId)),
 				);
@@ -412,10 +421,6 @@ export function useSessionHistory(
 				const result: ListSessionsResult =
 					await agentClient.listSessions(cwd);
 
-				const localSessions = settingsAccess.getSavedSessions(
-					undefined,
-					cwd,
-				);
 				const sessionsWithLocal = mergeAgentListWithLocalHistory(
 					result.sessions,
 					localSessions,
@@ -438,7 +443,12 @@ export function useSessionHistory(
 			} catch (err) {
 				const errorMessage = extractErrorMessage(err);
 				setError(`Failed to fetch sessions: ${errorMessage}`);
-				setSessions([]);
+				setSessions(
+					toHistorySessionInfos(localSessions, resolveDisplayName),
+				);
+				setLocalSessionIds(
+					new Set(localSessions.map((s) => s.sessionId)),
+				);
 				setNextCursor(undefined);
 			} finally {
 				setLoading(false);
@@ -474,10 +484,11 @@ export function useSessionHistory(
 				nextCursor,
 			);
 
-			const localSessions = settingsAccess.getSavedSessions(
-				undefined,
-				currentCwdRef.current,
-			);
+			const allLocal = settingsAccess.getSavedSessions();
+			const localSessions = buildOpenHistoryLocalList(allLocal, {
+				filterByCurrentVault: currentCwdRef.current !== undefined,
+				currentCwd: currentCwdRef.current,
+			});
 			const pageWithLocal = mergeAgentListWithLocalHistory(
 				result.sessions,
 				localSessions,
@@ -522,36 +533,68 @@ export function useSessionHistory(
 	 * Restore a specific session by ID.
 	 * Uses load if available (with history replay), otherwise resume (without history replay).
 	 */
+	const restoreLocalTranscript = useCallback(
+		async (sessionId: string): Promise<boolean> => {
+			const localMessages =
+				await settingsAccess.loadSessionMessages(sessionId);
+			if (!localMessages || !onMessagesRestore) return false;
+			onIgnoreUpdates?.(true);
+			onClearMessages?.();
+			try {
+				onMessagesRestore(localMessages);
+			} finally {
+				onIgnoreUpdates?.(false);
+			}
+			return true;
+		},
+		[settingsAccess, onMessagesRestore, onIgnoreUpdates, onClearMessages],
+	);
+
 	const restoreSession = useCallback(
 		async (sessionId: string, cwd: string) => {
 			setLoading(true);
 			setError(null);
+			const caps = capabilitiesRef.current;
 
 			try {
-				// Guard: restoring against a dead/disconnected agent would
-				// fail with the opaque SDK error "ACP connection closed".
-				// Surface an actionable message instead. (No auto-spawn here —
-				// the view's new chat already starts a fresh agent on reopen.)
+				onSessionLoad(sessionId, undefined, undefined);
+
+				const applyLocal = () => restoreLocalTranscript(sessionId);
+
 				if (!agentClient.isInitialized()) {
+					if (await applyLocal()) return;
 					const notConnected =
 						"Agent is not connected. Reopen the chat (a new agent starts automatically) and try restoring again.";
 					setError(notConnected);
 					throw new Error(notConnected);
 				}
 
-				// IMPORTANT: Update session.sessionId BEFORE calling restore
-				// so that session/update notifications are not ignored
-				onSessionLoad(sessionId, undefined, undefined);
-
-				if (capabilities.canLoad) {
-					// Check local messages first to decide whether to use them or agent replay
+				if (caps.canLoad) {
 					const localMessages =
 						await settingsAccess.loadSessionMessages(sessionId);
 
 					if (localMessages && onMessagesRestore) {
-						// Local messages available: ignore agent replay, restore from local
 						onIgnoreUpdates?.(true);
 						onClearMessages?.();
+						try {
+							try {
+								const result = await agentClient.loadSession(
+									sessionId,
+									cwd,
+								);
+								onSessionLoad(
+									result.sessionId,
+									result.modes,
+									result.configOptions,
+								);
+							} catch {
+								// ACP load can fail for other-harness ids; keep local transcript.
+							}
+							onMessagesRestore(localMessages);
+						} finally {
+							onIgnoreUpdates?.(false);
+						}
+					} else {
 						try {
 							const result = await agentClient.loadSession(
 								sessionId,
@@ -562,13 +605,14 @@ export function useSessionHistory(
 								result.modes,
 								result.configOptions,
 							);
-							onMessagesRestore(localMessages);
-						} finally {
-							onIgnoreUpdates?.(false);
+						} catch (err) {
+							if (await applyLocal()) return;
+							throw err;
 						}
-					} else {
-						// No local messages: let agent replay flow through to UI
-						const result = await agentClient.loadSession(
+					}
+				} else if (caps.canResume) {
+					try {
+						const result = await agentClient.resumeSession(
 							sessionId,
 							cwd,
 						);
@@ -577,45 +621,29 @@ export function useSessionHistory(
 							result.modes,
 							result.configOptions,
 						);
+					} catch {
+						// ACP resume can fail for other-harness ids; keep local transcript.
 					}
-				} else if (capabilities.canResume) {
-					// Use resume (without history replay, restore from local storage)
-					const result = await agentClient.resumeSession(
-						sessionId,
-						cwd,
-					);
-					onSessionLoad(
-						result.sessionId,
-						result.modes,
-						result.configOptions,
-					);
-
-					// Resume doesn't return history, so restore from local storage
-					const localMessages =
-						await settingsAccess.loadSessionMessages(sessionId);
-					if (localMessages && onMessagesRestore) {
-						onMessagesRestore(localMessages);
-					}
-				} else {
+					await applyLocal();
+				} else if (!(await applyLocal())) {
 					throw new Error("Session restoration is not supported");
 				}
 			} catch (err) {
 				const errorMessage = extractErrorMessage(err);
 				setError(`Failed to restore session: ${errorMessage}`);
-				throw err; // Re-throw to allow caller to handle
+				throw err;
 			} finally {
 				setLoading(false);
 			}
 		},
 		[
 			agentClient,
-			capabilities.canLoad,
-			capabilities.canResume,
 			onSessionLoad,
 			settingsAccess,
 			onMessagesRestore,
 			onIgnoreUpdates,
 			onClearMessages,
+			restoreLocalTranscript,
 		],
 	);
 
@@ -726,6 +754,25 @@ export function useSessionHistory(
 		[settingsAccess, invalidateCache],
 	);
 
+	const clearSessionsInRange = useCallback(
+		async (range: SessionHistoryClearRange) => {
+			const removed = await settingsAccess.deleteSessionsInRange(range);
+			const remaining = settingsAccess.getSavedSessions();
+			const cwd = currentCwdRef.current;
+			const localSessions = buildOpenHistoryLocalList(remaining, {
+				filterByCurrentVault: cwd !== undefined,
+				currentCwd: cwd,
+			});
+			setSessions(
+				toHistorySessionInfos(localSessions, resolveDisplayName),
+			);
+			setLocalSessionIds(new Set(localSessions.map((s) => s.sessionId)));
+			invalidateCache();
+			return removed;
+		},
+		[settingsAccess, invalidateCache, resolveDisplayName],
+	);
+
 	/**
 	 * Update the title of a saved session.
 	 * Updates both local state and persistent storage.
@@ -773,11 +820,7 @@ export function useSessionHistory(
 	 * Called when the first message is sent in a new session.
 	 */
 	const saveSessionLocally = useCallback(
-		async (
-			sessionId: string,
-			messageContent: string,
-			embedId?: string,
-		) => {
+		async (sessionId: string, messageContent: string, embedId?: string) => {
 			if (!session.agentId) return;
 
 			const title = truncateTitle(messageContent);
@@ -847,23 +890,19 @@ export function useSessionHistory(
 			hasMore: nextCursor !== undefined,
 
 			// Capability flags
-			canShowSessionHistory:
-				capabilities.canList ||
-				capabilities.canLoad ||
-				capabilities.canResume ||
-				capabilities.canFork,
+			canShowSessionHistory: true,
 			canRestore: capabilities.canLoad || capabilities.canResume,
 			canFork: capabilities.canFork,
 			canList: capabilities.canList,
 			isUsingLocalSessions: !capabilities.canList,
 			localSessionIds,
 
-			// Methods
 			fetchSessions,
 			loadMoreSessions,
 			restoreSession,
 			forkSession,
 			deleteSession,
+			clearSessionsInRange,
 			updateSessionTitle,
 			saveSessionLocally,
 			saveSessionMessages,
@@ -884,6 +923,7 @@ export function useSessionHistory(
 			restoreSession,
 			forkSession,
 			deleteSession,
+			clearSessionsInRange,
 			updateSessionTitle,
 			saveSessionLocally,
 			saveSessionMessages,

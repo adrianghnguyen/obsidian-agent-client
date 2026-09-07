@@ -543,3 +543,39 @@ describe("SessionStorage — rename syncs the transcript's title snapshot", () =
 		expect(data.messages as unknown[]).toHaveLength(1);
 	});
 });
+
+describe("SessionStorage — deleteSessionsInRange", () => {
+	it("removes mixed-harness rows in the window and their files", async () => {
+		const { storage, state, files } = makeStorage();
+		const now = Date.parse("2026-09-07T12:00:00.000Z");
+		state.savedSessions = [
+			makeSession({
+				sessionId: "keep-old",
+				agentId: "cursor",
+				updatedAt: "2026-01-01T00:00:00.000Z",
+			}),
+			makeSession({
+				sessionId: "drop-ag",
+				agentId: "antigravity",
+				updatedAt: "2026-09-07T11:50:00.000Z",
+			}),
+			makeSession({
+				sessionId: "drop-cursor",
+				agentId: "cursor",
+				updatedAt: "2026-09-07T11:55:00.000Z",
+			}),
+		];
+		files.set(filePath("drop-ag"), "{}");
+		files.set(filePath("drop-cursor"), "{}");
+		files.set(filePath("keep-old"), "{}");
+
+		const removed = await storage.deleteSessionsInRange("15m", now);
+		expect(removed).toBe(2);
+		expect(state.savedSessions.map((s) => s.sessionId)).toEqual([
+			"keep-old",
+		]);
+		expect(files.has(filePath("keep-old"))).toBe(true);
+		expect(files.has(filePath("drop-ag"))).toBe(false);
+		expect(files.has(filePath("drop-cursor"))).toBe(false);
+	});
+});

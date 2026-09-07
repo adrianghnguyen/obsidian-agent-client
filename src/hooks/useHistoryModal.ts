@@ -5,6 +5,7 @@ import { getLogger } from "../utils/logger";
 import { convertWslPathToWindows } from "../utils/platform";
 import { extractErrorMessage } from "../utils/error-utils";
 import { planHistoryRestore } from "../services/session-history-restore";
+import type { SessionHistoryClearRange } from "../services/session-history-clear";
 import type AgentClientPlugin from "../plugin";
 import type { UseAgentReturn } from "./useAgent";
 import type { UseSessionHistoryReturn } from "./useSessionHistory";
@@ -218,32 +219,59 @@ export function useHistoryModal(
 		[sessionHistory.fetchSessions],
 	);
 
+	const handleClearSessions = useCallback(
+		async (range: SessionHistoryClearRange) => {
+			try {
+				const removed =
+					await sessionHistory.clearSessionsInRange(range);
+				new Notice(
+					removed === 0
+						? "[Agent Client] No sessions in that time range"
+						: `[Agent Client] Cleared ${removed} session${removed === 1 ? "" : "s"} from history`,
+				);
+			} catch (error) {
+				new Notice("[Agent Client] Failed to clear session history");
+				logger.error("Session history clear error:", error);
+			}
+		},
+		[sessionHistory.clearSessionsInRange, logger],
+	);
+
 	const handleOpenHistory = useCallback(() => {
-		// Create modal if it doesn't exist
-		if (!historyModalRef.current) {
-			historyModalRef.current = new SessionHistoryModal(plugin.app, {
-				sessions: sessionHistory.sessions,
-				loading: sessionHistory.loading,
-				error: sessionHistory.error,
-				hasMore: sessionHistory.hasMore,
-				currentCwd: vaultPath,
-				canList: sessionHistory.canList,
-				canRestore: sessionHistory.canRestore,
-				canFork: sessionHistory.canFork,
-				isUsingLocalSessions: sessionHistory.isUsingLocalSessions,
-				localSessionIds: sessionHistory.localSessionIds,
-				isAgentReady: isSessionReady,
-				debugMode: debugMode,
-				onRestoreSession: handleRestoreSession,
-				onForkSession: handleForkSession,
-				onDeleteSession: handleDeleteSession,
-				onEditTitle: handleEditTitle,
-				onLoadMore: handleLoadMore,
-				onFetchSessions: handleFetchSessions,
-			});
+		try {
+			if (!historyModalRef.current) {
+				historyModalRef.current = new SessionHistoryModal(plugin.app, {
+					sessions: sessionHistory.sessions,
+					loading: sessionHistory.loading,
+					error: sessionHistory.error,
+					hasMore: sessionHistory.hasMore,
+					currentCwd: vaultPath,
+					canList: sessionHistory.canList,
+					canRestore: sessionHistory.canRestore,
+					canFork: sessionHistory.canFork,
+					isUsingLocalSessions: sessionHistory.isUsingLocalSessions,
+					localSessionIds: sessionHistory.localSessionIds,
+					isAgentReady: isSessionReady,
+					debugMode: debugMode,
+					onRestoreSession: handleRestoreSession,
+					onForkSession: handleForkSession,
+					onDeleteSession: handleDeleteSession,
+					onEditTitle: handleEditTitle,
+					onLoadMore: handleLoadMore,
+					onFetchSessions: handleFetchSessions,
+					onClearSessions: handleClearSessions,
+				});
+			}
+			historyModalRef.current.open();
+			void sessionHistory.fetchSessions();
+		} catch (error) {
+			const errorMessage = extractErrorMessage(error);
+			new Notice(
+				`[Agent Client] Failed to open session history: ${errorMessage}`,
+				8000,
+			);
+			logger.error("Open session history error:", error);
 		}
-		historyModalRef.current.open();
-		void sessionHistory.fetchSessions(vaultPath);
 	}, [
 		plugin.app,
 		sessionHistory.sessions,
@@ -265,6 +293,7 @@ export function useHistoryModal(
 		handleEditTitle,
 		handleLoadMore,
 		handleFetchSessions,
+		handleClearSessions,
 	]);
 
 	// Update modal props when session history state changes
@@ -289,6 +318,7 @@ export function useHistoryModal(
 				onEditTitle: handleEditTitle,
 				onLoadMore: handleLoadMore,
 				onFetchSessions: handleFetchSessions,
+				onClearSessions: handleClearSessions,
 			});
 		}
 	}, [
@@ -310,6 +340,7 @@ export function useHistoryModal(
 		handleEditTitle,
 		handleLoadMore,
 		handleFetchSessions,
+		handleClearSessions,
 	]);
 
 	return { handleOpenHistory };

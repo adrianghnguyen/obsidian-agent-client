@@ -307,6 +307,10 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 		await this.panelDelegate.cancelOperation();
 	}
 
+	openSessionHistory(): void {
+		this.panelDelegate.openSessionHistory();
+	}
+
 	getContainerEl(): HTMLElement {
 		return this.containerEl;
 	}

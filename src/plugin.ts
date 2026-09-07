@@ -1,16 +1,11 @@
-import {
-	Plugin,
-	Notice,
-} from "obsidian";
+import { Plugin, Notice } from "obsidian";
 import { ChatView, VIEW_TYPE_CHAT } from "./ui/ChatView";
 import { EmbeddedChatViewContainer } from "./ui/CodeBlockChatView";
 import {
 	SessionManagerView,
 	VIEW_TYPE_SESSION_MANAGER,
 } from "./ui/SessionManagerView";
-import {
-	FloatingTabbedShell,
-} from "./ui/FloatingChatView";
+import { FloatingTabbedShell } from "./ui/FloatingChatView";
 import { FloatingButtonContainer } from "./ui/FloatingButton";
 import { FloatingChatStatusBar } from "./ui/FloatingChatStatusBar";
 import {
@@ -196,6 +191,18 @@ export default class AgentClientPlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "open-session-history",
+			name: "Open session history",
+			callback: () => {
+				void this.activateView().then(() => {
+					this.viewRegistry.toFocused((view) => {
+						view.openSessionHistory();
+					});
+				});
+			},
+		});
+
 		// Register agent-specific commands
 		registerSessionScopedCommands(this);
 
@@ -295,7 +302,10 @@ export default class AgentClientPlugin extends Plugin {
 
 		// Voice Input module
 		if (this.settings.voiceInput.enabled) {
-			this.voiceInput = new VoiceInputModule(this, this.settings.voiceInput);
+			this.voiceInput = new VoiceInputModule(
+				this,
+				this.settings.voiceInput,
+			);
 			this.voiceInput.registerCommands();
 		}
 	}
@@ -415,7 +425,10 @@ export default class AgentClientPlugin extends Plugin {
 		agentId: string,
 		locationOverride?: "right-pane",
 	): Promise<string | null> {
-		return this.chatLeaf.openNewChatViewWithAgent(agentId, locationOverride);
+		return this.chatLeaf.openNewChatViewWithAgent(
+			agentId,
+			locationOverride,
+		);
 	}
 
 	/** Open a new floating chat window (or tab when tabs mode is enabled). */

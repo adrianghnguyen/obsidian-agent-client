@@ -341,6 +341,10 @@ export class FloatingViewContainer implements IChatViewContainer {
 		await this.panelDelegate.cancelOperation();
 	}
 
+	openSessionHistory(): void {
+		this.panelDelegate.openSessionHistory();
+	}
+
 	getContainerEl(): HTMLElement {
 		return this.containerEl;
 	}
@@ -462,6 +466,10 @@ export class FloatingTabContainer implements IChatViewContainer {
 
 	async cancelOperation(): Promise<void> {
 		await this.panelDelegate.cancelOperation();
+	}
+
+	openSessionHistory(): void {
+		this.panelDelegate.openSessionHistory();
 	}
 
 	getContainerEl(): HTMLElement {

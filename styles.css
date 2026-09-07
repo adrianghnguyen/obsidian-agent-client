@@ -2208,6 +2208,9 @@ If your plugin does not need CSS, delete this file.
 
 /* ===== Session History Modal ===== */
 .agent-client-session-history-filter {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
 	margin-bottom: 16px;
 	padding-bottom: 12px;
 	border-bottom: 1px solid var(--background-modifier-border);
@@ -2224,6 +2227,10 @@ If your plugin does not need CSS, delete this file.
 
 .agent-client-session-history-filter-label input[type="checkbox"] {
 	cursor: pointer;
+}
+
+.agent-client-session-history-harness-select {
+	min-width: 12em;
 }
 
 .agent-client-session-history-list {
@@ -2493,6 +2500,34 @@ If your plugin does not need CSS, delete this file.
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
+}
+
+.agent-client-session-history-clear {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.agent-client-session-history-clear-label {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	color: var(--text-normal);
+}
+
+.agent-client-session-history-clear-select {
+	min-width: 10em;
+}
+
+.agent-client-session-history-clear-button {
+	cursor: pointer;
 }
 
 /* Edit title modal */

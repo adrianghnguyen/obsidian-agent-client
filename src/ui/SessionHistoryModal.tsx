@@ -12,6 +12,11 @@ const { useState, useCallback } = React;
 import { createRoot, Root } from "react-dom/client";
 import type { SessionInfo } from "../types/session";
 import { truncateTitle } from "../utils/text";
+import { HISTORY_OPEN_FILTER_BY_VAULT_DEFAULT } from "../services/session-history-list";
+import {
+	SESSION_HISTORY_CLEAR_RANGE_LABELS,
+	type SessionHistoryClearRange,
+} from "../services/session-history-clear";
 
 // ============================================================
 // ConfirmDeleteModal (internal)
@@ -72,6 +77,64 @@ class ConfirmDeleteModal extends Modal {
 		// Delete button
 		const deleteButton = buttonContainer.createEl("button", {
 			text: "Delete",
+			cls: "agent-client-confirm-delete-confirm mod-warning",
+		});
+		deleteButton.addEventListener("click", () => {
+			this.close();
+			void this.onConfirm();
+		});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
+
+class ConfirmClearHistoryModal extends Modal {
+	private rangeLabel: string;
+	private onConfirm: () => void | Promise<void>;
+
+	constructor(
+		app: App,
+		rangeLabel: string,
+		onConfirm: () => void | Promise<void>,
+	) {
+		super(app);
+		this.rangeLabel = rangeLabel;
+		this.onConfirm = onConfirm;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		contentEl.createEl("h2", { text: "Clear session history?" });
+
+		contentEl.createEl("p", {
+			text: `This deletes local session history for ${this.rangeLabel.toLowerCase()} across ALL agent harnesses (not just the agent you are using now).`,
+			cls: "agent-client-confirm-delete-message",
+		});
+
+		contentEl.createEl("p", {
+			text: "Plugin transcripts and history rows are removed. Agent-side session data may still exist.",
+			cls: "agent-client-confirm-delete-warning",
+		});
+
+		const buttonContainer = contentEl.createDiv({
+			cls: "agent-client-confirm-delete-buttons",
+		});
+
+		const cancelButton = buttonContainer.createEl("button", {
+			text: "Cancel",
+			cls: "agent-client-confirm-delete-cancel",
+		});
+		cancelButton.addEventListener("click", () => {
+			this.close();
+		});
+
+		const deleteButton = buttonContainer.createEl("button", {
+			text: "Clear history",
 			cls: "agent-client-confirm-delete-confirm mod-warning",
 		});
 		deleteButton.addEventListener("click", () => {
@@ -147,7 +210,8 @@ interface SessionHistoryContentProps {
 	onLoadMore: () => void;
 	/** Callback to fetch sessions with filter */
 	onFetchSessions: (cwd?: string) => void;
-	/** Callback to close the modal */
+	/** Bulk-delete local history in a time window (all harnesses) */
+	onClearSessions: (range: SessionHistoryClearRange) => void | Promise<void>;
 	onClose: () => void;
 }
 
@@ -446,10 +510,16 @@ function SessionHistoryContent({
 	onEditTitle,
 	onLoadMore,
 	onFetchSessions,
+	onClearSessions,
 	onClose,
 }: SessionHistoryContentProps) {
-	const [filterByCurrentVault, setFilterByCurrentVault] = useState(true);
-	const [hideNonLocalSessions, setHideNonLocalSessions] = useState(false);
+	const [filterByCurrentVault, setFilterByCurrentVault] = useState(
+		HISTORY_OPEN_FILTER_BY_VAULT_DEFAULT,
+	);
+	const [hideNonLocalSessions, setHideNonLocalSessions] = useState(true);
+	const [harnessFilter, setHarnessFilter] = useState<string>("all");
+	const [clearRange, setClearRange] =
+		useState<SessionHistoryClearRange>("15m");
 
 	const handleFilterChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -503,36 +573,92 @@ function SessionHistoryContent({
 		[app, sessions, currentCwd, onEditTitle],
 	);
 
-	// Filter sessions based on hideNonLocalSessions setting
-	// Only applies to agent session/list (not local sessions which are already filtered)
-	const filteredSessions = React.useMemo(() => {
-		if (isUsingLocalSessions || !hideNonLocalSessions) {
-			return sessions;
-		}
-		return sessions.filter((s) => localSessionIds.has(s.sessionId));
-	}, [sessions, isUsingLocalSessions, hideNonLocalSessions, localSessionIds]);
-
-	// Show preparing message if agent is not ready
-	if (!isAgentReady) {
-		return (
-			<div className="agent-client-session-history-loading">
-				<p>Preparing agent...</p>
-			</div>
+	const handleClearClick = useCallback(() => {
+		const rangeLabel = SESSION_HISTORY_CLEAR_RANGE_LABELS[clearRange];
+		const confirmModal = new ConfirmClearHistoryModal(
+			app,
+			rangeLabel,
+			() => {
+				void onClearSessions(clearRange);
+			},
 		);
-	}
+		confirmModal.open();
+	}, [app, clearRange, onClearSessions]);
 
-	// Check if any session operation is available
+	const harnessOptions = React.useMemo(() => {
+		const byId = new Map<string, string>();
+		for (const s of sessions) {
+			if (!s.agentId) continue;
+			if (byId.has(s.agentId)) continue;
+			byId.set(s.agentId, s.agentDisplayName || s.agentId);
+		}
+		return Array.from(byId.entries())
+			.map(([id, label]) => ({ id, label }))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	}, [sessions]);
+
+	React.useEffect(() => {
+		if (harnessFilter === "all") return;
+		if (!harnessOptions.some((h) => h.id === harnessFilter)) {
+			setHarnessFilter("all");
+		}
+	}, [harnessFilter, harnessOptions]);
+
+	const filteredSessions = React.useMemo(() => {
+		let listed = sessions;
+		if (!isUsingLocalSessions && hideNonLocalSessions) {
+			listed = listed.filter((s) => localSessionIds.has(s.sessionId));
+		}
+		if (harnessFilter !== "all") {
+			listed = listed.filter((s) => s.agentId === harnessFilter);
+		}
+		return listed;
+	}, [
+		sessions,
+		isUsingLocalSessions,
+		hideNonLocalSessions,
+		localSessionIds,
+		harnessFilter,
+	]);
+
 	const canPerformAnyOperation = canRestore || canFork;
 
-	// Show local sessions list (always show for delete functionality)
-	// - If agent supports list: use agent's session/list
-	// - If agent doesn't support list OR doesn't support restoration: use locally saved sessions
-	const canShowList =
-		canList || isUsingLocalSessions || !canPerformAnyOperation;
+	const clearControls = (
+		<div className="agent-client-session-history-clear">
+			<label className="agent-client-session-history-clear-label">
+				<span>Clear session history</span>
+				<select
+					className="agent-client-session-history-clear-select dropdown"
+					value={clearRange}
+					onChange={(e) =>
+						setClearRange(
+							e.target.value as SessionHistoryClearRange,
+						)
+					}
+					aria-label="Clear session history time range"
+				>
+					{(
+						Object.keys(
+							SESSION_HISTORY_CLEAR_RANGE_LABELS,
+						) as SessionHistoryClearRange[]
+					).map((key) => (
+						<option key={key} value={key}>
+							{SESSION_HISTORY_CLEAR_RANGE_LABELS[key]}
+						</option>
+					))}
+				</select>
+			</label>
+			<button
+				className="agent-client-session-history-clear-button mod-warning"
+				onClick={handleClearClick}
+			>
+				Clear
+			</button>
+		</div>
+	);
 
 	return (
 		<>
-			{/* Debug form */}
 			{debugMode && (
 				<DebugForm
 					currentCwd={currentCwd}
@@ -542,128 +668,136 @@ function SessionHistoryContent({
 				/>
 			)}
 
-			{/* Warning banner for agents that don't support restoration */}
-			{!canPerformAnyOperation && (
-				<div className="agent-client-session-history-warning-banner">
-					<p>This agent does not support session restoration.</p>
-				</div>
-			)}
-
-			{/* Local sessions banner */}
-			{(isUsingLocalSessions || !canPerformAnyOperation) && (
+			{!isAgentReady && (
 				<div className="agent-client-session-history-local-banner">
-					<span>These sessions are saved in the plugin.</span>
+					<span>
+						Agent is still preparing. Local history is available;
+						restore will switch to the saved harness.
+					</span>
 				</div>
 			)}
 
-			{/* No list capability message */}
-			{!canShowList && !debugMode && (
-				<div className="agent-client-session-history-empty">
-					<p className="agent-client-session-history-empty-text">
-						Session list is not available for this agent.
-					</p>
-					<p className="agent-client-session-history-empty-text">
-						Enable Debug Mode in settings to manually enter session
-						IDs.
+			{isAgentReady && !canPerformAnyOperation && (
+				<div className="agent-client-session-history-warning-banner">
+					<p>
+						This agent does not support ACP session restore. Play
+						still reloads a local transcript when one exists.
 					</p>
 				</div>
 			)}
 
-			{canShowList && (
-				<>
-					{/* Filter toggles - only for agent session/list */}
-					{canList && !isUsingLocalSessions && (
-						<div className="agent-client-session-history-filter">
-							<label className="agent-client-session-history-filter-label">
-								<input
-									type="checkbox"
-									checked={filterByCurrentVault}
-									onChange={handleFilterChange}
-								/>
-								<span>Show current vault only</span>
-							</label>
-							<label className="agent-client-session-history-filter-label">
-								<input
-									type="checkbox"
-									checked={hideNonLocalSessions}
-									onChange={(e) =>
-										setHideNonLocalSessions(
-											e.target.checked,
-										)
-									}
-								/>
-								<span>Hide sessions without local data</span>
-							</label>
-						</div>
-					)}
+			{clearControls}
 
-					{/* Error state */}
-					{error && (
-						<div className="agent-client-session-history-error">
-							<p className="agent-client-session-history-error-text">
-								{error}
-							</p>
-							<button
-								className="agent-client-session-history-retry-button"
-								onClick={handleRetry}
-							>
-								Retry
-							</button>
-						</div>
-					)}
+			<div className="agent-client-session-history-local-banner">
+				<span>
+					Showing saved plugin sessions across all agent harnesses.
+				</span>
+			</div>
 
-					{/* Loading state */}
-					{!error && loading && filteredSessions.length === 0 && (
-						<div className="agent-client-session-history-loading">
-							<p>Loading sessions...</p>
-						</div>
-					)}
-
-					{/* Empty state */}
-					{!error && !loading && filteredSessions.length === 0 && (
-						<div className="agent-client-session-history-empty">
-							<p className="agent-client-session-history-empty-text">
-								No previous sessions
-							</p>
-						</div>
-					)}
-
-					{/* Session list */}
-					{!error && filteredSessions.length > 0 && (
-						<div className="agent-client-session-history-list">
-							{filteredSessions.map((session) => (
-								<SessionItem
-									key={session.sessionId}
-									session={session}
-									canRestore={canRestore}
-									canFork={canFork}
-									currentCwd={currentCwd}
-									onRestoreSession={onRestoreSession}
-									onForkSession={onForkSession}
-									onDeleteSession={
-										handleDeleteWithConfirmation
-									}
-									onEditTitle={handleEditWithModal}
-									onClose={onClose}
-								/>
+			<>
+				<div className="agent-client-session-history-filter">
+					<label className="agent-client-session-history-filter-label">
+						<span>Filter history by harness</span>
+						<select
+							className="agent-client-session-history-harness-select dropdown"
+							value={harnessFilter}
+							onChange={(e) => setHarnessFilter(e.target.value)}
+							aria-label="Filter history by harness"
+						>
+							<option value="all">All harnesses</option>
+							{harnessOptions.map((h) => (
+								<option key={h.id} value={h.id}>
+									{h.label}
+								</option>
 							))}
-						</div>
+						</select>
+					</label>
+					<label className="agent-client-session-history-filter-label">
+						<input
+							type="checkbox"
+							checked={filterByCurrentVault}
+							onChange={handleFilterChange}
+						/>
+						<span>Show current vault only</span>
+					</label>
+					{canList && !isUsingLocalSessions && (
+						<label className="agent-client-session-history-filter-label">
+							<input
+								type="checkbox"
+								checked={hideNonLocalSessions}
+								onChange={(e) =>
+									setHideNonLocalSessions(e.target.checked)
+								}
+							/>
+							<span>Hide sessions without local data</span>
+						</label>
 					)}
+				</div>
 
-					{/* Load more button */}
-					{!error && hasMore && (
-						<div className="agent-client-session-history-load-more">
-							<button
-								className="agent-client-session-history-load-more-button"
-								disabled={loading}
-								onClick={onLoadMore}
-							>
-								{loading ? "Loading..." : "Load more"}
-							</button>
-						</div>
-					)}
-				</>
-			)}
+				{/* Error state */}
+				{error && (
+					<div className="agent-client-session-history-error">
+						<p className="agent-client-session-history-error-text">
+							{error}
+						</p>
+						<button
+							className="agent-client-session-history-retry-button"
+							onClick={handleRetry}
+						>
+							Retry
+						</button>
+					</div>
+				)}
+
+				{/* Loading state */}
+				{!error && loading && filteredSessions.length === 0 && (
+					<div className="agent-client-session-history-loading">
+						<p>Loading sessions...</p>
+					</div>
+				)}
+
+				{/* Empty state */}
+				{!error && !loading && filteredSessions.length === 0 && (
+					<div className="agent-client-session-history-empty">
+						<p className="agent-client-session-history-empty-text">
+							No previous sessions
+						</p>
+					</div>
+				)}
+
+				{/* Session list */}
+				{!error && filteredSessions.length > 0 && (
+					<div className="agent-client-session-history-list">
+						{filteredSessions.map((session) => (
+							<SessionItem
+								key={session.sessionId}
+								session={session}
+								canRestore={canRestore}
+								canFork={canFork}
+								currentCwd={currentCwd}
+								onRestoreSession={onRestoreSession}
+								onForkSession={onForkSession}
+								onDeleteSession={handleDeleteWithConfirmation}
+								onEditTitle={handleEditWithModal}
+								onClose={onClose}
+							/>
+						))}
+					</div>
+				)}
+
+				{/* Load more button */}
+				{!error && hasMore && (
+					<div className="agent-client-session-history-load-more">
+						<button
+							className="agent-client-session-history-load-more-button"
+							disabled={loading}
+							onClick={onLoadMore}
+						>
+							{loading ? "Loading..." : "Load more"}
+						</button>
+					</div>
+				)}
+			</>
 		</>
 	);
 }

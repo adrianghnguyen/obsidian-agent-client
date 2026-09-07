@@ -244,6 +244,10 @@ export class ChatView extends ItemView implements IChatViewContainer {
 		await this.panelDelegate.cancelOperation();
 	}
 
+	openSessionHistory(): void {
+		this.panelDelegate.openSessionHistory();
+	}
+
 	// ============================================================
 	// IChatViewContainer Implementation
 	// ============================================================

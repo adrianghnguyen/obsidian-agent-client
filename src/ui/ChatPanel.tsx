@@ -87,6 +87,7 @@ export interface ChatPanelCallbacks {
 	canSend: () => boolean;
 	sendMessage: () => Promise<boolean>;
 	cancelOperation: () => Promise<void>;
+	openSessionHistory: () => void;
 }
 
 // ============================================================================
@@ -1418,6 +1419,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 	const hasActivePermissionRef = useRef(agent.hasActivePermission);
 	const sessionHistoryLoadingRef = useRef(sessionHistory.loading);
 	const handleSendMessageRef = useRef(handleSendMessage);
+	const handleOpenHistoryRef = useRef(handleOpenHistory);
 	inputValueRef.current = inputValue;
 	attachedFilesRef.current = attachedFiles;
 	isSessionReadyRef.current = isSessionReady;
@@ -1427,6 +1429,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 	hasActivePermissionRef.current = agent.hasActivePermission;
 	sessionHistoryLoadingRef.current = sessionHistory.loading;
 	handleSendMessageRef.current = handleSendMessage;
+	handleOpenHistoryRef.current = handleOpenHistory;
 
 	useEffect(() => {
 		onRegisterCallbacks?.({
@@ -1498,6 +1501,9 @@ export const ChatPanel = React.memo(function ChatPanel({
 				if (isSendingRef.current) {
 					await handleStopGenerationRef.current();
 				}
+			},
+			openSessionHistory: () => {
+				handleOpenHistoryRef.current();
 			},
 		});
 	}, [onRegisterCallbacks, activeAgentLabel]);

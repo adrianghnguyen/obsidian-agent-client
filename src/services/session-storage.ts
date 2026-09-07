@@ -14,6 +14,10 @@ import type { ChatMessage, MessageContent } from "../types/chat";
 import type { SavedSessionInfo } from "../types/session";
 import { convertWindowsPathToWsl } from "../utils/platform";
 import { getLogger } from "../utils/logger";
+import {
+	sessionsMatchingClearRange,
+	type SessionHistoryClearRange,
+} from "./session-history-clear";
 
 // ============================================================================
 // Types
@@ -227,6 +231,33 @@ export class SessionStorage {
 			await this.deleteSessionMessages(sessionId);
 		});
 		await this.sessionLock;
+	}
+
+	/**
+	 * Delete sessions in a time window (all harnesses) plus their transcript files.
+	 */
+	async deleteSessionsInRange(
+		range: SessionHistoryClearRange,
+		nowMs: number = Date.now(),
+	): Promise<number> {
+		let removed = 0;
+		this.sessionLock = this.sessionLock.then(async () => {
+			const state = this.settingsAccess.getSnapshot();
+			const all = state.savedSessions || [];
+			const toDelete = sessionsMatchingClearRange(all, range, nowMs);
+			removed = toDelete.length;
+			if (removed === 0) return;
+			const ids = new Set(toDelete.map((s) => s.sessionId));
+			const remaining = all.filter((s) => !ids.has(s.sessionId));
+			await this.settingsAccess.updateSettings({
+				savedSessions: remaining,
+			});
+			for (const sessionId of ids) {
+				await this.deleteSessionMessages(sessionId);
+			}
+		});
+		await this.sessionLock;
+		return removed;
 	}
 
 	/**

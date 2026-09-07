@@ -109,7 +109,13 @@ export function mergeAgentListWithLocalHistory(
 		});
 	}
 
-	return merged;
+	// Newest activity first so other-harness locals are not buried under the
+	// live agent's session/list order.
+	return merged.sort((a, b) => {
+		const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+		const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+		return bTime - aTime;
+	});
 }
 
 /**

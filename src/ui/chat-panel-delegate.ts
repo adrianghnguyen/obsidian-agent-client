@@ -51,4 +51,8 @@ export class ChatPanelDelegate {
 	async cancelOperation(): Promise<void> {
 		await this.callbacks?.cancelOperation();
 	}
+
+	openSessionHistory(): void {
+		this.callbacks?.openSessionHistory();
+	}
 }

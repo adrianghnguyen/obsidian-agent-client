@@ -1,0 +1,41 @@
+{
+	"sandboxVaultCwd": "C:\\plugin-sandbox-Obsidian",
+	"resolveDisplayName": {
+		"cursor": "Cursor",
+		"antigravity": "Antigravity"
+	},
+	"savedSessions": [
+		{
+			"sessionId": "aff7c0c0-990b-43e9-bc73-638c0955ce77",
+			"agentId": "cursor",
+			"cwd": "C:\\plugin-sandbox-Obsidian",
+			"title": "I am testing and wondering if this is working o...",
+			"createdAt": "2026-09-07T02:06:42.691Z",
+			"updatedAt": "2026-09-07T02:06:42.691Z"
+		},
+		{
+			"sessionId": "b809619e-871d-4f0b-9c02-78263fc5dcff",
+			"agentId": "cursor",
+			"cwd": "C:\\plugin-sandbox-Obsidian",
+			"title": "what's this note about",
+			"createdAt": "2026-09-05T12:13:45.709Z",
+			"updatedAt": "2026-09-05T12:13:45.710Z"
+		},
+		{
+			"sessionId": "8c2411e0-d97b-47f0-b81a-7bfb4906e7e0",
+			"agentId": "antigravity",
+			"cwd": "C:\\Obsidian",
+			"title": "run a harvest loop for daily notes over the las...",
+			"createdAt": "2026-08-30T23:07:36.451Z",
+			"updatedAt": "2026-08-30T23:09:41.172Z"
+		},
+		{
+			"sessionId": "835ceb01-1471-4bef-afa0-a98f6b88f3a4",
+			"agentId": "antigravity",
+			"cwd": "C:\\Obsidian",
+			"title": "Look through the my notes folder, using the fil...",
+			"createdAt": "2026-08-30T22:01:12.680Z",
+			"updatedAt": "2026-08-30T22:17:55.484Z"
+		}
+	]
+}

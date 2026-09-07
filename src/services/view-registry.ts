@@ -165,6 +165,9 @@ export interface IChatViewContainer {
 	 */
 	cancelOperation(): Promise<void>;
 
+	/** Open the session history modal for this chat. */
+	openSessionHistory(): void;
+
 	// ============================================================
 	// Session Info
 	// ============================================================

@@ -121,6 +121,26 @@ describe("session history harness recall", () => {
 			});
 		});
 
+		it("sorts merged rows by updatedAt newest first", () => {
+			const agentList: SessionInfo[] = [
+				{
+					sessionId: "sess-a",
+					cwd: CWD,
+					title: "Older agent row",
+					updatedAt: harnessA.updatedAt,
+				},
+			];
+
+			const merged = mergeAgentListWithLocalHistory(
+				agentList,
+				[harnessA, harnessB],
+				resolveDisplayName,
+			);
+
+			// harnessB updatedAt is newer than harnessA
+			expect(merged.map((s) => s.sessionId)).toEqual(["sess-b", "sess-a"]);
+		});
+
 		it("uses fallbackAgentId for agent-list rows with no local match", () => {
 			const agentList: SessionInfo[] = [
 				{
