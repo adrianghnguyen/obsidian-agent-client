@@ -24,7 +24,7 @@ Depending on the agent's capabilities, you can perform the following actions:
 | **Restore** | Resume the session on the harness that created it |
 | **Fork** | Create a new branch from that point in the conversation |
 | **Delete** | Remove one session from local history |
-| **Clear session history** | Delete many local sessions by time range (dropdown: last 15 minutes, last hour, last 7 days, all time). Confirms first; wipes **all harnesses**. |
+| **Clear session history** | Delete local sessions **older than** a chosen age (dropdown: older than 15 minutes, 1 hour, 7 days, or all time). Confirms first; wipes across **all harnesses**. |
 
 ::: tip
 Fork still depends on the live agent's capabilities. Restore uses the saved harness and local transcripts when ACP load is unavailable.
@@ -73,10 +73,10 @@ To delete one session:
 1. Click the **Delete** button (trash icon) on the session
 2. Confirm the deletion in the dialog
 
-To clear many sessions:
+To clear older sessions:
 
-1. At the **top** of the history modal, choose a time range from the dropdown
-2. Click **Clear** and confirm. This removes local history for that range across **all agent harnesses**.
+1. At the **top** of the history modal, choose an age cutoff from the dropdown (e.g. Older than 7 days)
+2. Click **Clear** and confirm. This removes local history older than that cutoff across **all agent harnesses**.
 
 ::: warning
 Deletion removes the session from the plugin's local storage only. The session still exists on the agent side.

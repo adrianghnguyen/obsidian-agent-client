@@ -6,7 +6,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Added
 - **Session History lists every local chat across harnesses** (Cursor, Antigravity, and others), not only the current vault or live agent. Restore/Play switches to the saved harness and reloads the local transcript when ACP load cannot.
-- **Clear session history** at the top of the history modal: dropdown for last 15 minutes, last hour, last 7 days, or all time, with a confirm that it wipes all agent harnesses.
+- **Clear session history** at the top of the history modal: clear any sessions **older than** 15 minutes, 1 hour, 7 days, or all time, with a confirm that it wipes all agent harnesses.
 - **Filter history by harness** dropdown in Session History (All harnesses, or a specific agent).
 - Command palette: **Open session history** (opens the history modal on the focused chat).
 - **Harness warmup on Obsidian load.** Opt-in per agent (Settings → Agents → Warm on Obsidian load) plus a master switch under Behavior. After layout is ready, the plugin can spawn the agent and open a session in the background so the first chat skips the long "Connecting to …" wait (useful for heavy harnesses like Anti-Gravity / agy).

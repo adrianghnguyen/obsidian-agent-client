@@ -23,32 +23,32 @@ function row(
 }
 
 const mixed: SavedSessionInfo[] = [
-	row("new-ag", "antigravity", "2026-09-07T11:50:00.000Z"),
-	row("hour-cursor", "cursor", "2026-09-07T11:10:00.000Z"),
-	row("week-ag", "antigravity", "2026-09-02T12:00:00.000Z"),
-	row("old-cursor", "cursor", "2026-01-01T00:00:00.000Z"),
+	row("new-ag", "antigravity", "2026-09-07T11:50:00.000Z"), // 10m ago — keep for 15m
+	row("hour-cursor", "cursor", "2026-09-07T11:10:00.000Z"), // 50m ago — older than 15m
+	row("week-ag", "antigravity", "2026-09-02T12:00:00.000Z"), // 5d ago
+	row("old-cursor", "cursor", "2026-01-01T00:00:00.000Z"), // months ago
 ];
 
-describe("session history clear range", () => {
-	it("selects last 15 minutes across harnesses", () => {
+describe("session history clear range (older than)", () => {
+	it("selects sessions older than 15 minutes across harnesses", () => {
 		const ids = sessionsMatchingClearRange(mixed, "15m", NOW).map(
 			(s) => s.sessionId,
 		);
-		expect(ids).toEqual(["new-ag"]);
+		expect(ids.sort()).toEqual(["hour-cursor", "old-cursor", "week-ag"]);
 	});
 
-	it("selects last hour across harnesses", () => {
+	it("selects sessions older than 1 hour across harnesses", () => {
 		const ids = sessionsMatchingClearRange(mixed, "1h", NOW).map(
 			(s) => s.sessionId,
 		);
-		expect(ids.sort()).toEqual(["hour-cursor", "new-ag"]);
+		expect(ids.sort()).toEqual(["old-cursor", "week-ag"]);
 	});
 
-	it("selects last 7 days across harnesses", () => {
+	it("selects sessions older than 7 days across harnesses", () => {
 		const ids = sessionsMatchingClearRange(mixed, "7d", NOW).map(
 			(s) => s.sessionId,
 		);
-		expect(ids.sort()).toEqual(["hour-cursor", "new-ag", "week-ag"]);
+		expect(ids).toEqual(["old-cursor"]);
 	});
 
 	it("selects all time", () => {

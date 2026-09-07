@@ -112,7 +112,10 @@ class ConfirmClearHistoryModal extends Modal {
 		contentEl.createEl("h2", { text: "Clear session history?" });
 
 		contentEl.createEl("p", {
-			text: `This deletes local session history for ${this.rangeLabel.toLowerCase()} across ALL agent harnesses (not just the agent you are using now).`,
+			text:
+				this.rangeLabel === "All time"
+					? "This deletes ALL local session history across ALL agent harnesses (not just the agent you are using now)."
+					: `This deletes any local session history ${this.rangeLabel.toLowerCase()} across ALL agent harnesses (not just the agent you are using now).`,
 			cls: "agent-client-confirm-delete-message",
 		});
 
@@ -626,7 +629,7 @@ function SessionHistoryContent({
 	const clearControls = (
 		<div className="agent-client-session-history-clear">
 			<label className="agent-client-session-history-clear-label">
-				<span>Clear session history</span>
+				<span>Clear any session history</span>
 				<select
 					className="agent-client-session-history-clear-select dropdown"
 					value={clearRange}
@@ -635,7 +638,7 @@ function SessionHistoryContent({
 							e.target.value as SessionHistoryClearRange,
 						)
 					}
-					aria-label="Clear session history time range"
+					aria-label="Clear session history older than"
 				>
 					{(
 						Object.keys(

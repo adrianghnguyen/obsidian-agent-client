@@ -1,8 +1,8 @@
 /**
  * Pure helpers for timed Session History bulk delete.
  *
- * Ranges match browser "clear browsing data": delete sessions whose
- * updatedAt falls inside the window (All time = every row, all harnesses).
+ * Delete sessions older than the selected age (updatedAt before the cutoff).
+ * All time = every row, all harnesses.
  */
 
 import type { SavedSessionInfo } from "../types/session";
@@ -19,9 +19,9 @@ export const SESSION_HISTORY_CLEAR_RANGE_LABELS: Record<
 	SessionHistoryClearRange,
 	string
 > = {
-	"15m": "Last 15 minutes",
-	"1h": "Last hour",
-	"7d": "Last 7 days",
+	"15m": "Older than 15 minutes",
+	"1h": "Older than 1 hour",
+	"7d": "Older than 7 days",
 	all: "All time",
 };
 
@@ -34,6 +34,10 @@ export function clearRangeCutoff(
 	return nowMs - RANGE_MS[range];
 }
 
+/**
+ * Sessions to remove: those with updatedAt strictly before the cutoff
+ * (older than the selected age). All time matches every session.
+ */
 export function sessionsMatchingClearRange(
 	sessions: SavedSessionInfo[],
 	range: SessionHistoryClearRange,
@@ -41,5 +45,5 @@ export function sessionsMatchingClearRange(
 ): SavedSessionInfo[] {
 	const cutoff = clearRangeCutoff(range, nowMs);
 	if (cutoff === null) return [...sessions];
-	return sessions.filter((s) => new Date(s.updatedAt).getTime() >= cutoff);
+	return sessions.filter((s) => new Date(s.updatedAt).getTime() < cutoff);
 }

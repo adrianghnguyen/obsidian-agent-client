@@ -19,10 +19,7 @@ import {
 	buildMissingHistoryIndexEntry,
 } from "../services/session-history-restore";
 import { buildOpenHistoryLocalList } from "../services/session-history-list";
-import {
-	sessionsMatchingClearRange,
-	type SessionHistoryClearRange,
-} from "../services/session-history-clear";
+import type { SessionHistoryClearRange } from "../services/session-history-clear";
 import { extractErrorMessage } from "../utils/error-utils";
 import { truncateTitle } from "../utils/text";
 

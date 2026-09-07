@@ -234,7 +234,8 @@ export class SessionStorage {
 	}
 
 	/**
-	 * Delete sessions in a time window (all harnesses) plus their transcript files.
+	 * Delete sessions older than the selected age (all harnesses) plus their transcript files.
+	 * All time removes every local session.
 	 */
 	async deleteSessionsInRange(
 		range: SessionHistoryClearRange,
