@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.20.0
+
 ### Added
 - **Session History lists every local chat across harnesses** (Cursor, Antigravity, and others), not only the current vault or live agent. Restore/Play switches to the saved harness and reloads the local transcript when ACP load cannot.
 - **Clear session history** at the top of the history modal: clear any sessions **older than** 15 minutes, 1 hour, 7 days, or all time, with a confirm that it wipes all agent harnesses.
