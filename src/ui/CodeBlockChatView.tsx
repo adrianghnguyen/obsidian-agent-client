@@ -38,8 +38,8 @@ function CodeBlockChatComponent({
 	onRegisterCallbacks,
 }: CodeBlockChatProps) {
 	const acpClient = useMemo(
-		() => plugin.getOrCreateAcpClient(viewId, config.agent),
-		[plugin, viewId, config.agent],
+		() => plugin.getOrCreateAcpClient(viewId),
+		[plugin, viewId],
 	);
 
 	const vaultService = useMemo(() => new VaultService(plugin), [plugin]);

@@ -715,8 +715,8 @@ function FloatingChatComponent({
 	// Services (owned by FloatingViewContainer, created here for context)
 	// ============================================================
 	const acpClient = useMemo(
-		() => plugin.getOrCreateAcpClient(viewId, initialAgentId),
-		[plugin, viewId, initialAgentId],
+		() => plugin.getOrCreateAcpClient(viewId),
+		[plugin, viewId],
 	);
 
 	const vaultService = useMemo(() => new VaultService(plugin), [plugin]);
@@ -996,8 +996,8 @@ function FloatingTabPanel({
 	onFloatingHeaderMouseDown: (e: React.MouseEvent) => void;
 }) {
 	const acpClient = useMemo(
-		() => plugin.getOrCreateAcpClient(viewId, initialAgentId),
-		[plugin, viewId, initialAgentId],
+		() => plugin.getOrCreateAcpClient(viewId),
+		[plugin, viewId],
 	);
 	const vaultService = useMemo(() => new VaultService(plugin), [plugin]);
 	useEffect(() => {

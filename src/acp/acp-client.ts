@@ -92,8 +92,6 @@ export class AcpClient {
 	private isInitializedFlag = false;
 	private currentAgentId: string | null = null;
 	private currentSessionId: string | null = null;
-	private lastInitResult: InitializeResult | null = null;
-	private lastSessionResult: SessionResult | null = null;
 
 	// Callbacks (none — all events flow through onSessionUpdate via AcpHandler)
 
@@ -541,16 +539,13 @@ export class AcpClient {
 			this.isInitializedFlag = true;
 			this.currentAgentId = config.id;
 
-			const converted = AcpTypeConverter.toInitializeResult(initResult);
-			this.lastInitResult = converted;
-			return converted;
+			return AcpTypeConverter.toInitializeResult(initResult);
 		} catch (error) {
 			this.logger.error("[AcpClient] Initialization Error:", error);
 
 			// Reset flags on failure
 			this.isInitializedFlag = false;
 			this.currentAgentId = null;
-			this.lastInitResult = null;
 
 			throw error;
 		}
@@ -607,7 +602,6 @@ export class AcpClient {
 				response,
 			);
 			this.currentSessionId = result.sessionId;
-			this.lastSessionResult = result;
 			return result;
 		} catch (error) {
 			this.logger.error("[AcpClient] New Session Error:", error);
@@ -779,8 +773,6 @@ export class AcpClient {
 		this.isInitializedFlag = false;
 		this.currentAgentId = null;
 		this.currentSessionId = null;
-		this.lastInitResult = null;
-		this.lastSessionResult = null;
 
 		this.logger.log("[AcpClient] Disconnected");
 		return Promise.resolve();
@@ -802,22 +794,6 @@ export class AcpClient {
 	 */
 	getCurrentAgentId(): string | null {
 		return this.currentAgentId;
-	}
-
-	getCurrentSessionId(): string | null {
-		return this.currentSessionId;
-	}
-
-	getWorkingDirectory(): string {
-		return this.currentConfig?.workingDirectory ?? "";
-	}
-
-	getLastInitResult(): InitializeResult | null {
-		return this.lastInitResult;
-	}
-
-	getLastSessionResult(): SessionResult | null {
-		return this.lastSessionResult;
 	}
 
 	/**

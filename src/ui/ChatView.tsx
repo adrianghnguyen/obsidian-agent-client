@@ -316,8 +316,8 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	}
 
 	onOpen() {
-		// Create vault service; AcpClient is deferred until renderPanel so we
-		// know which agent to launch and can adopt a warmed harness.
+		// Create services owned by this class
+		this.acpClient = this.plugin.getOrCreateAcpClient(this.viewId);
 		this.vaultService = new VaultService(this.plugin);
 
 		// Register with plugin's view registry
@@ -350,12 +350,6 @@ export class ChatView extends ItemView implements IChatViewContainer {
 		if (this.mountFallbackTimer !== null) {
 			window.clearTimeout(this.mountFallbackTimer);
 			this.mountFallbackTimer = null;
-		}
-		if (!this.acpClient) {
-			this.acpClient = this.plugin.getOrCreateAcpClient(
-				this.viewId,
-				this.initialAgentId ?? undefined,
-			);
 		}
 		if (!this.root) {
 			const container = this.containerEl.children[1];

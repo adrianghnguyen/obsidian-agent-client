@@ -137,13 +137,4 @@ export interface AgentClientPluginSettings {
 	floatingIdleOpacityPercent: number;
 	/** Voice Input (Gemini Live) settings */
 	voiceInput: VoiceInputSettings;
-	/**
-	 * Master switch + delay for HarnessWarmer. Per-agent opt-in is
-	 * `warmupOnStartup` on each preset/custom agent entry.
-	 */
-	harnessWarmup: {
-		enabled: boolean;
-		/** Milliseconds after onLayoutReady before warm() runs. */
-		delayMs: number;
-	};
 }

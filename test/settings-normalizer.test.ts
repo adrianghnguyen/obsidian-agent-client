@@ -47,7 +47,6 @@ describe("normalizePresetAgents", () => {
 			args: ["--verbose"],
 			env: [{ key: "FOO", value: "bar" }],
 			enabled: true,
-			warmupOnStartup: false,
 		});
 		expect(result["codex-acp"].command).toBe("/opt/codex-acp");
 		expect(result["gemini-cli"].displayName).toBe("Gemini");
@@ -279,7 +278,6 @@ describe("absorbCustomAgents", () => {
 			args: ["acp", "--verbose"],
 			env: [{ key: "FOO", value: "bar" }],
 			enabled: false,
-			warmupOnStartup: false,
 		});
 	});
 
@@ -368,14 +366,6 @@ describe("normalizeCustomAgent", () => {
 		expect(normalizeCustomAgent({ id: "a", enabled: false }).enabled).toBe(
 			false,
 		);
-	});
-
-	it("defaults warmupOnStartup to false and preserves true", () => {
-		expect(normalizeCustomAgent({ id: "a" }).warmupOnStartup).toBe(false);
-		expect(
-			normalizeCustomAgent({ id: "a", warmupOnStartup: true })
-				.warmupOnStartup,
-		).toBe(true);
 	});
 });
 

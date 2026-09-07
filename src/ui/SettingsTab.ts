@@ -41,7 +41,6 @@ import {
 	clampFloatingWindowSize,
 	clampFloatingIdleTimeoutMs,
 	clampFloatingIdleOpacityPercent,
-	clampHarnessWarmupDelayMs,
 } from "../services/settings-normalizer";
 import { VOICE_INPUT_SECRET_ID } from "../voice-input/VoiceInputSettings";
 
@@ -1114,77 +1113,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		this.renderSettingsCallout(containerEl, "behavior", "Behavior", (bodyEl) => {
 			this.renderSettingsCallout(
 				bodyEl,
-				"harness-warmup",
-				"Harness warmup",
-				(nestedEl) => {
-					new Setting(nestedEl)
-						.setName("Warm agents on Obsidian load")
-						.setDesc(
-							"After the workspace is ready, start opted-in agents in the background (spawn + session) so the first chat skips the long Connecting wait. Turn on Warm on Obsidian load for each agent below.",
-						)
-						.addToggle((toggle) =>
-							toggle
-								.setValue(
-									this.plugin.settings.harnessWarmup.enabled,
-								)
-								.onChange(async (value) => {
-									await this.plugin.settingsService.updateSettings(
-										{
-											harnessWarmup: {
-												...this.plugin.settings
-													.harnessWarmup,
-												enabled: value,
-											},
-										},
-									);
-									this.renderContent();
-								}),
-						);
-
-					if (this.plugin.settings.harnessWarmup.enabled) {
-						new Setting(nestedEl)
-							.setName("Warmup delay (ms)")
-							.setDesc(
-								"Wait this long after layout ready before starting agents (0–120000). Gives Obsidian time to finish startup.",
-							)
-							.addText((text) => {
-								text.setPlaceholder("10000")
-									.setValue(
-										String(
-											this.plugin.settings.harnessWarmup
-												.delayMs,
-										),
-									)
-									.onChange(async (value) => {
-										const parsed = Number.parseInt(
-											value.trim(),
-											10,
-										);
-										const delayMs = Number.isFinite(parsed)
-											? parsed
-											: this.plugin.settings.harnessWarmup
-													.delayMs;
-										await this.plugin.settingsService.updateSettings(
-											{
-												harnessWarmup: {
-													...this.plugin.settings
-														.harnessWarmup,
-													delayMs:
-														clampHarnessWarmupDelayMs(
-															delayMs,
-														),
-												},
-											},
-										);
-									});
-							});
-					}
-				},
-				{ nested: true, foldable: nestedFoldable(2) },
-			);
-
-			this.renderSettingsCallout(
-				bodyEl,
 				"permissions",
 				"Permissions",
 				(nestedEl) => {
@@ -2084,21 +2012,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					});
 				text.inputEl.rows = 3;
 			});
-
-		new Setting(bodyEl)
-			.setName("Warm on Obsidian load")
-			.setDesc(
-				"Start this agent in the background after Obsidian loads (requires Behavior → Warm agents on Obsidian load).",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(!!preset.warmupOnStartup)
-					.onChange(async (value) => {
-						await this.updatePresetAgent(def.presetId, {
-							warmupOnStartup: value,
-						});
-					}),
-			);
 	}
 
 	private renderCustomAgents(containerEl: HTMLElement) {
@@ -2153,7 +2066,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							command: "",
 							args: [],
 							env: [],
-							warmupOnStartup: false,
 						});
 						// Open the new agent's section so it can be configured
 						// right away.
@@ -2375,21 +2287,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					});
 				text.inputEl.rows = 3;
 			});
-
-		new Setting(bodyEl)
-			.setName("Warm on Obsidian load")
-			.setDesc(
-				"Start this agent in the background after Obsidian loads (requires Behavior → Warm agents on Obsidian load).",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(!!agent.warmupOnStartup)
-					.onChange(async (value) => {
-						this.plugin.settings.customAgents[index].warmupOnStartup =
-							value;
-						await this.flushSettings();
-					}),
-			);
 	}
 
 	/**

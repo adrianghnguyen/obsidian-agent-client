@@ -10,8 +10,6 @@ export const ACP_TEARDOWN_GRACE_MS = 250;
 export interface AcpClientLike {
 	updateAutoAllow(autoAllow: boolean): void;
 	disconnect(): Promise<void>;
-	isInitialized?(): boolean;
-	getCurrentAgentId?(): string | null;
 }
 
 export interface AcpClientPoolOptions<T extends AcpClientLike> {
@@ -47,26 +45,6 @@ export class AcpClientPool<T extends AcpClientLike> {
 		this.onDisconnectError = options.onDisconnectError;
 	}
 
-	/** Return the client for viewId if present, without creating one. */
-	peek(viewId: string): T | undefined {
-		return this.clients.get(viewId);
-	}
-
-	/**
-	 * Place a client into the pool for viewId. Disconnects and replaces any
-	 * existing client for that view (e.g. unused placeholder before adopt).
-	 */
-	set(viewId: string, client: T): void {
-		const existing = this.clients.get(viewId);
-		if (existing && existing !== client) {
-			void this.disconnectClient(existing).catch((error) => {
-				this.onDisconnectError?.(viewId, error);
-			});
-		}
-		this.acquire(viewId);
-		this.clients.set(viewId, client);
-	}
-
 	getOrCreate(viewId: string): T {
 		let client = this.clients.get(viewId);
 		if (!client) {
@@ -74,19 +52,6 @@ export class AcpClientPool<T extends AcpClientLike> {
 			this.clients.set(viewId, client);
 		}
 		return client;
-	}
-
-	/** True if any live pool client is initialized for this agent. */
-	hasLiveAgent(agentId: string): boolean {
-		for (const client of this.clients.values()) {
-			if (
-				client.isInitialized?.() &&
-				client.getCurrentAgentId?.() === agentId
-			) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	updateAllAutoAllow(autoAllow: boolean): void {
