@@ -30,6 +30,10 @@ import { VaultService } from "../services/vault-service";
 // Hooks imports
 import { resolveFloatingWindowLayout } from "../services/settings-normalizer";
 import { useFloatingIdleOpacity } from "../hooks/useFloatingIdleOpacity";
+import {
+	FloatingPresenceProvider,
+	useCreateFloatingPresenceLatch,
+} from "./FloatingPresenceContext";
 
 // ============================================================
 // Helpers
@@ -767,7 +771,8 @@ function FloatingChatComponent({
 
 	usePersistFloatingLayout(plugin, size, position, onRegisterPersist);
 
-	useFloatingIdleOpacity(plugin, containerEl, isExpanded);
+	const presenceLatch = useCreateFloatingPresenceLatch();
+	useFloatingIdleOpacity(plugin, containerEl, isExpanded, presenceLatch);
 
 	// Notify parent of expanded state changes
 	useEffect(() => {
@@ -921,19 +926,21 @@ function FloatingChatComponent({
 				display: isExpanded ? undefined : "none",
 			}}
 		>
-			<ChatContextProvider value={contextValue}>
-				<ChatPanel
-					variant="floating"
-					viewId={viewId}
-					initialAgentId={initialAgentId}
-					onRegisterCallbacks={onRegisterCallbacks}
-					onMinimize={handleMinimizeWindow}
-					onClose={handleCloseWindow}
-					onOpenNewWindow={handleOpenNewFloatingChat}
-					onFloatingHeaderMouseDown={onMouseDown}
-					containerEl={containerEl}
-				/>
-			</ChatContextProvider>
+			<FloatingPresenceProvider latch={presenceLatch}>
+				<ChatContextProvider value={contextValue}>
+					<ChatPanel
+						variant="floating"
+						viewId={viewId}
+						initialAgentId={initialAgentId}
+						onRegisterCallbacks={onRegisterCallbacks}
+						onMinimize={handleMinimizeWindow}
+						onClose={handleCloseWindow}
+						onOpenNewWindow={handleOpenNewFloatingChat}
+						onFloatingHeaderMouseDown={onMouseDown}
+						containerEl={containerEl}
+					/>
+				</ChatContextProvider>
+			</FloatingPresenceProvider>
 		</div>
 	);
 }
@@ -1094,7 +1101,8 @@ function FloatingTabbedShellComponent({
 
 	usePersistFloatingLayout(plugin, size, position, onRegisterPersist);
 
-	useFloatingIdleOpacity(plugin, containerEl, isExpanded);
+	const presenceLatch = useCreateFloatingPresenceLatch();
+	useFloatingIdleOpacity(plugin, containerEl, isExpanded, presenceLatch);
 
 	const registerTabShowMenu = useCallback(
 		(
@@ -1320,6 +1328,7 @@ function FloatingTabbedShellComponent({
 				display: isExpanded ? undefined : "none",
 			}}
 		>
+			<FloatingPresenceProvider latch={presenceLatch}>
 			<div
 				className="agent-client-floating-tab-bar"
 				onMouseDown={onMouseDown}
@@ -1407,6 +1416,7 @@ function FloatingTabbedShellComponent({
 					/>
 				))}
 			</div>
+			</FloatingPresenceProvider>
 		</div>
 	);
 }

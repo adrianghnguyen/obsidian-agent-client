@@ -18,9 +18,11 @@ import { ErrorBanner } from "./ErrorBanner";
 import { AttachmentStrip } from "./shared/AttachmentStrip";
 import { InputToolbar } from "./InputToolbar";
 import { VoiceInputInline } from "./VoiceInputInline";
+import { useFloatingPresence } from "./FloatingPresenceContext";
 import type { TranscriptSink } from "../voice-input/types";
 import { VoiceTranscriptAccumulator } from "../voice-input/transcript-accumulation";
 import { captureVoiceMessageForSend } from "../voice-input/format-voice-duration";
+import { ENGAGEMENT_VOICE_INPUT } from "../services/engagement-latch";
 import { getLogger } from "../utils/logger";
 import type { ErrorInfo } from "../types/errors";
 import type { AgentUpdateNotification } from "../services/update-checker";
@@ -765,6 +767,7 @@ export function InputArea({
 	inputValueRef.current = inputValue;
 	const isVoiceListeningRef = useRef(isVoiceListening);
 	isVoiceListeningRef.current = isVoiceListening;
+	const presenceLatch = useFloatingPresence();
 
 	const stopVoiceListening = useCallback(async () => {
 		const voiceInput = plugin.voiceInput;
@@ -776,7 +779,8 @@ export function InputArea({
 		onInputChange(acc.discardInterim());
 		setIsVoiceListening(false);
 		setAudioLevel(0);
-	}, [plugin, onInputChange]);
+		presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
+	}, [plugin, onInputChange, presenceLatch]);
 
 	const handleStartVoice = useCallback(() => {
 		const voiceInput = plugin.voiceInput;
@@ -805,11 +809,20 @@ export function InputArea({
 				new Notice("[Agent Client] Voice: " + error);
 				setIsVoiceListening(false);
 				setAudioLevel(0);
+				presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
 			},
 		};
 		void voiceInput.startListening(sink);
 		setIsVoiceListening(true);
-	}, [plugin, inputValue, onInputChange, isSessionReady, isVoiceListening]);
+		presenceLatch?.hold(ENGAGEMENT_VOICE_INPUT);
+	}, [
+		plugin,
+		inputValue,
+		onInputChange,
+		isSessionReady,
+		isVoiceListening,
+		presenceLatch,
+	]);
 
 	const handleVoiceStopAndSend = useCallback(async () => {
 		const messageToSend = captureVoiceMessageForSend(inputValueRef.current);
@@ -853,13 +866,12 @@ export function InputArea({
 		return () => cancelAnimationFrame(rafId);
 	}, [isVoiceListening, plugin]);
 
-	// Keep floating idle opacity engaged while dictating
+	// Release presence hold if this input unmounts mid-dictation
 	useEffect(() => {
-		plugin.app.workspace.trigger(
-			"agent-client:voice-listening-changed",
-			isVoiceListening,
-		);
-	}, [isVoiceListening, plugin]);
+		return () => {
+			presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
+		};
+	}, [presenceLatch]);
 
 	// Command palette: agent-client:voice-input-toggle
 	const handleStartVoiceRef = useRef(handleStartVoice);

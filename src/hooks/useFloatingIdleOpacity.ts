@@ -11,21 +11,19 @@
  * - Scroll/wheel activity inside the window (wheel + scroll capture) —
  *   belt-and-suspenders with hover; also refreshes opacity if already faded while
  *   scrolling under the cursor
- * - Voice input is actively recording (mic session) — window stays engaged even
- *   if pointer/focus leave so the user can speak without the chat fading
+ * - Floating presence EngagementLatch has any hold (e.g. voice-input) — window
+ *   stays engaged even if pointer/focus leave
  *
  * Schedule fade only when none of the above remain true.
  */
 import { useLayoutEffect } from "react";
 import type AgentClientPlugin from "../plugin";
+import type { EngagementLatch } from "../services/engagement-latch";
 import { useSettings } from "./useSettings";
 
 const IDLE_OPACITY_VAR = "--agent-client-floating-idle-opacity";
 const IDLE_CLASS = "is-idle-transparent";
 const VIEW_ROOT_SELECTOR = ".agent-client-floating-view-root";
-/** Fired by InputArea when dictation starts/stops so idle opacity can resync. */
-export const VOICE_LISTENING_CHANGED_EVENT =
-	"agent-client:voice-listening-changed";
 
 function resolveIdleTarget(windowEl: HTMLDivElement): HTMLElement {
 	return windowEl.closest<HTMLElement>(VIEW_ROOT_SELECTOR) ?? windowEl;
@@ -39,8 +37,8 @@ function windowHasFocus(windowEl: HTMLDivElement): boolean {
 /**
  * Fade floating chat when the user is no longer engaged with the window:
  * after pointer leaves, focus leaves, and any pointer gesture ends, wait X ms
- * then fade. Hover, scroll, focus inside, interacting, or active voice
- * recording restores / keeps full opacity.
+ * then fade. Hover, scroll, focus inside, interacting, or presence holds
+ * restore / keep full opacity.
  *
  * `windowEl` must be the mounted floating window node (not only a ref) so the
  * effect rebinds when React attaches the DOM node.
@@ -49,6 +47,7 @@ export function useFloatingIdleOpacity(
 	plugin: AgentClientPlugin,
 	windowEl: HTMLDivElement | null,
 	isExpanded: boolean,
+	presenceLatch: EngagementLatch | null = null,
 ): void {
 	const { floatingIdleTimeoutMs: timeoutMs, floatingIdleOpacityPercent: opacityPercent } =
 		useSettings(plugin);
@@ -84,13 +83,11 @@ export function useFloatingIdleOpacity(
 			}
 		};
 
-		const voiceIsListening = () => plugin.voiceInput?.isListening ?? false;
-
 		const isEngaged = () =>
 			pointerInside ||
 			gestureActive ||
 			windowHasFocus(windowEl) ||
-			voiceIsListening();
+			(presenceLatch?.isHeld() ?? false);
 
 		const showOpaque = () => {
 			clearTimer();
@@ -160,10 +157,6 @@ export function useFloatingIdleOpacity(
 			}
 		};
 
-		const onVoiceListeningChanged = () => {
-			syncIdle();
-		};
-
 		windowEl.addEventListener("pointerenter", onPointerEnter);
 		windowEl.addEventListener("pointerleave", onPointerLeave);
 		windowEl.addEventListener("focusin", onFocusIn);
@@ -172,17 +165,7 @@ export function useFloatingIdleOpacity(
 		windowEl.addEventListener("wheel", onWheel, { capture: true });
 		windowEl.addEventListener("scroll", onScroll, { capture: true });
 
-		const workspace = plugin.app.workspace as unknown as {
-			on: (
-				name: string,
-				callback: (...args: never[]) => void,
-			) => { e?: unknown };
-			offref: (ref: { e?: unknown }) => void;
-		};
-		const voiceRef = workspace.on(
-			VOICE_LISTENING_CHANGED_EVENT,
-			onVoiceListeningChanged as (...args: never[]) => void,
-		);
+		const unsubPresence = presenceLatch?.subscribe(syncIdle) ?? null;
 
 		if (!isEngaged()) {
 			scheduleFade();
@@ -192,6 +175,7 @@ export function useFloatingIdleOpacity(
 
 		return () => {
 			clearTimer();
+			unsubPresence?.();
 			document.removeEventListener("pointerup", onPointerUp, true);
 			document.removeEventListener("pointercancel", onPointerUp, true);
 			windowEl.removeEventListener("pointerenter", onPointerEnter);
@@ -201,7 +185,6 @@ export function useFloatingIdleOpacity(
 			windowEl.removeEventListener("pointerdown", onPointerDown);
 			windowEl.removeEventListener("wheel", onWheel, true);
 			windowEl.removeEventListener("scroll", onScroll, true);
-			workspace.offref(voiceRef);
 			target.classList.remove(IDLE_CLASS);
 		};
 	}, [
@@ -210,6 +193,6 @@ export function useFloatingIdleOpacity(
 		timeoutMs,
 		opacityPercent,
 		windowEl,
-		plugin,
+		presenceLatch,
 	]);
 }
