@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.20.1
+
 ### Removed
 - **Harness warmup on Obsidian load** — Antigravity ACP init takes tens of minutes, so background warm did not help first chat; feature reverted.
 
