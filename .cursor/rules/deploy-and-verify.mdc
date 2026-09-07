@@ -23,7 +23,7 @@ Do not overwrite or clear vault `data.json` or `sessions/` during deploy.
 
 ## Stale CSS/layout escalation
 
-See the global skill `obsidian-multi-vault-cli` for the escalation ladder — `app:reload` first, restart only as last resort with user consent. `manifest.json` changes take effect on `plugin:reload` or `app:reload`; no full restart needed.
+See plugin skill `obsidian-multi-vault-cli` (Obsidian Plugin Development) for the escalation ladder — `app:reload` first, restart only as last resort with user consent. `manifest.json` changes take effect on `plugin:reload` or `app:reload`; no full restart needed.
 
 ## Do not skip
 
