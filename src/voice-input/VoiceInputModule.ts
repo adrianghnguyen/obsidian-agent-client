@@ -18,8 +18,8 @@ import type { TranscriptSink } from "./types";
  * - Commands: toggle voice input
  * - startListening/stopListening for the input area to call
  *
- * Recording state is surfaced by the chat input toolbar mic button,
- * not by a status bar item.
+ * Recording state is surfaced by the inline voice controls in the chat
+ * input row (mic / stop / timer / levels / send).
  *
  * Rip-and-replace: swap LiveTranscriber for a different provider that
  * implements the same start(sink)/stop()/isActive contract.
@@ -92,6 +92,11 @@ export class VoiceInputModule {
 		return this.transcriber?.isActive ?? false;
 	}
 
+	/** Instantaneous mic amplitude in [0, 1] for the inline level bars. */
+	getAudioLevel(): number {
+		return this.transcriber?.getLevel() ?? 0;
+	}
+
 	// ── Plugin lifecycle ───────────────────────────────────────────
 
 	/** Register the command palette entry. */
@@ -100,9 +105,7 @@ export class VoiceInputModule {
 			id: "voice-input-toggle",
 			name: "Toggle voice input",
 			callback: () => {
-				// The mic button in InputArea handles toggling.
-				// This command just fires a workspace event the active
-				// ChatPanel listens to.
+				// InputArea listens and starts/stops the inline voice controls.
 				this.plugin.app.workspace.trigger(
 					"agent-client:voice-input-toggle",
 				);
