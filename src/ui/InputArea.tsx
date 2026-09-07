@@ -853,6 +853,14 @@ export function InputArea({
 		return () => cancelAnimationFrame(rafId);
 	}, [isVoiceListening, plugin]);
 
+	// Keep floating idle opacity engaged while dictating
+	useEffect(() => {
+		plugin.app.workspace.trigger(
+			"agent-client:voice-listening-changed",
+			isVoiceListening,
+		);
+	}, [isVoiceListening, plugin]);
+
 	// Command palette: agent-client:voice-input-toggle
 	const handleStartVoiceRef = useRef(handleStartVoice);
 	const stopVoiceListeningRef = useRef(stopVoiceListening);
