@@ -30,6 +30,26 @@ describe("AcpClientPool", () => {
 		});
 	}
 
+	it("hasLiveAgent detects initialized clients by agent id", () => {
+		const pool = makePool(() => ({
+			...makeClient(),
+			isInitialized: () => true,
+			getCurrentAgentId: () => "agy",
+		}));
+		pool.getOrCreate("v1");
+		expect(pool.hasLiveAgent("agy")).toBe(true);
+		expect(pool.hasLiveAgent("other")).toBe(false);
+	});
+
+	it("peek returns undefined until getOrCreate; set places a client", () => {
+		const pool = makePool();
+		expect(pool.peek("v1")).toBeUndefined();
+		const external = makeClient();
+		pool.set("v1", external);
+		expect(pool.peek("v1")).toBe(external);
+		expect(pool.getOrCreate("v1")).toBe(external);
+	});
+
 	it("getOrCreate reuses the same client for a viewId", () => {
 		const create = vi.fn(makeClient);
 		const pool = makePool(create);

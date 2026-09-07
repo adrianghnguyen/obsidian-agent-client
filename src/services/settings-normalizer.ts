@@ -146,6 +146,7 @@ export const normalizeCustomAgent = (
 		args: sanitizeArgs(agent?.args),
 		env: normalizeEnvVars(agent?.env),
 		enabled: bool(agent?.enabled, true),
+		warmupOnStartup: bool(agent?.warmupOnStartup, false),
 	};
 };
 
@@ -270,6 +271,7 @@ export const defaultPresetAgentSettings = (
 	args: [...def.defaultArgs],
 	env: [],
 	enabled: true,
+	warmupOnStartup: false,
 });
 
 /**
@@ -331,6 +333,7 @@ export const normalizePresetAgents = (
 			args: args.length > 0 ? args : [...def.defaultArgs],
 			env: normalizeEnvVars(entry.env),
 			enabled: bool(entry.enabled, true),
+			warmupOnStartup: bool(entry.warmupOnStartup, false),
 		};
 	}
 
@@ -349,6 +352,7 @@ export const normalizePresetAgents = (
 			command: str(entry.command, ""),
 			args: sanitizeArgs(entry.args),
 			env: normalizeEnvVars(entry.env),
+			warmupOnStartup: bool(entry.warmupOnStartup, false),
 		};
 	}
 
@@ -684,6 +688,27 @@ export function parseFloatingIdleOpacityPercent(
 		return clampFloatingIdleOpacityPercent(fallback);
 	}
 	return clampFloatingIdleOpacityPercent(raw);
+}
+
+/** Max delay before harness warm() after layout ready (2 minutes). */
+export const HARNESS_WARMUP_DELAY_MAX_MS = 120_000;
+
+export function clampHarnessWarmupDelayMs(value: number): number {
+	if (!Number.isFinite(value)) return 10_000;
+	return Math.min(
+		HARNESS_WARMUP_DELAY_MAX_MS,
+		Math.max(0, Math.round(value)),
+	);
+}
+
+export function parseHarnessWarmupDelayMs(
+	raw: unknown,
+	fallback: number,
+): number {
+	if (typeof raw !== "number" || !Number.isFinite(raw)) {
+		return clampHarnessWarmupDelayMs(fallback);
+	}
+	return clampHarnessWarmupDelayMs(raw);
 }
 
 /**

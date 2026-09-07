@@ -69,4 +69,8 @@ export const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	floatingIdleTimeoutMs: 0,
 	floatingIdleOpacityPercent: 50,
 	voiceInput: { ...DEFAULT_VOICE_INPUT },
+	harnessWarmup: {
+		enabled: false,
+		delayMs: 10_000,
+	},
 };

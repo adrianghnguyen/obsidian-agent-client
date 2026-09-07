@@ -1,4 +1,8 @@
-import { Plugin, Notice } from "obsidian";
+import {
+	Plugin,
+	Notice,
+	FileSystemAdapter,
+} from "obsidian";
 import { ChatView, VIEW_TYPE_CHAT } from "./ui/ChatView";
 import { EmbeddedChatViewContainer } from "./ui/CodeBlockChatView";
 import {
@@ -14,6 +18,10 @@ import {
 } from "./services/view-registry";
 import { PendingPrompts } from "./services/pending-prompts";
 import { AcpClientPool } from "./services/acp-client-pool";
+import {
+	HarnessWarmer,
+	agentsWithWarmupOnStartup,
+} from "./services/harness-warmer";
 import { findNearestEmbeddedChat as lookupNearestEmbeddedChat } from "./services/embedded-chat-lookup";
 import {
 	createSettingsService,
@@ -44,6 +52,7 @@ import {
 	parseFloatingIdleTimeoutMs,
 	resolveFloatingIdleOpacityPercent,
 	needsFloatingIdleOpacityMigration,
+	parseHarnessWarmupDelayMs,
 } from "./services/settings-normalizer";
 import { PRESET_AGENTS } from "./services/preset-agents";
 import { VoiceInputModule } from "./voice-input/VoiceInputModule";
@@ -53,6 +62,7 @@ import {
 	getAvailableAgentsFromSettings,
 	firstEnabledAgentId,
 	repairNoEnabledAgents,
+	getDefaultAgentId,
 } from "./services/session-helpers";
 import {
 	AgentEnvVar,
@@ -101,6 +111,13 @@ export default class AgentClientPlugin extends Plugin {
 				error,
 			);
 		},
+	});
+	/** Background spawn + session/new for opted-in agents (no chat UI). */
+	harnessWarmer = new HarnessWarmer({
+		createClient: () => new AcpClient(this),
+		getSettings: () => this.settings,
+		getVaultCwd: () => this.getVaultBasePath(),
+		hasLiveAgent: (agentId) => this.acpClientPool.hasLiveAgent(agentId),
 	});
 	/**
 	 * Pending-prompt handshake (ChatPanel register ↔ runPromptInChat deliver).
@@ -283,6 +300,7 @@ export default class AgentClientPlugin extends Plugin {
 				this.flushFloatingWindowLayouts();
 
 				// Fire and forget - don't block Obsidian from quitting
+				this.harnessWarmer.disconnectAll();
 				this.acpClientPool.disconnectAllFireAndForget();
 			}),
 		);
@@ -308,6 +326,17 @@ export default class AgentClientPlugin extends Plugin {
 			);
 			this.voiceInput.registerCommands();
 		}
+
+		// Delayed harness warmup — after layout, never on the onload critical path.
+		this.app.workspace.onLayoutReady(() => {
+			const delayMs = this.settings.harnessWarmup.delayMs;
+			const timer = window.setTimeout(() => {
+				for (const id of agentsWithWarmupOnStartup(this.settings)) {
+					void this.harnessWarmer.warm(id);
+				}
+			}, delayMs);
+			this.register(() => window.clearTimeout(timer));
+		});
 	}
 
 	onunload() {
@@ -340,16 +369,39 @@ export default class AgentClientPlugin extends Plugin {
 		this.viewRegistry.clear();
 
 		// Disconnect all ACP clients (kill agent processes)
+		this.harnessWarmer.disconnectAll();
 		void this.acpClientPool.clear();
 
 		this.pendingPrompts.clear();
 	}
 
+	/** Absolute vault path for agent cwd (warmup + adopt). */
+	getVaultBasePath(): string {
+		const adapter = this.app.vault.adapter;
+		if (adapter instanceof FileSystemAdapter) {
+			return adapter.getBasePath();
+		}
+		return process.cwd();
+	}
+
 	/**
 	 * Get or create an AcpClient for a specific view.
-	 * Each ChatView has its own AcpClient for independent sessions.
+	 * When agentId is known, prefers a parked warm harness matching vault cwd.
 	 */
-	getOrCreateAcpClient(viewId: string): AcpClient {
+	getOrCreateAcpClient(viewId: string, agentId?: string): AcpClient {
+		const existing = this.acpClientPool.peek(viewId);
+		if (existing) {
+			return existing;
+		}
+
+		const resolvedAgentId = agentId || getDefaultAgentId(this.settings);
+		const cwd = this.getVaultBasePath();
+		const parked = this.harnessWarmer.adopt(resolvedAgentId, cwd);
+		if (parked) {
+			this.acpClientPool.set(viewId, parked.client);
+			return parked.client;
+		}
+
 		return this.acpClientPool.getOrCreate(viewId);
 	}
 
@@ -802,6 +854,16 @@ export default class AgentClientPlugin extends Plugin {
 			voiceInput: normalizeVoiceInputSettings(
 				obj(raw.voiceInput) as Partial<VoiceInputSettings> | undefined,
 			),
+			harnessWarmup: (() => {
+				const hw = obj(raw.harnessWarmup) ?? {};
+				return {
+					enabled: bool(hw.enabled, D.harnessWarmup.enabled),
+					delayMs: parseHarnessWarmupDelayMs(
+						hw.delayMs,
+						D.harnessWarmup.delayMs,
+					),
+				};
+			})(),
 		};
 
 		this.ensureAtLeastOneEnabled();

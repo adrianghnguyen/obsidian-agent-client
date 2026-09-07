@@ -59,6 +59,13 @@ export interface BaseAgentSettings {
 	 * and already-open chats keep working. Check via `isAgentEnabled()`.
 	 */
 	enabled?: boolean;
+
+	/**
+	 * When true (and master harnessWarmup.enabled), spawn + ACP initialize +
+	 * session/new run after Obsidian layout is ready so the first chat skips
+	 * the cold "Connecting…" wait. Default false / omitted.
+	 */
+	warmupOnStartup?: boolean;
 }
 
 /**
