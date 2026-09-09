@@ -4,6 +4,13 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Fixed
+- Floating chat default window size now honors Settings width/height (CSS minimums no longer override smaller configured defaults).
+
+### Changed
+- Smaller default floating chat window size (340×400).
+- Floating chat last window size and position are stored per device (not synced via Obsidian Sync).
+
 ## 0.20.1
 
 ### Removed

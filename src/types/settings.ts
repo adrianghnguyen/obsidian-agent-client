@@ -119,10 +119,6 @@ export interface AgentClientPluginSettings {
 	floatingWindowDefaultSize: { width: number; height: number };
 	/** User default position; null = automatic bottom-right. */
 	floatingWindowDefaultPosition: { x: number; y: number } | null;
-	/** Last size from resize; preferred over default on open. */
-	floatingWindowLastSize: { width: number; height: number } | null;
-	/** Last position from drag; preferred over default on open. */
-	floatingWindowLastPosition: { x: number; y: number } | null;
 	floatingButtonPosition: { x: number; y: number } | null;
 	/**
 	 * Fade the floating window this many ms after engagement ends (pointer

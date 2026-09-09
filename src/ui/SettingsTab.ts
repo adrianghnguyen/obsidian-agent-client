@@ -926,7 +926,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						new Setting(nestedEl)
 							.setName("Default window width")
 							.setDesc(
-								`Used when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.width}â€“${FLOATING_WINDOW_SIZE_MAX.width}px). Position is remembered automatically from the last drag.`,
+								`Used on this device when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.width}-${FLOATING_WINDOW_SIZE_MAX.width}px). Drag and resize are remembered per device.`,
 							)
 							.addText((text) =>
 								text
@@ -966,7 +966,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						new Setting(nestedEl)
 							.setName("Default window height")
 							.setDesc(
-								`Used when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.height}â€“${FLOATING_WINDOW_SIZE_MAX.height}px).`,
+								`Used on this device when no last window size is saved (${FLOATING_WINDOW_SIZE_MIN.height}-${FLOATING_WINDOW_SIZE_MAX.height}px).`,
 							)
 							.addText((text) =>
 								text

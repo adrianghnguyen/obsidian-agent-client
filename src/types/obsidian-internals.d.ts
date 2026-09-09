@@ -8,6 +8,11 @@ export {};
  * to be removed without notice.
  */
 declare module "obsidian" {
+	interface App {
+		loadLocalStorage(key: string): unknown;
+		saveLocalStorage(key: string, data: unknown | null): void;
+	}
+
 	interface Vault {
 		getConfig(key: string): unknown;
 	}

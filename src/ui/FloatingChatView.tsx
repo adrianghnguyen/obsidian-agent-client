@@ -29,6 +29,7 @@ import { VaultService } from "../services/vault-service";
 
 // Hooks imports
 import { resolveFloatingWindowLayout } from "../services/settings-normalizer";
+import { floatingWindowLocalLayoutsEqual } from "../services/floating-window-local-storage";
 import { useFloatingIdleOpacity } from "../hooks/useFloatingIdleOpacity";
 import {
 	FloatingPresenceProvider,
@@ -72,6 +73,18 @@ function fitToViewport(
 	return { position, size };
 }
 
+function getInitialFloatingLayout(
+	plugin: AgentClientPlugin,
+	initialPosition?: { x: number; y: number } | null,
+) {
+	return resolveFloatingWindowLayout(
+		plugin.settings,
+		{ width: window.innerWidth, height: window.innerHeight },
+		initialPosition,
+		plugin.getFloatingWindowLocalLayout(),
+	);
+}
+
 /**
  * Debounced persistence of floating window layout to floatingWindowLast*.
  * Flushes pending saves on unmount and via persistLayoutNow().
@@ -97,21 +110,16 @@ function usePersistFloatingLayout(
 	const saveNow = useCallback(() => {
 		const s = sizeRef.current;
 		const p = positionRef.current;
-		const cur = plugin.settings;
-		const sizeChanged =
-			!cur.floatingWindowLastSize ||
-			cur.floatingWindowLastSize.width !== s.width ||
-			cur.floatingWindowLastSize.height !== s.height;
-		const posChanged =
-			!cur.floatingWindowLastPosition ||
-			cur.floatingWindowLastPosition.x !== p.x ||
-			cur.floatingWindowLastPosition.y !== p.y;
-		if (!sizeChanged && !posChanged) return;
-		void plugin.saveSettingsAndNotify({
-			...plugin.settings,
-			floatingWindowLastSize: s,
-			floatingWindowLastPosition: p,
-		});
+		const layout = { lastSize: s, lastPosition: p };
+		if (
+			floatingWindowLocalLayoutsEqual(
+				plugin.getFloatingWindowLocalLayout(),
+				layout,
+			)
+		) {
+			return;
+		}
+		plugin.saveFloatingWindowLocalLayout(layout);
 	}, [plugin]);
 
 	const flushNow = useCallback(() => {
@@ -753,20 +761,10 @@ function FloatingChatComponent({
 
 	const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
 	const [size, setSize] = useState(() => {
-		const layout = resolveFloatingWindowLayout(
-			plugin.settings,
-			{ width: window.innerWidth, height: window.innerHeight },
-			initialPosition,
-		);
-		return layout.size;
+		return getInitialFloatingLayout(plugin, initialPosition).size;
 	});
 	const [position, setPosition] = useState(() => {
-		const layout = resolveFloatingWindowLayout(
-			plugin.settings,
-			{ width: window.innerWidth, height: window.innerHeight },
-			initialPosition,
-		);
-		return layout.position;
+		return getInitialFloatingLayout(plugin, initialPosition).position;
 	});
 	const [isDragging, setIsDragging] = useState(false);
 	const dragOffset = useRef({ x: 0, y: 0 });
@@ -1077,20 +1075,10 @@ function FloatingTabbedShellComponent({
 	const [activeTabId, setActiveTabId] = useState<string | null>(null);
 	const [titleVersion, setTitleVersion] = useState(0);
 	const [size, setSize] = useState(() => {
-		const layout = resolveFloatingWindowLayout(
-			plugin.settings,
-			{ width: window.innerWidth, height: window.innerHeight },
-			initialPosition,
-		);
-		return layout.size;
+		return getInitialFloatingLayout(plugin, initialPosition).size;
 	});
 	const [position, setPosition] = useState(() => {
-		const layout = resolveFloatingWindowLayout(
-			plugin.settings,
-			{ width: window.innerWidth, height: window.innerHeight },
-			initialPosition,
-		);
-		return layout.position;
+		return getInitialFloatingLayout(plugin, initialPosition).position;
 	});
 	const [isDragging, setIsDragging] = useState(false);
 	const dragOffset = useRef({ x: 0, y: 0 });

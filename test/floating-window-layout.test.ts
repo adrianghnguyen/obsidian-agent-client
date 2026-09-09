@@ -8,20 +8,22 @@ import {
 	parseOptionalFloatingWindowSize,
 	FLOATING_WINDOW_SIZE_MIN,
 	FLOATING_WINDOW_SIZE_MAX,
-	type FloatingWindowLayoutSettings,
+	type FloatingWindowDefaultLayoutSettings,
 } from "../src/services/settings-normalizer";
 
 const VIEWPORT = { width: 1920, height: 1080 };
-const DEFAULT_SIZE = { width: 400, height: 500 };
+const DEFAULT_SIZE = { width: 340, height: 400 };
+const LAST_LAYOUT = {
+	lastSize: { width: 600, height: 700 },
+	lastPosition: { x: 100, y: 80 },
+};
 
 function baseSettings(
-	overrides: Partial<FloatingWindowLayoutSettings> = {},
-): FloatingWindowLayoutSettings {
+	overrides: Partial<FloatingWindowDefaultLayoutSettings> = {},
+): FloatingWindowDefaultLayoutSettings {
 	return {
 		floatingWindowDefaultSize: DEFAULT_SIZE,
 		floatingWindowDefaultPosition: null,
-		floatingWindowLastSize: null,
-		floatingWindowLastPosition: null,
 		...overrides,
 	};
 }
@@ -39,25 +41,24 @@ describe("resolveFloatingWindowLayout", () => {
 		});
 	});
 
-	it("prefers last size/position over defaults", () => {
+	it("prefers device last size/position over defaults", () => {
 		const { size, position } = resolveFloatingWindowLayout(
 			baseSettings({
 				floatingWindowDefaultSize: { width: 400, height: 500 },
 				floatingWindowDefaultPosition: { x: 10, y: 20 },
-				floatingWindowLastSize: { width: 600, height: 700 },
-				floatingWindowLastPosition: { x: 100, y: 80 },
 			}),
 			VIEWPORT,
+			null,
+			LAST_LAYOUT,
 		);
-		expect(size).toEqual({ width: 600, height: 700 });
-		expect(position).toEqual({ x: 100, y: 80 });
+		expect(size).toEqual(LAST_LAYOUT.lastSize);
+		expect(position).toEqual(LAST_LAYOUT.lastPosition);
 	});
 
-	it("uses default position when last position is null", () => {
+	it("uses default position when no device last layout is saved", () => {
 		const { position } = resolveFloatingWindowLayout(
 			baseSettings({
 				floatingWindowDefaultPosition: { x: 12, y: 34 },
-				floatingWindowLastSize: { width: 500, height: 500 },
 			}),
 			VIEWPORT,
 		);
@@ -68,31 +69,49 @@ describe("resolveFloatingWindowLayout", () => {
 		const { position } = resolveFloatingWindowLayout(
 			baseSettings({
 				floatingWindowDefaultPosition: { x: 1, y: 2 },
-				floatingWindowLastPosition: { x: 3, y: 4 },
 			}),
 			VIEWPORT,
 			{ x: 200, y: 150 },
+			{
+				lastSize: { width: 400, height: 500 },
+				lastPosition: { x: 3, y: 4 },
+			},
 		);
 		expect(position).toEqual({ x: 200, y: 150 });
 	});
 
 	it("clamps size to the viewport", () => {
 		const { size } = resolveFloatingWindowLayout(
-			baseSettings({
-				floatingWindowLastSize: { width: 5000, height: 4000 },
-			}),
+			baseSettings(),
 			{ width: 800, height: 600 },
+			null,
+			{
+				lastSize: { width: 5000, height: 4000 },
+				lastPosition: { x: 0, y: 0 },
+			},
 		);
 		expect(size).toEqual({ width: 800, height: 600 });
 	});
 
-	it("clamps position into the viewport", () => {
-		const { position } = resolveFloatingWindowLayout(
+	it("clamps undersized configured defaults to settings bounds", () => {
+		const { size } = resolveFloatingWindowLayout(
 			baseSettings({
-				floatingWindowLastSize: { width: 400, height: 500 },
-				floatingWindowLastPosition: { x: 9000, y: -50 },
+				floatingWindowDefaultSize: { width: 100, height: 100 },
 			}),
 			VIEWPORT,
+		);
+		expect(size).toEqual(FLOATING_WINDOW_SIZE_MIN);
+	});
+
+	it("clamps position into the viewport", () => {
+		const { position } = resolveFloatingWindowLayout(
+			baseSettings(),
+			VIEWPORT,
+			null,
+			{
+				lastSize: { width: 400, height: 500 },
+				lastPosition: { x: 9000, y: -50 },
+			},
 		);
 		expect(position.x).toBe(VIEWPORT.width - 400);
 		expect(position.y).toBe(0);
@@ -100,7 +119,7 @@ describe("resolveFloatingWindowLayout", () => {
 });
 
 describe("migrateFloatingWindowLayoutFields", () => {
-	it("migrates legacy size/position into default + last", () => {
+	it("migrates legacy size into default fields only", () => {
 		const result = migrateFloatingWindowLayoutFields(
 			{
 				floatingWindowSize: { width: 520, height: 640 },
@@ -108,16 +127,13 @@ describe("migrateFloatingWindowLayoutFields", () => {
 			},
 			DEFAULT_SIZE,
 		);
-		expect(result.floatingWindowDefaultSize).toEqual({
-			width: 520,
-			height: 640,
+		expect(result).toEqual({
+			floatingWindowDefaultSize: {
+				width: 520,
+				height: 640,
+			},
+			floatingWindowDefaultPosition: null,
 		});
-		expect(result.floatingWindowDefaultPosition).toBeNull();
-		expect(result.floatingWindowLastSize).toEqual({
-			width: 520,
-			height: 640,
-		});
-		expect(result.floatingWindowLastPosition).toEqual({ x: 40, y: 60 });
 	});
 
 	it("uses fallback defaults when no legacy or new keys", () => {
@@ -125,12 +141,10 @@ describe("migrateFloatingWindowLayoutFields", () => {
 		expect(result).toEqual({
 			floatingWindowDefaultSize: DEFAULT_SIZE,
 			floatingWindowDefaultPosition: null,
-			floatingWindowLastSize: null,
-			floatingWindowLastPosition: null,
 		});
 	});
 
-	it("prefers new schema keys when present", () => {
+	it("prefers new schema default keys when present", () => {
 		const result = migrateFloatingWindowLayoutFields(
 			{
 				floatingWindowDefaultSize: { width: 450, height: 550 },
@@ -142,16 +156,13 @@ describe("migrateFloatingWindowLayoutFields", () => {
 			},
 			DEFAULT_SIZE,
 		);
-		expect(result.floatingWindowDefaultSize).toEqual({
-			width: 450,
-			height: 550,
+		expect(result).toEqual({
+			floatingWindowDefaultSize: {
+				width: 450,
+				height: 550,
+			},
+			floatingWindowDefaultPosition: { x: 5, y: 6 },
 		});
-		expect(result.floatingWindowDefaultPosition).toEqual({ x: 5, y: 6 });
-		expect(result.floatingWindowLastSize).toEqual({
-			width: 700,
-			height: 800,
-		});
-		expect(result.floatingWindowLastPosition).toEqual({ x: 90, y: 91 });
 	});
 });
 
@@ -169,22 +180,21 @@ describe("needsFloatingWindowLayoutMigration", () => {
 		).toBe(true);
 	});
 
-	it("is false for a clean new schema", () => {
-		expect(
-			needsFloatingWindowLayoutMigration({
-				floatingWindowDefaultSize: { width: 400, height: 500 },
-				floatingWindowLastSize: null,
-			}),
-		).toBe(false);
-		expect(needsFloatingWindowLayoutMigration({})).toBe(false);
-	});
-
-	it("is true for incomplete new schema without defaultSize", () => {
+	it("is true when synced last-layout keys remain", () => {
 		expect(
 			needsFloatingWindowLayoutMigration({
 				floatingWindowLastSize: { width: 400, height: 500 },
 			}),
 		).toBe(true);
+	});
+
+	it("is false for a clean new schema", () => {
+		expect(
+			needsFloatingWindowLayoutMigration({
+				floatingWindowDefaultSize: { width: 400, height: 500 },
+			}),
+		).toBe(false);
+		expect(needsFloatingWindowLayoutMigration({})).toBe(false);
 	});
 });
 

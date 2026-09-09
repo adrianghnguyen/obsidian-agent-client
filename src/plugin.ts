@@ -45,6 +45,15 @@ import {
 	resolveFloatingIdleOpacityPercent,
 	needsFloatingIdleOpacityMigration,
 } from "./services/settings-normalizer";
+import {
+	createAppLocalStorageAccess,
+	extractSyncedFloatingWindowLastLayout,
+	floatingWindowLocalLayoutsEqual,
+	readFloatingWindowLocalLayout,
+	writeFloatingWindowLocalLayout,
+	type FloatingWindowLocalLayout,
+	type FloatingWindowLocalStorageAccess,
+} from "./services/floating-window-local-storage";
 import { PRESET_AGENTS } from "./services/preset-agents";
 import { VoiceInputModule } from "./voice-input/VoiceInputModule";
 import type { VoiceInputSettings } from "./voice-input/VoiceInputSettings";
@@ -118,6 +127,34 @@ export default class AgentClientPlugin extends Plugin {
 	private floatingChatStatusBar: FloatingChatStatusBar | null = null;
 	/** Voice Input module (Gemini Live). */
 	voiceInput: VoiceInputModule | null = null;
+	/** Device-local floating window layout (size/position after drag/resize). */
+	private floatingWindowLocalStorage!: FloatingWindowLocalStorageAccess;
+
+	getFloatingWindowLocalLayout(): FloatingWindowLocalLayout | null {
+		return readFloatingWindowLocalLayout(this.floatingWindowLocalStorage);
+	}
+
+	saveFloatingWindowLocalLayout(layout: FloatingWindowLocalLayout): void {
+		writeFloatingWindowLocalLayout(
+			this.floatingWindowLocalStorage,
+			layout,
+		);
+	}
+
+	private migrateFloatingWindowLayoutToLocalStorage(
+		raw: Record<string, unknown>,
+	): void {
+		const existing = readFloatingWindowLocalLayout(
+			this.floatingWindowLocalStorage,
+		);
+		const synced = extractSyncedFloatingWindowLastLayout(raw);
+		if (!existing && synced) {
+			writeFloatingWindowLocalLayout(
+				this.floatingWindowLocalStorage,
+				synced,
+			);
+		}
+	}
 
 	async onload() {
 		await this.loadSettings();
@@ -588,6 +625,9 @@ export default class AgentClientPlugin extends Plugin {
 		const raw = ((await this.loadData()) ?? {}) as Record<string, unknown>;
 		const D = DEFAULT_SETTINGS;
 		let migratedSecrets = false;
+
+		this.floatingWindowLocalStorage = createAppLocalStorageAccess(this.app);
+		this.migrateFloatingWindowLayoutToLocalStorage(raw);
 
 		// Docs-advised custom agents (e.g. the OpenCode recipe our docs
 		// carried before the preset existed) migrate into their new preset

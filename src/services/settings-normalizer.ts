@@ -533,11 +533,9 @@ export function clampFloatingWindowSize(
 	};
 }
 
-export interface FloatingWindowLayoutSettings {
+export interface FloatingWindowDefaultLayoutSettings {
 	floatingWindowDefaultSize: FloatingWindowSize;
 	floatingWindowDefaultPosition: FloatingWindowPoint | null;
-	floatingWindowLastSize: FloatingWindowSize | null;
-	floatingWindowLastPosition: FloatingWindowPoint | null;
 }
 
 export interface ViewportSize {
@@ -545,18 +543,26 @@ export interface ViewportSize {
 	height: number;
 }
 
+/** @deprecated Use FloatingWindowDefaultLayoutSettings. */
+export type FloatingWindowLayoutSettings = FloatingWindowDefaultLayoutSettings;
+
 /**
  * Resolve floating-window size/position for open.
- * Priority: initialPosition (when passed) > last > default > auto bottom-right.
+ * Priority: initialPosition (when passed) > device last > default > auto bottom-right.
  * Size: lastSize ?? defaultSize, then clamped to the viewport.
  */
 export function resolveFloatingWindowLayout(
-	settings: FloatingWindowLayoutSettings,
+	settings: FloatingWindowDefaultLayoutSettings,
 	viewport: ViewportSize,
 	initialPosition?: FloatingWindowPoint | null,
+	lastLayout?: {
+		lastSize: FloatingWindowSize;
+		lastPosition: FloatingWindowPoint;
+	} | null,
 ): { size: FloatingWindowSize; position: FloatingWindowPoint } {
-	const rawSize =
-		settings.floatingWindowLastSize ?? settings.floatingWindowDefaultSize;
+	const rawSize = clampFloatingWindowSize(
+		lastLayout?.lastSize ?? settings.floatingWindowDefaultSize,
+	);
 	const size: FloatingWindowSize = {
 		width: Math.min(rawSize.width, viewport.width),
 		height: Math.min(rawSize.height, viewport.height),
@@ -567,9 +573,9 @@ export function resolveFloatingWindowLayout(
 	if (initialPosition) {
 		x = initialPosition.x;
 		y = initialPosition.y;
-	} else if (settings.floatingWindowLastPosition) {
-		x = settings.floatingWindowLastPosition.x;
-		y = settings.floatingWindowLastPosition.y;
+	} else if (lastLayout?.lastPosition) {
+		x = lastLayout.lastPosition.x;
+		y = lastLayout.lastPosition.y;
 	} else if (settings.floatingWindowDefaultPosition) {
 		x = settings.floatingWindowDefaultPosition.x;
 		y = settings.floatingWindowDefaultPosition.y;
@@ -587,43 +593,39 @@ export function resolveFloatingWindowLayout(
 }
 
 /**
- * Migrate legacy floatingWindowSize / floatingWindowPosition into
- * default + last layout fields.
+ * Migrate legacy floatingWindowSize / floatingWindowPosition into default fields.
+ * Last size/position are migrated separately into device-local storage.
  */
 export function migrateFloatingWindowLayoutFields(
 	raw: Record<string, unknown>,
 	fallbackDefaultSize: FloatingWindowSize,
-): FloatingWindowLayoutSettings {
+): FloatingWindowDefaultLayoutSettings {
 	const legacySize = parseOptionalFloatingWindowSize(raw.floatingWindowSize);
-	const legacyPos = xyPoint(raw.floatingWindowPosition);
 	const hasNewDefaults = raw.floatingWindowDefaultSize !== undefined;
 
 	if (hasNewDefaults) {
 		return {
-			floatingWindowDefaultSize: parseFloatingWindowSize(
-				raw.floatingWindowDefaultSize,
-				fallbackDefaultSize,
+			floatingWindowDefaultSize: clampFloatingWindowSize(
+				parseFloatingWindowSize(
+					raw.floatingWindowDefaultSize,
+					fallbackDefaultSize,
+				),
 			),
 			floatingWindowDefaultPosition: xyPoint(
 				raw.floatingWindowDefaultPosition,
 			),
-			floatingWindowLastSize:
-				parseOptionalFloatingWindowSize(raw.floatingWindowLastSize) ??
-				legacySize,
-			floatingWindowLastPosition:
-				xyPoint(raw.floatingWindowLastPosition) ?? legacyPos,
 		};
 	}
 
 	return {
-		floatingWindowDefaultSize: legacySize ?? fallbackDefaultSize,
+		floatingWindowDefaultSize: clampFloatingWindowSize(
+			legacySize ?? fallbackDefaultSize,
+		),
 		floatingWindowDefaultPosition: null,
-		floatingWindowLastSize: legacySize,
-		floatingWindowLastPosition: legacyPos,
 	};
 }
 
-/** True when data.json still has legacy keys (or incomplete new schema). */
+/** True when data.json still has legacy or synced last-layout keys to clean up. */
 export function needsFloatingWindowLayoutMigration(
 	raw: Record<string, unknown>,
 ): boolean {
@@ -634,10 +636,14 @@ export function needsFloatingWindowLayoutMigration(
 		return true;
 	}
 	if (
+		raw.floatingWindowLastSize !== undefined ||
+		raw.floatingWindowLastPosition !== undefined
+	) {
+		return true;
+	}
+	if (
 		raw.floatingWindowDefaultSize === undefined &&
-		(raw.floatingWindowLastSize !== undefined ||
-			raw.floatingWindowLastPosition !== undefined ||
-			raw.floatingWindowDefaultPosition !== undefined)
+		raw.floatingWindowDefaultPosition !== undefined
 	) {
 		return true;
 	}
