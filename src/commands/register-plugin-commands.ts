@@ -10,6 +10,7 @@ import {
 	findAgentSettings,
 	isAgentEnabled,
 } from "../services/session-helpers";
+import { isFocusGatedChatCommandEnabled } from "./chat-focus-gate";
 
 export function registerAgentCommands(plugin: AgentClientPlugin): void {
 	for (const agent of getAllAgentsFromSettings(plugin.settings)) {
@@ -98,27 +99,43 @@ export function registerPermissionCommands(plugin: AgentClientPlugin): void {
 	});
 }
 
+function runFocusGatedSessionModeCommand(
+	plugin: AgentClientPlugin,
+	checking: boolean,
+	event: "agent-client:cycle-session-mode" | "agent-client:switch-session-mode",
+): boolean {
+	const focused = plugin.viewRegistry.getFocused();
+	const activeEl = activeDocument.activeElement;
+	if (!isFocusGatedChatCommandEnabled(focused, activeEl)) {
+		return false;
+	}
+	if (!checking) {
+		plugin.app.workspace.trigger(event, plugin.lastActiveChatViewId);
+	}
+	return true;
+}
+
 export function registerSessionModeCommands(plugin: AgentClientPlugin): void {
 	plugin.addCommand({
 		id: "cycle-session-mode",
 		name: "Cycle session mode",
-		callback: () => {
-			plugin.app.workspace.trigger(
+		checkCallback: (checking) =>
+			runFocusGatedSessionModeCommand(
+				plugin,
+				checking,
 				"agent-client:cycle-session-mode",
-				plugin.lastActiveChatViewId,
-			);
-		},
+			),
 	});
 
 	plugin.addCommand({
 		id: "switch-session-mode",
 		name: "Switch session mode",
-		callback: () => {
-			plugin.app.workspace.trigger(
+		checkCallback: (checking) =>
+			runFocusGatedSessionModeCommand(
+				plugin,
+				checking,
 				"agent-client:switch-session-mode",
-				plugin.lastActiveChatViewId,
-			);
-		},
+			),
 	});
 }
 
