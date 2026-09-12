@@ -3,7 +3,7 @@
 All commands available in Agent Client. Open the command palette (`Cmd/Ctrl + P`) to access them, or assign keyboard shortcuts in **Settings → Hotkeys**.
 
 ::: tip
-Commands operate on the **last focused chat view**. Click on a chat view to focus it before running a command.
+Most commands operate on the **last focused chat view**. **Cycle/Switch session mode** are stricter: a bound hotkey only runs while a chat has keyboard focus (so it will not fire while typing in a note). Use the command palette if the chat is not focused.
 :::
 
 ## Chat Commands
@@ -20,6 +20,8 @@ Commands operate on the **last focused chat view**. Click on a chat view to focu
 | **Reject active permission** | Reject the current permission request |
 | **Focus next chat view** | Move focus to the next chat view |
 | **Focus previous chat view** | Move focus to the previous chat view |
+| **Cycle session mode** | Cycle the focused chat's agent mode (Agent → Plan → Ask, etc.). Focus-gated: only available while a chat has keyboard focus (or via the command palette) |
+| **Switch session mode** | Open a picker for the focused chat's modes. Same focus gate as Cycle session mode |
 
 ## Broadcast Commands
 
