@@ -1198,8 +1198,18 @@ export function InputArea({
 					</button>
 				)}
 
-				{/* Textarea with Hint Overlay + inline voice controls */}
+				{/* Inline voice controls + textarea with Hint Overlay */}
 				<div className="agent-client-input-main-row">
+					{plugin.voiceInput && (
+						<VoiceInputInline
+							isListening={isVoiceListening}
+							audioLevel={audioLevel}
+							onStart={handleStartVoice}
+							onStop={() => void stopVoiceListening()}
+							onStopAndSend={() => void handleVoiceStopAndSend()}
+							disabled={!isSessionReady || isRestoringSession}
+						/>
+					)}
 					<div className="agent-client-textarea-wrapper">
 						<textarea
 							ref={textareaRef}
@@ -1226,16 +1236,6 @@ export function InputArea({
 							</div>
 						)}
 					</div>
-					{plugin.voiceInput && (
-						<VoiceInputInline
-							isListening={isVoiceListening}
-							audioLevel={audioLevel}
-							onStart={handleStartVoice}
-							onStop={() => void stopVoiceListening()}
-							onStopAndSend={() => void handleVoiceStopAndSend()}
-							disabled={!isSessionReady || isRestoringSession}
-						/>
-					)}
 				</div>
 
 				{/* Attachment Preview Strip (images + file references) */}
