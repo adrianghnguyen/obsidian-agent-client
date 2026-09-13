@@ -7,6 +7,7 @@ import type { ChatMessage, MessageContent, ToolCallMessageContent } from "../typ
 import type { TraceVerbosity } from "../types/settings";
 import {
 	groupTraceContent,
+	isCreatePlanToolContent,
 	isHiddenTraceItem,
 	type HiddenTraceItem,
 	type TraceContentGroup,
@@ -28,6 +29,8 @@ export type TurnRow =
 	| { type: "compactGroups"; groups: TraceContentGroup[] }
 	| { type: "text"; content: Extract<MessageContent, { type: "text" | "text_with_context" }> }
 	| { type: "permission"; item: ToolCallMessageContent }
+	| { type: "plan"; content: Extract<MessageContent, { type: "plan" }> }
+	| { type: "createPlan"; item: ToolCallMessageContent }
 	| { type: "other"; item: MessageContent };
 
 function isAnswerText(content: MessageContent): boolean {
@@ -93,7 +96,8 @@ export function pickFinalThoughtIndex(contents: MessageContent[]): number | null
 		if (
 			content.type === "tool_call" &&
 			content.kind === "think" &&
-			content.status === "completed"
+			content.status === "completed" &&
+			!isCreatePlanToolContent(content)
 		) {
 			return i;
 		}
@@ -114,24 +118,65 @@ export function pickFinalThought(
 	return null;
 }
 
-/** Hidden-buffer items: thoughts + tools, excluding the peeled final thought. */
+/** Hidden-buffer items: all intermediary thoughts + tools (including the last thought). */
 export function flattenTurnTraceItems(
 	segment: TurnSegment,
 	messages: ChatMessage[],
 ): HiddenTraceItem[] {
 	const contents = flattenTurnContents(segment, messages);
-	const finalThoughtIdx = pickFinalThoughtIndex(contents);
 	const items: HiddenTraceItem[] = [];
 
-	for (let i = 0; i < contents.length; i++) {
-		if (i === finalThoughtIdx) continue;
-		const content = contents[i];
+	for (const content of contents) {
 		if (isHiddenTraceItem(content)) {
 			items.push(content as HiddenTraceItem);
 		}
 	}
 
 	return items;
+}
+
+function pushVisibleExtras(rows: TurnRow[], contents: MessageContent[]): void {
+	for (const content of contents) {
+		if (isAnswerText(content)) {
+			rows.push({
+				type: "text",
+				content: content as Extract<
+					MessageContent,
+					{ type: "text" | "text_with_context" }
+				>,
+			});
+		} else if (
+			content.type === "tool_call" &&
+			content.permissionRequest?.isActive === true
+		) {
+			rows.push({ type: "permission", item: content });
+		} else if (content.type === "plan") {
+			rows.push({ type: "plan", content });
+		} else if (
+			content.type === "tool_call" &&
+			isCreatePlanToolContent(content)
+		) {
+			rows.push({ type: "createPlan", item: content });
+		}
+	}
+}
+
+function isCompactGroupingExcluded(
+	content: MessageContent,
+	index: number,
+	finalThoughtIdx: number | null,
+): boolean {
+	if (index === finalThoughtIdx) return true;
+	if (isAnswerText(content)) return true;
+	if (content.type === "plan") return true;
+	if (isCreatePlanToolContent(content)) return true;
+	if (
+		content.type === "tool_call" &&
+		content.permissionRequest?.isActive === true
+	) {
+		return true;
+	}
+	return false;
 }
 
 export function collectActivePermissionTools(
@@ -169,31 +214,22 @@ export function collectVisibleTurnRows(
 		if (bufferItems.length > 0) {
 			rows.push({ type: "hiddenBuffer", items: bufferItems });
 		}
+		pushVisibleExtras(rows, contents);
+	} else if (verbosity === "compact") {
+		const finalThoughtIdx = pickFinalThoughtIndex(contents);
+		const groupingContents = contents.filter(
+			(content, index) =>
+				!isCompactGroupingExcluded(content, index, finalThoughtIdx),
+		);
+		const groups = groupTraceContent(groupingContents, "compact");
+		if (groups.length > 0) {
+			rows.push({ type: "compactGroups", groups });
+		}
 		const finalThought = pickFinalThought(segment, messages);
 		if (finalThought) {
 			rows.push({ type: "finalThought", item: finalThought });
 		}
-		for (const content of contents) {
-			if (isAnswerText(content)) {
-				rows.push({
-					type: "text",
-					content: content as Extract<
-						MessageContent,
-						{ type: "text" | "text_with_context" }
-					>,
-				});
-			} else if (
-				content.type === "tool_call" &&
-				content.permissionRequest?.isActive === true
-			) {
-				rows.push({ type: "permission", item: content });
-			}
-		}
-	} else if (verbosity === "compact") {
-		const groups = groupTraceContent(contents, "compact");
-		if (groups.length > 0) {
-			rows.push({ type: "compactGroups", groups });
-		}
+		pushVisibleExtras(rows, contents);
 	}
 
 	return rows;
