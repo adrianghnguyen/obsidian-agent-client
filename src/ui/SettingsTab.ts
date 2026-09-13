@@ -20,6 +20,7 @@ import type {
 	ChatViewLocation,
 } from "../plugin";
 import type { TraceVerbosity } from "../types/settings";
+import { TRACE_VERBOSITY_HINT } from "../services/trace-verbosity";
 import {
 	PRESET_AGENTS,
 	type PresetAgentDefinition,
@@ -703,9 +704,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 					new Setting(nestedEl)
 						.setName("Verbosity level")
-						.setDesc(
-							"How much thinking and tool detail to show in chat. Also available next to mode in the chat toolbar.",
-						)
+						.setDesc(TRACE_VERBOSITY_HINT)
 						.addDropdown((dropdown) =>
 							dropdown
 								.addOption("hidden", "Hidden")

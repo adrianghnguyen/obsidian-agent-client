@@ -14,6 +14,7 @@ import {
 	getSessionModePillClass,
 } from "../services/session-modes";
 import {
+	TRACE_VERBOSITY_HINT,
 	TRACE_VERBOSITY_LABELS,
 	TRACE_VERBOSITY_LEVELS,
 	shouldShowVerbosityControl,
@@ -362,7 +363,7 @@ export function InputToolbar({
 			{shouldShowVerbosityControl(configOptions) && (
 				<ToolbarDropdown
 					label={TRACE_VERBOSITY_LABELS[traceVerbosity]}
-					title="How much thinking and tool detail to show"
+					title={TRACE_VERBOSITY_HINT}
 					items={TRACE_VERBOSITY_LEVELS.map((level) => ({
 						value: level,
 						label: TRACE_VERBOSITY_LABELS[level],

@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Fixed
+- **Hidden verbosity** now collapses thinking traces and noisy tool steps (reads, searches, commands, etc.) into one summary line instead of showing each tool card. Compact and Full are unchanged. File edits and permission prompts stay visible.
+
 ## 0.21.0
 
 ### Added

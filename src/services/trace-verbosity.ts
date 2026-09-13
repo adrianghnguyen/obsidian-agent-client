@@ -33,6 +33,10 @@ export const TRACE_VERBOSITY_LABELS: Record<TraceVerbosity, string> = {
 	full: "Full",
 };
 
+/** One-line hint for the toolbar menu and Settings. */
+export const TRACE_VERBOSITY_HINT =
+	"Hidden collapses thinking and noisy tools into one summary line. Compact folds them by type. Full shows details. File edits and permission prompts stay visible.";
+
 const NOISY_KINDS = new Set<string>([
 	"execute",
 	"read",
@@ -124,6 +128,123 @@ export function shouldFoldToolDetails(input: FoldToolDetailsInput): boolean {
 	return isNoisyTool(input.kind, input.rawInput);
 }
 
+function toolCallFoldInput(
+	call: GroupableToolCall,
+	verbosity: TraceVerbosity,
+): FoldToolDetailsInput {
+	return {
+		kind: call.kind,
+		status: call.status,
+		hasPermission: call.permissionRequest?.isActive === true,
+		verbosity,
+		rawInput: call.rawInput,
+	};
+}
+
+/** Thought or noisy tool that Hidden folds into the single summary line. */
+export function isHiddenTraceItem(content: MessageContent): boolean {
+	if (content.type === "agent_thought") return true;
+	if (content.type !== "tool_call") return false;
+	if (content.permissionRequest?.isActive === true) return false;
+	if (content.kind === "edit" || content.kind === "delete" || content.kind === "move") {
+		return false;
+	}
+	return (
+		isNoisyTool(content.kind, content.rawInput) ||
+		isSubagentToolCall(content)
+	);
+}
+
+export type HiddenTraceItem = Extract<
+	MessageContent,
+	{ type: "agent_thought" | "tool_call" }
+>;
+
+const HIDDEN_SUMMARY_KIND_ORDER = [
+	"read",
+	"search",
+	"fetch",
+	"execute",
+	"think",
+] as const;
+
+function hiddenSummaryPart(
+	kind: string,
+	count: number,
+	inFlight: boolean,
+): string | null {
+	if (count <= 0) return null;
+	switch (kind) {
+		case "read":
+			return count === 1 ? "Read 1 file" : `Read ${count} files`;
+		case "search":
+			return inFlight
+				? "Searching"
+				: count === 1
+					? "Searched"
+					: `Searched ${count} times`;
+		case "fetch":
+			return inFlight
+				? "Fetching"
+				: count === 1
+					? "Fetched"
+					: `Fetched ${count} times`;
+		case "execute":
+			return inFlight
+				? "Running commands"
+				: count === 1
+					? "Ran a command"
+					: `Ran ${count} commands`;
+		case "think":
+			return "Thinking";
+		default:
+			return count === 1 ? "Used a tool" : `Used ${count} tools`;
+	}
+}
+
+/** Single-line Hidden summary, e.g. "Read 2 files… Searching… Ran 2 commands". */
+export function hiddenTraceSummary(items: HiddenTraceItem[]): string {
+	if (items.length === 0) return "Working";
+
+	const counts = new Map<string, number>();
+	const inFlightByKind = new Map<string, boolean>();
+
+	for (const item of items) {
+		if (item.type === "agent_thought") {
+			counts.set("think", (counts.get("think") ?? 0) + 1);
+			continue;
+		}
+		const key = noisyToolGroupKey(item.kind, item.rawInput);
+		counts.set(key, (counts.get(key) ?? 0) + 1);
+		if (item.status === "in_progress" || item.status === "pending") {
+			inFlightByKind.set(key, true);
+		}
+	}
+
+	const parts: string[] = [];
+	const seen = new Set<string>();
+	for (const kind of HIDDEN_SUMMARY_KIND_ORDER) {
+		seen.add(kind);
+		const part = hiddenSummaryPart(
+			kind,
+			counts.get(kind) ?? 0,
+			inFlightByKind.get(kind) === true,
+		);
+		if (part) parts.push(part);
+	}
+	for (const kind of counts.keys()) {
+		if (seen.has(kind)) continue;
+		const part = hiddenSummaryPart(
+			kind,
+			counts.get(kind) ?? 0,
+			inFlightByKind.get(kind) === true,
+		);
+		if (part) parts.push(part);
+	}
+
+	return parts.length > 0 ? parts.join("\u2026 ") : "Working";
+}
+
 export function isThinkToolKind(kind?: string | null): boolean {
 	return kind === "think";
 }
@@ -143,15 +264,7 @@ export function shouldGroupNoisyTool(
 	call: GroupableToolCall,
 	verbosity: TraceVerbosity,
 ): boolean {
-	if (
-		!shouldFoldToolDetails({
-			kind: call.kind,
-			status: call.status,
-			hasPermission: call.permissionRequest?.isActive === true,
-			verbosity,
-			rawInput: call.rawInput,
-		})
-	) {
+	if (!shouldFoldToolDetails(toolCallFoldInput(call, verbosity))) {
 		return false;
 	}
 	if (isSubagentToolCall(call)) return false;
@@ -188,16 +301,63 @@ export function noisyToolGroupLabel(kind: string): string {
 export type TraceContentGroup =
 	| { type: "attachments"; items: MessageContent[] }
 	| { type: "noisyTools"; kind: string; items: ToolCallMessageContent[] }
+	| { type: "hiddenTrace"; items: HiddenTraceItem[] }
 	| { type: "single"; item: MessageContent };
+
+function groupHiddenTraceContent(
+	contents: MessageContent[],
+): TraceContentGroup[] {
+	const hiddenItems = contents.filter(isHiddenTraceItem) as HiddenTraceItem[];
+	const groups: TraceContentGroup[] = [];
+	let attachments: MessageContent[] = [];
+	let hiddenInserted = false;
+
+	const flushAttachments = () => {
+		if (attachments.length === 0) return;
+		groups.push({ type: "attachments", items: attachments });
+		attachments = [];
+	};
+
+	const insertHidden = () => {
+		if (hiddenInserted || hiddenItems.length === 0) return;
+		groups.push({ type: "hiddenTrace", items: hiddenItems });
+		hiddenInserted = true;
+	};
+
+	for (const content of contents) {
+		if (isHiddenTraceItem(content)) {
+			flushAttachments();
+			insertHidden();
+			continue;
+		}
+
+		if (content.type === "image" || content.type === "resource_link") {
+			attachments.push(content);
+			continue;
+		}
+
+		flushAttachments();
+		groups.push({ type: "single", item: content });
+	}
+
+	flushAttachments();
+	insertHidden();
+	return groups;
+}
 
 /**
  * Group consecutive images/resource links, and consecutive completed noisy
- * tool calls of the same kind (Compact/Hidden only, 2+ items).
+ * tool calls of the same kind (Compact only, 2+ items). Hidden collapses
+ * thoughts and noisy tools into one summary line.
  */
 export function groupTraceContent(
 	contents: MessageContent[],
 	verbosity: TraceVerbosity,
 ): TraceContentGroup[] {
+	if (verbosity === "hidden") {
+		return groupHiddenTraceContent(contents);
+	}
+
 	const groups: TraceContentGroup[] = [];
 	let attachments: MessageContent[] = [];
 	let noisy: ToolCallMessageContent[] = [];
