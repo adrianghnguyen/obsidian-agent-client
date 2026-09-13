@@ -19,6 +19,7 @@ import type {
 	AgentEnvVar,
 	ChatViewLocation,
 } from "../plugin";
+import type { TraceVerbosity } from "../types/settings";
 import {
 	PRESET_AGENTS,
 	type PresetAgentDefinition,
@@ -701,6 +702,34 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						});
 
 					new Setting(nestedEl)
+						.setName("Verbosity level")
+						.setDesc(
+							"How much thinking and tool detail to show in chat. Also available next to mode in the chat toolbar.",
+						)
+						.addDropdown((dropdown) =>
+							dropdown
+								.addOption("hidden", "Hidden")
+								.addOption("compact", "Compact")
+								.addOption("full", "Full")
+								.setValue(
+									this.plugin.settings.displaySettings
+										.traceVerbosity,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											displaySettings: {
+												...this.plugin.settings
+													.displaySettings,
+												traceVerbosity:
+													value as TraceVerbosity,
+											},
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
 						.setName("Show emojis")
 						.setDesc(
 							"Display emoji icons in tool calls, thoughts, plans, and terminal blocks.",
@@ -782,7 +811,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							);
 					}
 				},
-				{ nested: true, foldable: nestedFoldable(4) },
+				{ nested: true, foldable: nestedFoldable(5) },
 			);
 		});
 	}

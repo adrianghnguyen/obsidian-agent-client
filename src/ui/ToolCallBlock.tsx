@@ -19,6 +19,11 @@ import {
 	isSubagentToolCall,
 	resolveToolCallTitle,
 } from "../services/tool-call-display";
+import {
+	extractToolCommand,
+	shouldFoldToolDetails,
+	type TraceVerbosity,
+} from "../services/trace-verbosity";
 import * as Diff from "diff";
 
 interface ToolCallBlockProps {
@@ -27,6 +32,7 @@ interface ToolCallBlockProps {
 	terminalClient?: AcpClient;
 	/** Active ACP session id — used to resolve Cursor plan files on disk */
 	sessionId?: string | null;
+	traceVerbosity: TraceVerbosity;
 	/** Nested under a parent Agent/Task tool call */
 	nested?: boolean;
 	/** Callback to approve a permission request */
@@ -41,6 +47,7 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 	plugin,
 	terminalClient,
 	sessionId,
+	traceVerbosity,
 	nested = false,
 	onApprovePermission,
 }: ToolCallBlockProps) {
@@ -74,6 +81,24 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 			setNestedExpanded(true);
 		}
 	}, [status, childInFlight]);
+
+	const commandText = extractToolCommand(rawInput);
+	const foldDetails = shouldFoldToolDetails({
+		kind,
+		status,
+		hasPermission: permissionRequest?.isActive === true,
+		verbosity: traceVerbosity,
+		rawInput,
+	});
+	const [detailsExpanded, setDetailsExpanded] = useState(!foldDetails);
+
+	useEffect(() => {
+		setDetailsExpanded(!foldDetails);
+	}, [foldDetails]);
+
+	const showBody = !foldDetails || detailsExpanded;
+	const hideLocationsWhenFolded =
+		foldDetails && !detailsExpanded && traceVerbosity === "hidden";
 
 	const createPlan = isCreatePlanTool(title, rawInput);
 	const planDiffs = useMemo(
@@ -185,7 +210,31 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 	return (
 		<div className={wrapperClass}>
 			{/* Header */}
-			<div className="agent-client-message-tool-call-header">
+			<div
+				className={
+					foldDetails
+						? "agent-client-message-tool-call-header agent-client-message-tool-call-header-foldable"
+						: "agent-client-message-tool-call-header"
+				}
+				role={foldDetails ? "button" : undefined}
+				tabIndex={foldDetails ? 0 : undefined}
+				aria-expanded={foldDetails ? detailsExpanded : undefined}
+				onClick={
+					foldDetails
+						? () => setDetailsExpanded((v) => !v)
+						: undefined
+				}
+				onKeyDown={
+					foldDetails
+						? (e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									setDetailsExpanded((v) => !v);
+								}
+							}
+						: undefined
+				}
+			>
 				<div className="agent-client-message-tool-call-title">
 					{showEmojis && (
 						<LucideIcon
@@ -207,20 +256,25 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 							className={`agent-client-message-tool-call-status-icon agent-client-status-${status}`}
 						/>
 					)}
-				</div>
-				{kind === "execute" &&
-					rawInput &&
-					typeof rawInput.command === "string" && (
-						<div className="agent-client-message-tool-call-command">
-							<code>
-								{rawInput.command}
-								{Array.isArray(rawInput.args) &&
-									rawInput.args.length > 0 &&
-									` ${(rawInput.args as string[]).join(" ")}`}
-							</code>
-						</div>
+					{foldDetails && (
+						<LucideIcon
+							name={
+								detailsExpanded
+									? "chevron-down"
+									: "chevron-right"
+							}
+							className="agent-client-message-tool-call-fold-icon"
+						/>
 					)}
-				{locations && locations.length > 0 && (
+				</div>
+				{showBody && commandText && (
+					<div className="agent-client-message-tool-call-command">
+						<code>{commandText}</code>
+					</div>
+				)}
+				{locations &&
+					locations.length > 0 &&
+					!hideLocationsWhenFolded && (
 					<div className="agent-client-message-tool-call-locations">
 						{locations.map((loc, idx) => (
 							<span
@@ -236,7 +290,8 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 			</div>
 
 			{/* Tool call content (diffs, terminal output, etc.) */}
-			{toolContent &&
+			{showBody &&
+				toolContent &&
 				toolContent.map((item, index) => {
 					if (item.type === "terminal") {
 						return (
@@ -307,14 +362,14 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 					return null;
 				})}
 
-			{createPlan && !hasPlanDiff && resolvedPlanMarkdown && (
+			{showBody && createPlan && !hasPlanDiff && resolvedPlanMarkdown && (
 				<PlanDocumentBlock
 					markdown={resolvedPlanMarkdown}
 					plugin={plugin}
 				/>
 			)}
 
-			{nestedCalls && nestedCalls.length > 0 && (
+			{showBody && nestedCalls && nestedCalls.length > 0 && (
 				<div className="agent-client-tool-call-nested">
 					<div
 						className="agent-client-tool-call-nested-header"
@@ -350,6 +405,7 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 								plugin={plugin}
 								terminalClient={terminalClient}
 								sessionId={sessionId}
+								traceVerbosity={traceVerbosity}
 								nested
 								onApprovePermission={onApprovePermission}
 							/>

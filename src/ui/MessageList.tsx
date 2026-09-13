@@ -2,6 +2,7 @@ import * as React from "react";
 const { useRef, useState, useEffect, useCallback } = React;
 
 import type { ChatMessage } from "../types/chat";
+import type { TraceVerbosity } from "../types/settings";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
 import type { IChatViewHost } from "./view-host";
@@ -38,6 +39,7 @@ export interface MessageListProps {
 	terminalClient?: AcpClient;
 	/** Active ACP session id (Cursor plan file resolution) */
 	sessionId?: string | null;
+	traceVerbosity: TraceVerbosity;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -69,6 +71,7 @@ export function MessageList({
 	view,
 	terminalClient,
 	sessionId,
+	traceVerbosity,
 	onApprovePermission,
 	hasActivePermission,
 }: MessageListProps) {
@@ -276,6 +279,7 @@ export function MessageList({
 								plugin={plugin}
 								terminalClient={terminalClient}
 								sessionId={sessionId}
+								traceVerbosity={traceVerbosity}
 								onApprovePermission={onApprovePermission}
 							/>
 						</div>

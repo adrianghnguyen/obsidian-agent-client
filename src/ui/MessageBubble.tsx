@@ -1,9 +1,14 @@
 import * as React from "react";
-const { useState, useCallback } = React;
+const { useState, useCallback, useEffect } = React;
 import { setIcon } from "obsidian";
 import type { ChatMessage, MessageContent } from "../types/chat";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
+import type { TraceVerbosity } from "../types/settings";
+import {
+	shouldRenderThought,
+	thoughtExpandedByDefault,
+} from "../services/trace-verbosity";
 import { MarkdownRenderer } from "./shared/MarkdownRenderer";
 import { TerminalBlock } from "./TerminalBlock";
 import { ToolCallBlock } from "./ToolCallBlock";
@@ -112,11 +117,20 @@ function TextWithMentions({
 interface CollapsibleThoughtProps {
 	text: string;
 	plugin: AgentClientPlugin;
+	expandedByDefault: boolean;
 }
 
-function CollapsibleThought({ text, plugin }: CollapsibleThoughtProps) {
-	const [isExpanded, setIsExpanded] = useState(false);
+function CollapsibleThought({
+	text,
+	plugin,
+	expandedByDefault,
+}: CollapsibleThoughtProps) {
+	const [isExpanded, setIsExpanded] = useState(expandedByDefault);
 	const showEmojis = plugin.settings.displaySettings.showEmojis;
+
+	useEffect(() => {
+		setIsExpanded(expandedByDefault);
+	}, [expandedByDefault]);
 
 	return (
 		<div
@@ -155,6 +169,7 @@ interface ContentBlockProps {
 	messageRole?: "user" | "assistant";
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
+	traceVerbosity: TraceVerbosity;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -168,6 +183,7 @@ function ContentBlock({
 	messageRole,
 	terminalClient,
 	sessionId,
+	traceVerbosity,
 	onApprovePermission,
 }: ContentBlockProps) {
 	switch (content.type) {
@@ -190,7 +206,18 @@ function ContentBlock({
 			);
 
 		case "agent_thought":
-			return <CollapsibleThought text={content.text} plugin={plugin} />;
+			if (!shouldRenderThought(traceVerbosity)) {
+				return null;
+			}
+			return (
+				<CollapsibleThought
+					text={content.text}
+					plugin={plugin}
+					expandedByDefault={thoughtExpandedByDefault(
+						traceVerbosity,
+					)}
+				/>
+			);
 
 		case "tool_call":
 			return (
@@ -199,6 +226,7 @@ function ContentBlock({
 					plugin={plugin}
 					terminalClient={terminalClient}
 					sessionId={sessionId}
+					traceVerbosity={traceVerbosity}
 					onApprovePermission={onApprovePermission}
 				/>
 			);
@@ -291,6 +319,7 @@ export interface MessageBubbleProps {
 	plugin: AgentClientPlugin;
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
+	traceVerbosity: TraceVerbosity;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -390,9 +419,14 @@ export const MessageBubble = React.memo(function MessageBubble({
 	plugin,
 	terminalClient,
 	sessionId,
+	traceVerbosity,
 	onApprovePermission,
 }: MessageBubbleProps) {
-	const groups = groupContent(message.content);
+	const groups = groupContent(
+		shouldRenderThought(traceVerbosity)
+			? message.content
+			: message.content.filter((c) => c.type !== "agent_thought"),
+	);
 
 	return (
 		<div
@@ -414,6 +448,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 									messageRole={message.role}
 									terminalClient={terminalClient}
 									sessionId={sessionId}
+									traceVerbosity={traceVerbosity}
 									onApprovePermission={onApprovePermission}
 								/>
 							))}
@@ -429,6 +464,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 								messageRole={message.role}
 								terminalClient={terminalClient}
 								sessionId={sessionId}
+								traceVerbosity={traceVerbosity}
 								onApprovePermission={onApprovePermission}
 							/>
 						</div>
