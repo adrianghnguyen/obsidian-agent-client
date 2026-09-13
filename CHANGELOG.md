@@ -8,6 +8,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - Floating chat default window size now honors Settings width/height (CSS minimums no longer override smaller configured defaults).
 
 ### Changed
+- Floating chat tabs can be closed with middle mouse click.
 - Smaller default floating chat window size (340×400).
 - Floating chat last window size and position are stored per device (not synced via Obsidian Sync).
 - **Cycle session mode** / **Switch session mode** are focus-gated: the hotkey only runs while a chat view has keyboard focus (command palette still works).

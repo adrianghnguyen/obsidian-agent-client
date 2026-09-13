@@ -1282,6 +1282,16 @@ function FloatingTabbedShellComponent({
 		onRegisterApi(api);
 	}, [onRegisterApi]);
 
+	const handleTabMouseDown = useCallback(
+		(e: React.MouseEvent, viewId: string) => {
+			if (e.button !== 1) return;
+			e.preventDefault();
+			e.stopPropagation();
+			onCloseTab(viewId);
+		},
+		[onCloseTab],
+	);
+
 	const handleSelectTab = useCallback(
 		(viewId: string) => {
 			activeTabIdRef.current = viewId;
@@ -1348,6 +1358,9 @@ function FloatingTabbedShellComponent({
 										: "agent-client-floating-tab"
 								}
 								onClick={() => handleSelectTab(tab.viewId)}
+								onMouseDown={(e) =>
+									handleTabMouseDown(e, tab.viewId)
+								}
 								title={`${label} — ${sessionStatusLabel(status)}`}
 							>
 								<SessionStatusIcon status={status} />
