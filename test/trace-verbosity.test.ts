@@ -66,8 +66,8 @@ describe("trace verbosity copy", () => {
 			);
 		}
 
-		expect(TRACE_VERBOSITY_DESCRIPTIONS.hidden).toMatch(/summary line/i);
-		expect(TRACE_VERBOSITY_DESCRIPTIONS.compact).toMatch(/folds/i);
+		expect(TRACE_VERBOSITY_DESCRIPTIONS.hidden).toMatch(/buffer/i);
+		expect(TRACE_VERBOSITY_DESCRIPTIONS.compact).toMatch(/folded/i);
 		expect(TRACE_VERBOSITY_DESCRIPTIONS.full).toMatch(/full/i);
 	});
 });
@@ -215,28 +215,40 @@ describe("Cursor vs Antigravity fixture table", () => {
 				});
 			}
 
-			it("does not fold in-progress noisy tools at compact", () => {
+			it("folds in-progress tools at compact", () => {
 				expect(
 					shouldFoldToolDetails({
 						...fixture.execute,
 						status: "in_progress",
 						verbosity: "compact",
 					}),
-				).toBe(false);
+				).toBe(true);
 			});
 		});
 	}
 
-	it("does not fold edit diffs", () => {
-		for (const level of LEVELS) {
-			expect(
-				shouldFoldToolDetails({
-					kind: "edit",
-					status: "completed",
-					verbosity: level,
-				}),
-			).toBe(false);
-		}
+	it("folds edit bodies at compact and hidden, not at full", () => {
+		expect(
+			shouldFoldToolDetails({
+				kind: "edit",
+				status: "completed",
+				verbosity: "compact",
+			}),
+		).toBe(true);
+		expect(
+			shouldFoldToolDetails({
+				kind: "edit",
+				status: "completed",
+				verbosity: "hidden",
+			}),
+		).toBe(true);
+		expect(
+			shouldFoldToolDetails({
+				kind: "edit",
+				status: "completed",
+				verbosity: "full",
+			}),
+		).toBe(false);
 	});
 });
 
@@ -261,13 +273,19 @@ describe("shouldGroupNoisyTool", () => {
 		expect(shouldGroupNoisyTool(readCall("a"), "full")).toBe(false);
 	});
 
-	it("does not group in-progress, permission, edit, or subagent calls", () => {
+	it("groups in-progress and edit calls at compact", () => {
 		expect(
 			shouldGroupNoisyTool(
 				readCall("a", { status: "in_progress" }),
 				"compact",
 			),
-		).toBe(false);
+		).toBe(true);
+		expect(
+			shouldGroupNoisyTool(readCall("a", { kind: "edit" }), "compact"),
+		).toBe(true);
+	});
+
+	it("does not group permission or subagent calls", () => {
 		expect(
 			shouldGroupNoisyTool(
 				readCall("a", {
@@ -279,9 +297,6 @@ describe("shouldGroupNoisyTool", () => {
 				}),
 				"compact",
 			),
-		).toBe(false);
-		expect(
-			shouldGroupNoisyTool(readCall("a", { kind: "edit" }), "compact"),
 		).toBe(false);
 		expect(
 			shouldGroupNoisyTool(readCall("a", { subagent: true }), "compact"),
@@ -304,9 +319,11 @@ describe("groupTraceContent", () => {
 		]);
 	});
 
-	it("does not group a single noisy tool", () => {
+	it("groups a single noisy tool as Read · 1", () => {
 		const groups = groupTraceContent([readCall("a")], "compact");
-		expect(groups).toEqual([{ type: "single", item: readCall("a") }]);
+		expect(groups).toEqual([
+			{ type: "noisyTools", kind: "read", items: [readCall("a")] },
+		]);
 	});
 
 	it("does not group at full", () => {
@@ -320,8 +337,18 @@ describe("groupTraceContent", () => {
 		]);
 	});
 
-	it("does not group in-progress, permission, or edit tools", () => {
+	it("groups in-progress and edit tools at compact", () => {
 		const inProgress = readCall("live", { status: "in_progress" });
+		const edit = readCall("edit", { kind: "edit" });
+		expect(groupTraceContent([inProgress, inProgress], "compact")).toEqual([
+			{ type: "noisyTools", kind: "read", items: [inProgress, inProgress] },
+		]);
+		expect(groupTraceContent([edit, edit], "compact")).toEqual([
+			{ type: "noisyTools", kind: "edit", items: [edit, edit] },
+		]);
+	});
+
+	it("does not group permission tools", () => {
 		const withPermission = readCall("perm", {
 			permissionRequest: {
 				requestId: "r1",
@@ -329,20 +356,11 @@ describe("groupTraceContent", () => {
 				isActive: true,
 			},
 		});
-		const edit = readCall("edit", { kind: "edit" });
-		expect(groupTraceContent([inProgress, inProgress], "compact")).toEqual([
-			{ type: "single", item: inProgress },
-			{ type: "single", item: inProgress },
-		]);
 		expect(
 			groupTraceContent([withPermission, withPermission], "compact"),
 		).toEqual([
 			{ type: "single", item: withPermission },
 			{ type: "single", item: withPermission },
-		]);
-		expect(groupTraceContent([edit, edit], "compact")).toEqual([
-			{ type: "single", item: edit },
-			{ type: "single", item: edit },
 		]);
 	});
 
@@ -358,9 +376,9 @@ describe("groupTraceContent", () => {
 			"compact",
 		);
 		expect(groups.map((g) => g.type)).toEqual([
-			"single",
-			"single",
-			"single",
+			"noisyTools",
+			"noisyTools",
+			"noisyTools",
 		]);
 	});
 
@@ -392,14 +410,14 @@ describe("groupTraceContent", () => {
 
 		const compactGroups = groupTraceContent(contents, "compact");
 		expect(compactGroups.map((g) => g.type)).toEqual([
+			"noisyTools",
 			"single",
-			"single",
-			"single",
-			"single",
+			"noisyTools",
+			"noisyTools",
 		]);
 	});
 
-	it("at hidden, keeps edits and permission prompts visible", () => {
+	it("at hidden, puts edits in buffer and keeps permissions visible", () => {
 		const edit = readCall("edit", { kind: "edit" });
 		const withPermission = readCall("perm", {
 			permissionRequest: {
@@ -412,15 +430,11 @@ describe("groupTraceContent", () => {
 			[readCall("a"), edit, withPermission],
 			"hidden",
 		);
-		expect(groups.map((g) => g.type)).toEqual([
-			"hiddenTrace",
-			"single",
-			"single",
-		]);
+		expect(groups.map((g) => g.type)).toEqual(["hiddenTrace", "single"]);
 		if (groups[0].type === "hiddenTrace") {
-			expect(groups[0].items).toEqual([readCall("a")]);
+			expect(groups[0].items).toEqual([readCall("a"), edit]);
 		}
-		expect(isHiddenTraceItem(edit)).toBe(false);
+		expect(isHiddenTraceItem(edit)).toBe(true);
 		expect(isHiddenTraceItem(withPermission)).toBe(false);
 	});
 });

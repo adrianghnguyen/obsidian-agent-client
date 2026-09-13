@@ -1,5 +1,5 @@
 import * as React from "react";
-const { useRef, useState, useEffect, useCallback } = React;
+const { useRef, useState, useEffect, useCallback, useMemo } = React;
 
 import type { ChatMessage } from "../types/chat";
 import type { TraceVerbosity } from "../types/settings";
@@ -7,7 +7,9 @@ import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
 import type { IChatViewHost } from "./view-host";
 import { setIcon } from "obsidian";
+import { buildDisplayListItems } from "../services/trace-turn";
 import { MessageBubble } from "./MessageBubble";
+import { TurnTraceRenderer } from "./TurnTraceRenderer";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 // How long (ms) after a tab is re-shown we refuse to shrink measured item
@@ -90,15 +92,20 @@ export function MessageList({
 	const wasHiddenRef = useRef(false);
 	const settleUntilRef = useRef(0);
 
+	const displayItems = useMemo(
+		() => buildDisplayListItems(messages, traceVerbosity),
+		[messages, traceVerbosity],
+	);
+
 	// ============================================================
 	// Virtualizer
 	// ============================================================
 	const virtualizer = useVirtualizer({
-		count: messages.length,
+		count: displayItems.length,
 		getScrollElement: () => containerRef.current,
 		estimateSize: () => 80,
 		overscan: 5,
-		getItemKey: (index) => messages[index]?.id ?? String(index),
+		getItemKey: (index) => displayItems[index]?.key ?? String(index),
 		measureElement: (element) => {
 			const el = element as HTMLElement;
 			const id = el.getAttribute("data-msg-id");
@@ -168,12 +175,12 @@ export function MessageList({
 	// array first). Prevents stale msgId→height entries from accumulating
 	// across sessions in this long-lived view. (#321)
 	useEffect(() => {
-		if (messages.length === 0) {
+		if (displayItems.length === 0) {
 			setIsAtBottom(true);
 			isAtBottomRef.current = true;
 			sizeCacheRef.current.clear();
 		}
-	}, [messages.length]);
+	}, [displayItems.length]);
 
 	// Track when user just sent a message (for smooth scroll)
 	const scrollSmoothRef = useRef(false);
@@ -187,13 +194,13 @@ export function MessageList({
 
 	// Auto-scroll to bottom when new messages arrive or content changes
 	useEffect(() => {
-		if (messages.length === 0) return;
+		if (displayItems.length === 0) return;
 
 		if (scrollSmoothRef.current) {
 			// User sent a message — smooth scroll regardless of isAtBottom
 			scrollSmoothRef.current = false;
 			window.requestAnimationFrame(() => {
-				virtualizer.scrollToIndex(messages.length - 1, {
+				virtualizer.scrollToIndex(displayItems.length - 1, {
 					align: "end",
 					behavior: "smooth",
 				});
@@ -204,12 +211,12 @@ export function MessageList({
 		if (isAtBottomRef.current) {
 			// Use requestAnimationFrame to ensure virtualizer has measured
 			window.requestAnimationFrame(() => {
-				virtualizer.scrollToIndex(messages.length - 1, {
+				virtualizer.scrollToIndex(displayItems.length - 1, {
 					align: "end",
 				});
 			});
 		}
-	}, [messages, virtualizer]);
+	}, [displayItems, virtualizer]);
 
 	// Set up scroll event listener for isAtBottom detection
 	useEffect(() => {
@@ -231,7 +238,7 @@ export function MessageList({
 	// ============================================================
 
 	// Empty state
-	if (messages.length === 0) {
+	if (displayItems.length === 0) {
 		return (
 			<div ref={containerRef} className="agent-client-chat-view-messages">
 				<div className="agent-client-chat-empty-state">
@@ -258,13 +265,13 @@ export function MessageList({
 				}}
 			>
 				{virtualItems.map((virtualItem) => {
-					const message = messages[virtualItem.index];
+					const displayItem = displayItems[virtualItem.index];
 					return (
 						<div
-							key={message.id}
+							key={displayItem.key}
 							ref={virtualizer.measureElement}
 							data-index={virtualItem.index}
-							data-msg-id={message.id}
+							data-msg-id={displayItem.key}
 							className="agent-client-virtual-item"
 							style={{
 								position: "absolute",
@@ -274,14 +281,26 @@ export function MessageList({
 								transform: `translateY(${virtualItem.start}px)`,
 							}}
 						>
-							<MessageBubble
-								message={message}
-								plugin={plugin}
-								terminalClient={terminalClient}
-								sessionId={sessionId}
-								traceVerbosity={traceVerbosity}
-								onApprovePermission={onApprovePermission}
-							/>
+							{displayItem.type === "turn" ? (
+								<TurnTraceRenderer
+									segment={displayItem.segment}
+									messages={messages}
+									plugin={plugin}
+									terminalClient={terminalClient}
+									sessionId={sessionId}
+									traceVerbosity={traceVerbosity}
+									onApprovePermission={onApprovePermission}
+								/>
+							) : (
+								<MessageBubble
+									message={displayItem.message}
+									plugin={plugin}
+									terminalClient={terminalClient}
+									sessionId={sessionId}
+									traceVerbosity={traceVerbosity}
+									onApprovePermission={onApprovePermission}
+								/>
+							)}
 						</div>
 					);
 				})}
@@ -314,7 +333,7 @@ export function MessageList({
 				<button
 					className="agent-client-scroll-to-bottom"
 					onClick={() => {
-						virtualizer.scrollToIndex(messages.length - 1, {
+						virtualizer.scrollToIndex(displayItems.length - 1, {
 							align: "end",
 							behavior: "smooth",
 						});

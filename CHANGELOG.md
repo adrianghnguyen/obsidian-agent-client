@@ -6,9 +6,11 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Changed
 - **Verbosity menu** uses a short header summary with per-option descriptions (Hidden, Compact, Full) in the chat toolbar dropdown.
+- **Compact verbosity** groups tools across the whole assistant turn (not per bubble), including singles (`Read · 1`), in-progress tools, edits, and `other` tools (TODOs). Tool bodies stay folded until you expand a card.
+- **Hidden verbosity** shows one turn-level working buffer plus the final thought; expanding the buffer reveals Compact-style groups, not full tool cards.
 
 ### Fixed
-- **Hidden verbosity** now collapses thinking traces and noisy tool steps (reads, searches, commands, etc.) into one summary line instead of showing each tool card. Compact and Full are unchanged. File edits and permission prompts stay visible.
+- **Hidden verbosity** no longer renders one summary row per tool message; intermediate thoughts, reads, searches, edits, and TODOs collapse into a single buffer per turn. Permission prompts stay visible outside the buffer.
 
 ## 0.21.0
 

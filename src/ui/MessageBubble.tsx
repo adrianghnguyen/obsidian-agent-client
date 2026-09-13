@@ -477,27 +477,47 @@ function HiddenTraceGroup({
 				/>
 			</div>
 			{expanded && (
-				<div className="agent-client-noisy-tool-group-items">
-					{items.map((content, idx) =>
-						content.type === "tool_call" ? (
-							<ToolCallBlock
-								key={content.toolCallId}
-								content={content}
-								plugin={plugin}
-								terminalClient={terminalClient}
-								sessionId={sessionId}
-								traceVerbosity={traceVerbosity}
-								onApprovePermission={onApprovePermission}
-							/>
-						) : (
-							<CollapsibleThought
-								key={`thought-${idx}`}
-								text={content.text}
-								plugin={plugin}
-								expandedByDefault={false}
-							/>
-						),
-					)}
+				<div className="agent-client-noisy-tool-group-items agent-client-turn-buffer-expanded">
+					{groupTraceContent(items, "compact").map((group, gIdx) => {
+						if (group.type === "noisyTools") {
+							return (
+								<NoisyToolGroup
+									key={group.items[0]?.toolCallId ?? gIdx}
+									kind={group.kind}
+									items={group.items}
+									plugin={plugin}
+									terminalClient={terminalClient}
+									sessionId={sessionId}
+									traceVerbosity="compact"
+									onApprovePermission={onApprovePermission}
+								/>
+							);
+						}
+						if (group.type === "single" && group.item.type === "agent_thought") {
+							return (
+								<CollapsibleThought
+									key={`thought-${gIdx}`}
+									text={group.item.text}
+									plugin={plugin}
+									expandedByDefault={false}
+								/>
+							);
+						}
+						if (group.type === "single" && group.item.type === "tool_call") {
+							return (
+								<ToolCallBlock
+									key={group.item.toolCallId}
+									content={group.item}
+									plugin={plugin}
+									terminalClient={terminalClient}
+									sessionId={sessionId}
+									traceVerbosity="compact"
+									onApprovePermission={onApprovePermission}
+								/>
+							);
+						}
+						return null;
+					})}
 				</div>
 			)}
 		</div>
