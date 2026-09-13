@@ -11,9 +11,11 @@ import type AgentClientPlugin from "../plugin";
 import type { TraceVerbosity } from "../types/settings";
 import {
 	groupTraceContent,
+	hiddenTraceSummary,
 	noisyToolGroupLabel,
 	shouldRenderThought,
 	thoughtExpandedByDefault,
+	type HiddenTraceItem,
 } from "../services/trace-verbosity";
 import { MarkdownRenderer } from "./shared/MarkdownRenderer";
 import { TerminalBlock } from "./TerminalBlock";
@@ -407,6 +409,101 @@ interface NoisyToolGroupProps {
 	) => Promise<void>;
 }
 
+function HiddenTraceGroup({
+	items,
+	plugin,
+	terminalClient,
+	sessionId,
+	traceVerbosity,
+	onApprovePermission,
+}: {
+	items: HiddenTraceItem[];
+	plugin: AgentClientPlugin;
+	terminalClient?: AcpClient;
+	sessionId?: string | null;
+	traceVerbosity: TraceVerbosity;
+	onApprovePermission?: (
+		requestId: string,
+		optionId: string,
+	) => Promise<void>;
+}) {
+	const [expanded, setExpanded] = useState(false);
+	const showEmojis = plugin.settings.displaySettings.showEmojis;
+	const failedCount = items.filter(
+		(item) => item.type === "tool_call" && item.status === "failed",
+	).length;
+	const inFlight = items.some(
+		(item) =>
+			item.type === "tool_call" &&
+			(item.status === "in_progress" || item.status === "pending"),
+	);
+	const label = hiddenTraceSummary(items);
+
+	return (
+		<div
+			className={`agent-client-noisy-tool-group agent-client-hidden-trace${inFlight ? " agent-client-hidden-trace-active" : ""}`}
+		>
+			<div
+				className="agent-client-noisy-tool-group-header"
+				role="button"
+				tabIndex={0}
+				aria-expanded={expanded}
+				aria-label={`${label}${failedCount > 0 ? `, ${failedCount} failed` : ""}`}
+				onClick={() => setExpanded((v) => !v)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						setExpanded((v) => !v);
+					}
+				}}
+			>
+				{showEmojis && (
+					<LucideIcon
+						name={inFlight ? "loader" : "ellipsis"}
+						className="agent-client-noisy-tool-group-icon"
+					/>
+				)}
+				<span className="agent-client-noisy-tool-group-title">
+					{label}
+				</span>
+				{failedCount > 0 && (
+					<span className="agent-client-noisy-tool-group-failed">
+						{failedCount} failed
+					</span>
+				)}
+				<LucideIcon
+					name={expanded ? "chevron-down" : "chevron-right"}
+					className="agent-client-noisy-tool-group-chevron"
+				/>
+			</div>
+			{expanded && (
+				<div className="agent-client-noisy-tool-group-items">
+					{items.map((content, idx) =>
+						content.type === "tool_call" ? (
+							<ToolCallBlock
+								key={content.toolCallId}
+								content={content}
+								plugin={plugin}
+								terminalClient={terminalClient}
+								sessionId={sessionId}
+								traceVerbosity={traceVerbosity}
+								onApprovePermission={onApprovePermission}
+							/>
+						) : (
+							<CollapsibleThought
+								key={`thought-${idx}`}
+								text={content.text}
+								plugin={plugin}
+								expandedByDefault={false}
+							/>
+						),
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
+
 function NoisyToolGroup({
 	kind,
 	items,
@@ -483,12 +580,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 	traceVerbosity,
 	onApprovePermission,
 }: MessageBubbleProps) {
-	const groups = groupTraceContent(
-		shouldRenderThought(traceVerbosity)
-			? message.content
-			: message.content.filter((c) => c.type !== "agent_thought"),
-		traceVerbosity,
-	);
+	const groups = groupTraceContent(message.content, traceVerbosity);
 
 	return (
 		<div
@@ -514,6 +606,23 @@ export const MessageBubble = React.memo(function MessageBubble({
 								/>
 							))}
 						</div>
+					);
+				}
+				if (group.type === "hiddenTrace") {
+					return (
+						<HiddenTraceGroup
+							key={
+								group.items[0]?.type === "tool_call"
+									? group.items[0].toolCallId
+									: idx
+							}
+							items={group.items}
+							plugin={plugin}
+							terminalClient={terminalClient}
+							sessionId={sessionId}
+							traceVerbosity={traceVerbosity}
+							onApprovePermission={onApprovePermission}
+						/>
 					);
 				}
 				if (group.type === "noisyTools") {

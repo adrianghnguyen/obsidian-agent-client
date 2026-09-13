@@ -597,6 +597,10 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 }
 
+.agent-client-hidden-trace-active .agent-client-noisy-tool-group-icon svg {
+	animation: agent-client-spin 1.5s linear infinite;
+}
+
 .agent-client-noisy-tool-group-chevron {
 	flex-shrink: 0;
 	opacity: 0.7;

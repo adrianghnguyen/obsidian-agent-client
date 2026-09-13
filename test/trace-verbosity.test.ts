@@ -8,6 +8,8 @@ import {
 	TRACE_VERBOSITY_SETTING_KEY,
 	extractToolCommand,
 	groupTraceContent,
+	hiddenTraceSummary,
+	isHiddenTraceItem,
 	parseTraceVerbosity,
 	shouldFoldToolDetails,
 	shouldGroupNoisyTool,
@@ -341,25 +343,29 @@ describe("groupTraceContent", () => {
 		]);
 	});
 
-	it("at hidden, merges reads across stripped thoughts", () => {
+	it("at hidden, collapses trace into one summary group", () => {
 		const thought: MessageContent = {
 			type: "agent_thought",
 			text: "looking around",
+		};
+		const search: ToolCallMessageContent = {
+			type: "tool_call",
+			toolCallId: "s1",
+			kind: "search",
+			status: "completed",
+			title: "Web Search",
 		};
 		const contents: MessageContent[] = [
 			readCall("a"),
 			thought,
 			readCall("b"),
+			search,
 		];
-		const hiddenVisible = shouldRenderThought("hidden")
-			? contents
-			: contents.filter((c) => c.type !== "agent_thought");
-		const hiddenGroups = groupTraceContent(hiddenVisible, "hidden");
+		const hiddenGroups = groupTraceContent(contents, "hidden");
 		expect(hiddenGroups).toEqual([
 			{
-				type: "noisyTools",
-				kind: "read",
-				items: [readCall("a"), readCall("b")],
+				type: "hiddenTrace",
+				items: [readCall("a"), thought, readCall("b"), search],
 			},
 		]);
 
@@ -368,6 +374,65 @@ describe("groupTraceContent", () => {
 			"single",
 			"single",
 			"single",
+			"single",
 		]);
+	});
+
+	it("at hidden, keeps edits and permission prompts visible", () => {
+		const edit = readCall("edit", { kind: "edit" });
+		const withPermission = readCall("perm", {
+			permissionRequest: {
+				requestId: "r1",
+				options: [],
+				isActive: true,
+			},
+		});
+		const groups = groupTraceContent(
+			[readCall("a"), edit, withPermission],
+			"hidden",
+		);
+		expect(groups.map((g) => g.type)).toEqual([
+			"hiddenTrace",
+			"single",
+			"single",
+		]);
+		if (groups[0].type === "hiddenTrace") {
+			expect(groups[0].items).toEqual([readCall("a")]);
+		}
+		expect(isHiddenTraceItem(edit)).toBe(false);
+		expect(isHiddenTraceItem(withPermission)).toBe(false);
+	});
+});
+
+describe("hiddenTraceSummary", () => {
+	it("builds a single-line summary for mixed tools", () => {
+		const search: ToolCallMessageContent = {
+			type: "tool_call",
+			toolCallId: "s1",
+			kind: "search",
+			status: "completed",
+		};
+		const execute: ToolCallMessageContent = {
+			type: "tool_call",
+			toolCallId: "e1",
+			kind: "execute",
+			status: "completed",
+			rawInput: { command: "git status" },
+		};
+		expect(
+			hiddenTraceSummary([readCall("a"), readCall("b"), search, execute]),
+		).toBe("Read 2 files\u2026 Searched\u2026 Ran a command");
+	});
+
+	it("uses progressive labels while tools are in flight", () => {
+		const search: ToolCallMessageContent = {
+			type: "tool_call",
+			toolCallId: "s1",
+			kind: "search",
+			status: "in_progress",
+		};
+		expect(hiddenTraceSummary([readCall("a"), search])).toBe(
+			"Read 1 file\u2026 Searching",
+		);
 	});
 });
