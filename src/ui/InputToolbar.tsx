@@ -14,9 +14,10 @@ import {
 	getSessionModePillClass,
 } from "../services/session-modes";
 import {
-	TRACE_VERBOSITY_HINT,
+	TRACE_VERBOSITY_DESCRIPTIONS,
 	TRACE_VERBOSITY_LABELS,
 	TRACE_VERBOSITY_LEVELS,
+	TRACE_VERBOSITY_SUMMARY,
 	shouldShowVerbosityControl,
 	type TraceVerbosity,
 } from "../services/trace-verbosity";
@@ -28,7 +29,25 @@ import {
 interface ToolbarDropdownItem {
 	value: string;
 	label: string;
+	description?: string;
 	groupName?: string;
+}
+
+function buildMenuItemTitle(
+	label: string,
+	description?: string,
+): string | DocumentFragment {
+	if (!description) return label;
+
+	const fragment = document.createDocumentFragment();
+	const content = createDiv({ cls: "agent-client-menu-item-content" });
+	content.createSpan({ cls: "agent-client-menu-item-label", text: label });
+	content.createSpan({
+		cls: "agent-client-menu-item-desc",
+		text: description,
+	});
+	fragment.appendChild(content);
+	return fragment;
 }
 
 interface ToolbarDropdownProps {
@@ -88,7 +107,9 @@ function ToolbarDropdown({
 
 				menu.addItem((menuItem) => {
 					menuItem
-						.setTitle(item.label)
+						.setTitle(
+							buildMenuItemTitle(item.label, item.description),
+						)
 						.setChecked(item.value === currentValue)
 						.onClick(() => {
 							onChange(item.value);
@@ -363,10 +384,11 @@ export function InputToolbar({
 			{shouldShowVerbosityControl(configOptions) && (
 				<ToolbarDropdown
 					label={TRACE_VERBOSITY_LABELS[traceVerbosity]}
-					title={TRACE_VERBOSITY_HINT}
+					title={TRACE_VERBOSITY_SUMMARY}
 					items={TRACE_VERBOSITY_LEVELS.map((level) => ({
 						value: level,
 						label: TRACE_VERBOSITY_LABELS[level],
+						description: TRACE_VERBOSITY_DESCRIPTIONS[level],
 					}))}
 					currentValue={traceVerbosity}
 					onChange={(value) => {

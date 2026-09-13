@@ -20,7 +20,10 @@ import type {
 	ChatViewLocation,
 } from "../plugin";
 import type { TraceVerbosity } from "../types/settings";
-import { TRACE_VERBOSITY_HINT } from "../services/trace-verbosity";
+import {
+	TRACE_VERBOSITY_LABELS,
+	TRACE_VERBOSITY_SUMMARY,
+} from "../services/trace-verbosity";
 import {
 	PRESET_AGENTS,
 	type PresetAgentDefinition,
@@ -704,12 +707,15 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 					new Setting(nestedEl)
 						.setName("Verbosity level")
-						.setDesc(TRACE_VERBOSITY_HINT)
+						.setDesc(TRACE_VERBOSITY_SUMMARY)
 						.addDropdown((dropdown) =>
 							dropdown
-								.addOption("hidden", "Hidden")
-								.addOption("compact", "Compact")
-								.addOption("full", "Full")
+								.addOption("hidden", TRACE_VERBOSITY_LABELS.hidden)
+								.addOption(
+									"compact",
+									TRACE_VERBOSITY_LABELS.compact,
+								)
+								.addOption("full", TRACE_VERBOSITY_LABELS.full)
 								.setValue(
 									this.plugin.settings.displaySettings
 										.traceVerbosity,
