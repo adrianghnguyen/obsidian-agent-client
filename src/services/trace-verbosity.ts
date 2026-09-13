@@ -40,9 +40,9 @@ export const TRACE_VERBOSITY_SUMMARY =
 /** Per-level detail shown beside each verbosity option in the toolbar menu. */
 export const TRACE_VERBOSITY_DESCRIPTIONS: Record<TraceVerbosity, string> = {
 	hidden:
-		"Collapses thinking and noisy tools into one summary line. Edits and permission prompts stay visible.",
+		"One working-queue buffer per turn plus the final thought. Permission prompts stay visible.",
 	compact:
-		"Folds thinking and noisy tools by type. Edits and permission prompts stay visible.",
+		"Groups tools by type across the turn. Bodies stay folded until you expand a card.",
 	full: "Shows full thinking and tool details.",
 };
 
@@ -52,6 +52,10 @@ const NOISY_KINDS = new Set<string>([
 	"search",
 	"fetch",
 	"think",
+	"edit",
+	"delete",
+	"move",
+	"other",
 ]);
 
 export function parseTraceVerbosity(value: unknown): TraceVerbosity {
@@ -124,40 +128,20 @@ export interface FoldToolDetailsInput {
 
 export function isNoisyTool(kind?: string | null, rawInput?: unknown): boolean {
 	if (kind && NOISY_KINDS.has(kind)) return true;
-	if (kind === "edit" || kind === "delete" || kind === "move") return false;
 	return extractToolCommand(rawInput) !== undefined;
 }
 
 export function shouldFoldToolDetails(input: FoldToolDetailsInput): boolean {
 	if (input.verbosity === "full") return false;
 	if (input.hasPermission) return false;
-	if (input.status === "in_progress" || input.status === "pending") {
-		return false;
-	}
-	return isNoisyTool(input.kind, input.rawInput);
+	return true;
 }
 
-function toolCallFoldInput(
-	call: GroupableToolCall,
-	verbosity: TraceVerbosity,
-): FoldToolDetailsInput {
-	return {
-		kind: call.kind,
-		status: call.status,
-		hasPermission: call.permissionRequest?.isActive === true,
-		verbosity,
-		rawInput: call.rawInput,
-	};
-}
-
-/** Thought or noisy tool that Hidden folds into the single summary line. */
+/** Thought or tool that Hidden folds into the turn buffer (permissions stay visible). */
 export function isHiddenTraceItem(content: MessageContent): boolean {
 	if (content.type === "agent_thought") return true;
 	if (content.type !== "tool_call") return false;
 	if (content.permissionRequest?.isActive === true) return false;
-	if (content.kind === "edit" || content.kind === "delete" || content.kind === "move") {
-		return false;
-	}
 	return (
 		isNoisyTool(content.kind, content.rawInput) ||
 		isSubagentToolCall(content)
@@ -174,6 +158,10 @@ const HIDDEN_SUMMARY_KIND_ORDER = [
 	"search",
 	"fetch",
 	"execute",
+	"edit",
+	"delete",
+	"move",
+	"other",
 	"think",
 ] as const;
 
@@ -204,6 +192,30 @@ function hiddenSummaryPart(
 				: count === 1
 					? "Ran a command"
 					: `Ran ${count} commands`;
+		case "edit":
+			return inFlight
+				? "Editing"
+				: count === 1
+					? "Edited 1 file"
+					: `Edited ${count} files`;
+		case "delete":
+			return inFlight
+				? "Deleting"
+				: count === 1
+					? "Deleted 1 file"
+					: `Deleted ${count} files`;
+		case "move":
+			return inFlight
+				? "Moving"
+				: count === 1
+					? "Moved 1 file"
+					: `Moved ${count} files`;
+		case "other":
+			return inFlight
+				? "Working"
+				: count === 1
+					? "Updated 1"
+					: `Updated ${count}`;
 		case "think":
 			return "Thinking";
 		default:
@@ -273,11 +285,10 @@ export function shouldGroupNoisyTool(
 	call: GroupableToolCall,
 	verbosity: TraceVerbosity,
 ): boolean {
-	if (!shouldFoldToolDetails(toolCallFoldInput(call, verbosity))) {
-		return false;
-	}
+	if (verbosity === "full") return false;
+	if (call.permissionRequest?.isActive === true) return false;
 	if (isSubagentToolCall(call)) return false;
-	return true;
+	return isNoisyTool(call.kind, call.rawInput);
 }
 
 /** Stable key for consecutive same-kind grouping. */
@@ -300,6 +311,12 @@ export function noisyToolGroupLabel(kind: string): string {
 			return "Fetch";
 		case "execute":
 			return "Command";
+		case "edit":
+			return "Edited";
+		case "delete":
+			return "Deleted";
+		case "move":
+			return "Moved";
 		case "think":
 			return "Think";
 		default:
@@ -380,16 +397,12 @@ export function groupTraceContent(
 
 	const flushNoisy = () => {
 		if (noisy.length === 0) return;
-		if (noisy.length >= 2 && noisyKind) {
+		if (noisyKind) {
 			groups.push({
 				type: "noisyTools",
 				kind: noisyKind,
 				items: noisy,
 			});
-		} else {
-			for (const item of noisy) {
-				groups.push({ type: "single", item });
-			}
 		}
 		noisy = [];
 		noisyKind = null;

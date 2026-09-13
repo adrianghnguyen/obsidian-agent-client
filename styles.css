@@ -635,6 +635,14 @@ If your plugin does not need CSS, delete this file.
 	margin-bottom: 0;
 }
 
+.agent-client-turn-trace .agent-client-turn-buffer {
+	margin-bottom: 8px;
+}
+
+.agent-client-turn-buffer-expanded .agent-client-noisy-tool-group {
+	margin-bottom: 4px;
+}
+
 .agent-client-message-tool-call-badge {
 	flex-shrink: 0;
 	font-size: 0.75em;
