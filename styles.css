@@ -573,6 +573,64 @@ If your plugin does not need CSS, delete this file.
 	border-color: var(--interactive-accent);
 }
 
+.agent-client-noisy-tool-group {
+	padding: 6px 8px;
+	margin-bottom: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	font-size: 0.85em;
+	max-width: 100%;
+}
+
+.agent-client-noisy-tool-group-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.agent-client-noisy-tool-group-icon svg,
+.agent-client-noisy-tool-group-chevron svg {
+	width: 14px;
+	height: 14px;
+	color: var(--text-muted);
+}
+
+.agent-client-noisy-tool-group-chevron {
+	flex-shrink: 0;
+	opacity: 0.7;
+	margin-left: auto;
+}
+
+.agent-client-noisy-tool-group-title {
+	font-weight: 600;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.agent-client-noisy-tool-group-failed {
+	flex-shrink: 0;
+	color: var(--color-red);
+	font-size: 0.9em;
+	font-weight: normal;
+}
+
+.agent-client-noisy-tool-group-items {
+	margin-top: 6px;
+}
+
+.agent-client-noisy-tool-group-items .agent-client-message-tool-call {
+	margin-bottom: 6px;
+	padding: 6px;
+}
+
+.agent-client-noisy-tool-group-items .agent-client-message-tool-call:last-child {
+	margin-bottom: 0;
+}
+
 .agent-client-message-tool-call-badge {
 	flex-shrink: 0;
 	font-size: 0.75em;

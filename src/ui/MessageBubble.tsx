@@ -1,11 +1,17 @@
 import * as React from "react";
 const { useState, useCallback, useEffect } = React;
 import { setIcon } from "obsidian";
-import type { ChatMessage, MessageContent } from "../types/chat";
+import type {
+	ChatMessage,
+	MessageContent,
+	ToolCallMessageContent,
+} from "../types/chat";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
 import type { TraceVerbosity } from "../types/settings";
 import {
+	groupTraceContent,
+	noisyToolGroupLabel,
 	shouldRenderThought,
 	thoughtExpandedByDefault,
 } from "../services/trace-verbosity";
@@ -213,9 +219,7 @@ function ContentBlock({
 				<CollapsibleThought
 					text={content.text}
 					plugin={plugin}
-					expandedByDefault={thoughtExpandedByDefault(
-						traceVerbosity,
-					)}
+					expandedByDefault={thoughtExpandedByDefault(traceVerbosity)}
 				/>
 			);
 
@@ -373,45 +377,102 @@ function CopyButton({ contents }: { contents: MessageContent[] }) {
 	);
 }
 
-/**
- * Group consecutive image/resource_link contents together for horizontal display.
- * Non-attachment contents are wrapped individually.
- */
-function groupContent(
-	contents: MessageContent[],
-): Array<
-	| { type: "attachments"; items: MessageContent[] }
-	| { type: "single"; item: MessageContent }
-> {
-	const groups: Array<
-		| { type: "attachments"; items: MessageContent[] }
-		| { type: "single"; item: MessageContent }
-	> = [];
-
-	let currentAttachmentGroup: MessageContent[] = [];
-
-	for (const content of contents) {
-		if (content.type === "image" || content.type === "resource_link") {
-			currentAttachmentGroup.push(content);
-		} else {
-			// Flush any pending attachment group
-			if (currentAttachmentGroup.length > 0) {
-				groups.push({
-					type: "attachments",
-					items: currentAttachmentGroup,
-				});
-				currentAttachmentGroup = [];
-			}
-			groups.push({ type: "single", item: content });
-		}
+function noisyKindIconName(kind: string): string {
+	switch (kind) {
+		case "read":
+			return "book-open";
+		case "search":
+			return "search";
+		case "fetch":
+			return "globe";
+		case "execute":
+			return "square-terminal";
+		case "think":
+			return "message-circle-more";
+		default:
+			return "hammer";
 	}
+}
 
-	// Flush remaining attachments
-	if (currentAttachmentGroup.length > 0) {
-		groups.push({ type: "attachments", items: currentAttachmentGroup });
-	}
+interface NoisyToolGroupProps {
+	kind: string;
+	items: ToolCallMessageContent[];
+	plugin: AgentClientPlugin;
+	terminalClient?: AcpClient;
+	sessionId?: string | null;
+	traceVerbosity: TraceVerbosity;
+	onApprovePermission?: (
+		requestId: string,
+		optionId: string,
+	) => Promise<void>;
+}
 
-	return groups;
+function NoisyToolGroup({
+	kind,
+	items,
+	plugin,
+	terminalClient,
+	sessionId,
+	traceVerbosity,
+	onApprovePermission,
+}: NoisyToolGroupProps) {
+	const [expanded, setExpanded] = useState(false);
+	const showEmojis = plugin.settings.displaySettings.showEmojis;
+	const failedCount = items.filter((item) => item.status === "failed").length;
+	const label = `${noisyToolGroupLabel(kind)} \u00b7 ${items.length}`;
+
+	return (
+		<div className="agent-client-noisy-tool-group">
+			<div
+				className="agent-client-noisy-tool-group-header"
+				role="button"
+				tabIndex={0}
+				aria-expanded={expanded}
+				aria-label={`${label}${failedCount > 0 ? `, ${failedCount} failed` : ""}`}
+				onClick={() => setExpanded((v) => !v)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						setExpanded((v) => !v);
+					}
+				}}
+			>
+				{showEmojis && (
+					<LucideIcon
+						name={noisyKindIconName(kind)}
+						className="agent-client-noisy-tool-group-icon"
+					/>
+				)}
+				<span className="agent-client-noisy-tool-group-title">
+					{label}
+				</span>
+				{failedCount > 0 && (
+					<span className="agent-client-noisy-tool-group-failed">
+						{failedCount} failed
+					</span>
+				)}
+				<LucideIcon
+					name={expanded ? "chevron-down" : "chevron-right"}
+					className="agent-client-noisy-tool-group-chevron"
+				/>
+			</div>
+			{expanded && (
+				<div className="agent-client-noisy-tool-group-items">
+					{items.map((content) => (
+						<ToolCallBlock
+							key={content.toolCallId}
+							content={content}
+							plugin={plugin}
+							terminalClient={terminalClient}
+							sessionId={sessionId}
+							traceVerbosity={traceVerbosity}
+							onApprovePermission={onApprovePermission}
+						/>
+					))}
+				</div>
+			)}
+		</div>
+	);
 }
 
 export const MessageBubble = React.memo(function MessageBubble({
@@ -422,10 +483,11 @@ export const MessageBubble = React.memo(function MessageBubble({
 	traceVerbosity,
 	onApprovePermission,
 }: MessageBubbleProps) {
-	const groups = groupContent(
+	const groups = groupTraceContent(
 		shouldRenderThought(traceVerbosity)
 			? message.content
 			: message.content.filter((c) => c.type !== "agent_thought"),
+		traceVerbosity,
 	);
 
 	return (
@@ -434,7 +496,6 @@ export const MessageBubble = React.memo(function MessageBubble({
 		>
 			{groups.map((group, idx) => {
 				if (group.type === "attachments") {
-					// Render attachments (images + resource_links) in horizontal strip
 					return (
 						<div
 							key={idx}
@@ -454,22 +515,34 @@ export const MessageBubble = React.memo(function MessageBubble({
 							))}
 						</div>
 					);
-				} else {
-					// Render single non-image content
+				}
+				if (group.type === "noisyTools") {
 					return (
-						<div key={idx}>
-							<ContentBlock
-								content={group.item}
-								plugin={plugin}
-								messageRole={message.role}
-								terminalClient={terminalClient}
-								sessionId={sessionId}
-								traceVerbosity={traceVerbosity}
-								onApprovePermission={onApprovePermission}
-							/>
-						</div>
+						<NoisyToolGroup
+							key={group.items[0]?.toolCallId ?? idx}
+							kind={group.kind}
+							items={group.items}
+							plugin={plugin}
+							terminalClient={terminalClient}
+							sessionId={sessionId}
+							traceVerbosity={traceVerbosity}
+							onApprovePermission={onApprovePermission}
+						/>
 					);
 				}
+				return (
+					<div key={idx}>
+						<ContentBlock
+							content={group.item}
+							plugin={plugin}
+							messageRole={message.role}
+							terminalClient={terminalClient}
+							sessionId={sessionId}
+							traceVerbosity={traceVerbosity}
+							onApprovePermission={onApprovePermission}
+						/>
+					</div>
+				);
 			})}
 			{message.content.some(
 				(c) =>
