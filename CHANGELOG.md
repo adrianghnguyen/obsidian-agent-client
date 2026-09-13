@@ -11,6 +11,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - Floating chat default window size now honors Settings width/height (CSS minimums no longer override smaller configured defaults).
 
 ### Changed
+- Voice input mic button sits to the left of the chat textarea.
 - Floating chat tabs can be closed with middle mouse click.
 - Smaller default floating chat window size (340×400).
 - Floating chat last window size and position are stored per device (not synced via Obsidian Sync).
