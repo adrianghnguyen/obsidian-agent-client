@@ -4,9 +4,14 @@
  */
 
 import { normalizeRawInput } from "../utils/raw-input";
-import type { ToolCallStatus } from "../types/chat";
+import type {
+	MessageContent,
+	ToolCallMessageContent,
+	ToolCallStatus,
+} from "../types/chat";
 import type { SessionConfigOption } from "../types/session";
 import type { TraceVerbosity } from "../types/settings";
+import { isSubagentToolCall } from "./tool-call-display";
 
 export type { TraceVerbosity };
 
@@ -104,7 +109,7 @@ export interface FoldToolDetailsInput {
 	rawInput?: unknown;
 }
 
-function isNoisyTool(kind?: string | null, rawInput?: unknown): boolean {
+export function isNoisyTool(kind?: string | null, rawInput?: unknown): boolean {
 	if (kind && NOISY_KINDS.has(kind)) return true;
 	if (kind === "edit" || kind === "delete" || kind === "move") return false;
 	return extractToolCommand(rawInput) !== undefined;
@@ -121,4 +126,133 @@ export function shouldFoldToolDetails(input: FoldToolDetailsInput): boolean {
 
 export function isThinkToolKind(kind?: string | null): boolean {
 	return kind === "think";
+}
+
+export type GroupableToolCall = Pick<
+	ToolCallMessageContent,
+	| "kind"
+	| "status"
+	| "rawInput"
+	| "permissionRequest"
+	| "subagent"
+	| "title"
+	| "nestedCalls"
+>;
+
+export function shouldGroupNoisyTool(
+	call: GroupableToolCall,
+	verbosity: TraceVerbosity,
+): boolean {
+	if (
+		!shouldFoldToolDetails({
+			kind: call.kind,
+			status: call.status,
+			hasPermission: call.permissionRequest?.isActive === true,
+			verbosity,
+			rawInput: call.rawInput,
+		})
+	) {
+		return false;
+	}
+	if (isSubagentToolCall(call)) return false;
+	return true;
+}
+
+/** Stable key for consecutive same-kind grouping. */
+export function noisyToolGroupKey(
+	kind?: string | null,
+	rawInput?: unknown,
+): string {
+	if (kind && kind !== "other") return kind;
+	if (extractToolCommand(rawInput)) return "execute";
+	return kind ?? "other";
+}
+
+export function noisyToolGroupLabel(kind: string): string {
+	switch (kind) {
+		case "read":
+			return "Read";
+		case "search":
+			return "Search";
+		case "fetch":
+			return "Fetch";
+		case "execute":
+			return "Command";
+		case "think":
+			return "Think";
+		default:
+			return "Tool";
+	}
+}
+
+export type TraceContentGroup =
+	| { type: "attachments"; items: MessageContent[] }
+	| { type: "noisyTools"; kind: string; items: ToolCallMessageContent[] }
+	| { type: "single"; item: MessageContent };
+
+/**
+ * Group consecutive images/resource links, and consecutive completed noisy
+ * tool calls of the same kind (Compact/Hidden only, 2+ items).
+ */
+export function groupTraceContent(
+	contents: MessageContent[],
+	verbosity: TraceVerbosity,
+): TraceContentGroup[] {
+	const groups: TraceContentGroup[] = [];
+	let attachments: MessageContent[] = [];
+	let noisy: ToolCallMessageContent[] = [];
+	let noisyKind: string | null = null;
+
+	const flushAttachments = () => {
+		if (attachments.length === 0) return;
+		groups.push({ type: "attachments", items: attachments });
+		attachments = [];
+	};
+
+	const flushNoisy = () => {
+		if (noisy.length === 0) return;
+		if (noisy.length >= 2 && noisyKind) {
+			groups.push({
+				type: "noisyTools",
+				kind: noisyKind,
+				items: noisy,
+			});
+		} else {
+			for (const item of noisy) {
+				groups.push({ type: "single", item });
+			}
+		}
+		noisy = [];
+		noisyKind = null;
+	};
+
+	for (const content of contents) {
+		if (content.type === "image" || content.type === "resource_link") {
+			flushNoisy();
+			attachments.push(content);
+			continue;
+		}
+
+		flushAttachments();
+
+		if (
+			content.type === "tool_call" &&
+			shouldGroupNoisyTool(content, verbosity)
+		) {
+			const key = noisyToolGroupKey(content.kind, content.rawInput);
+			if (noisyKind !== null && noisyKind !== key) {
+				flushNoisy();
+			}
+			noisyKind = key;
+			noisy.push(content);
+			continue;
+		}
+
+		flushNoisy();
+		groups.push({ type: "single", item: content });
+	}
+
+	flushAttachments();
+	flushNoisy();
+	return groups;
 }
