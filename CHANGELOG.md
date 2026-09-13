@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.21.0
+
 ### Added
 - **Verbosity level** in the chat toolbar (next to mode / thought level) and Settings → Display: Hidden, Compact (default), or Full. Hides or folds thinking traces and noisy tool details without changing ACP thought_level.
 
