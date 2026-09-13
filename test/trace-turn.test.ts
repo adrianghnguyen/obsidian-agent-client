@@ -83,11 +83,39 @@ describe("pickFinalThought", () => {
 
 		const buffer = flattenTurnTraceItems(segment, messages);
 		expect(buffer.some((i) => i.type === "agent_thought" && i.text === "final insight")).toBe(
-			false,
+			true,
 		);
 		expect(buffer.some((i) => i.type === "agent_thought" && i.text === "first look")).toBe(
 			true,
 		);
+	});
+
+	it("does not treat Create Plan as the final thought", () => {
+		const createPlan: ToolCallMessageContent = {
+			type: "tool_call",
+			toolCallId: "cp1",
+			kind: "think",
+			status: "completed",
+			title: "Create Plan",
+		};
+		const messages = [
+			userMessage("u1", "go"),
+			assistantMessage("a1", [
+				{ type: "agent_thought", text: "real insight" },
+				createPlan,
+				{ type: "text", text: "Here is the plan." },
+			]),
+		];
+		const segment = segmentAssistantTurns(messages)[0];
+		expect(pickFinalThought(segment, messages)).toEqual({
+			type: "agent_thought",
+			text: "real insight",
+		});
+		expect(
+			flattenTurnTraceItems(segment, messages).some(
+				(item) => item.type === "tool_call" && item.title === "Create Plan",
+			),
+		).toBe(false);
 	});
 });
 
@@ -127,6 +155,56 @@ describe("collectVisibleTurnRows", () => {
 		}
 	});
 
+	it("at hidden, keeps ACP plan and create-plan outside the buffer", () => {
+		const createPlan: ToolCallMessageContent = {
+			type: "tool_call",
+			toolCallId: "cp1",
+			kind: "think",
+			status: "completed",
+			title: "Create Plan",
+		};
+		const plan: ChatMessage["content"][number] = {
+			type: "plan",
+			entries: [
+				{ content: "Fix auth", status: "pending", priority: "high" },
+			],
+		};
+		const messages = [
+			userMessage("u1", "go"),
+			assistantMessage("a1", [
+				{ type: "agent_thought", text: "first look" },
+				readCall("r1"),
+				createPlan,
+				{ type: "agent_thought", text: "final insight" },
+				plan,
+				{ type: "text", text: "Done." },
+			]),
+		];
+		const segment = segmentAssistantTurns(messages)[0];
+		const rows = collectVisibleTurnRows(segment, messages, "hidden");
+		expect(rows.map((r) => r.type)).toEqual([
+			"hiddenBuffer",
+			"createPlan",
+			"plan",
+			"text",
+		]);
+		if (rows[0].type === "hiddenBuffer") {
+			expect(rows[0].items).toHaveLength(3);
+			expect(
+				rows[0].items.some(
+					(item) =>
+						item.type === "agent_thought" && item.text === "final insight",
+				),
+			).toBe(true);
+			expect(
+				rows[0].items.every(
+					(item) =>
+						!(item.type === "tool_call" && item.title === "Create Plan"),
+				),
+			).toBe(true);
+		}
+	});
+
 	it("at compact, groups across bubbles", () => {
 		const search: ToolCallMessageContent = {
 			type: "tool_call",
@@ -151,6 +229,82 @@ describe("collectVisibleTurnRows", () => {
 			if (searchGroup?.type === "noisyTools") {
 				expect(searchGroup.items).toHaveLength(2);
 			}
+		}
+	});
+
+	it("at compact, peels the final thought and keeps ACP plan as a top-level row", () => {
+		const createPlan: ToolCallMessageContent = {
+			type: "tool_call",
+			toolCallId: "cp1",
+			kind: "think",
+			status: "completed",
+			title: "Create Plan",
+		};
+		const plan: ChatMessage["content"][number] = {
+			type: "plan",
+			entries: [
+				{ content: "Fix auth", status: "pending", priority: "high" },
+			],
+		};
+		const messages = [
+			userMessage("u1", "go"),
+			assistantMessage("a1", [readCall("r1")]),
+			assistantMessage("a2", [
+				{ type: "agent_thought", text: "first look" },
+				readCall("r2"),
+				createPlan,
+				{ type: "agent_thought", text: "final insight" },
+				plan,
+				{ type: "text", text: "Done." },
+			]),
+		];
+		const segment = segmentAssistantTurns(messages)[0];
+		const rows = collectVisibleTurnRows(segment, messages, "compact");
+		expect(rows.map((r) => r.type)).toEqual([
+			"compactGroups",
+			"finalThought",
+			"createPlan",
+			"plan",
+			"text",
+		]);
+		if (rows[0].type === "compactGroups") {
+			const readCount = rows[0].groups.reduce((n, g) => {
+				if (g.type === "noisyTools" && g.kind === "read") {
+					return n + g.items.length;
+				}
+				return n;
+			}, 0);
+			expect(readCount).toBe(2);
+			expect(
+				rows[0].groups.some(
+					(g) =>
+						g.type === "single" &&
+						g.item.type === "tool_call" &&
+						g.item.title === "Create Plan",
+				),
+			).toBe(false);
+			expect(
+				rows[0].groups.some(
+					(g) =>
+						g.type === "single" &&
+						g.item.type === "agent_thought" &&
+						g.item.text === "final insight",
+				),
+			).toBe(false);
+			expect(
+				rows[0].groups.some(
+					(g) =>
+						g.type === "single" &&
+						g.item.type === "agent_thought" &&
+						g.item.text === "first look",
+				),
+			).toBe(true);
+		}
+		if (rows[1].type === "finalThought") {
+			expect(rows[1].item).toEqual({
+				type: "agent_thought",
+				text: "final insight",
+			});
 		}
 	});
 });

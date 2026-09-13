@@ -4,6 +4,7 @@
  */
 
 import { normalizeRawInput } from "../utils/raw-input";
+import { isCreatePlanTool } from "../utils/cursor-plans";
 import type {
 	MessageContent,
 	ToolCallMessageContent,
@@ -40,9 +41,9 @@ export const TRACE_VERBOSITY_SUMMARY =
 /** Per-level detail shown beside each verbosity option in the toolbar menu. */
 export const TRACE_VERBOSITY_DESCRIPTIONS: Record<TraceVerbosity, string> = {
 	hidden:
-		"One working-queue buffer per turn plus the final thought. Permission prompts stay visible.",
+		"One folded working buffer per turn. Plans, permission prompts, and the answer stay visible.",
 	compact:
-		"Groups tools by type across the turn. Bodies stay folded until you expand a card.",
+		"Groups tools by type across the turn. Final thought stays expanded; bodies stay folded.",
 	full: "Shows full thinking and tool details.",
 };
 
@@ -131,17 +132,26 @@ export function isNoisyTool(kind?: string | null, rawInput?: unknown): boolean {
 	return extractToolCommand(rawInput) !== undefined;
 }
 
+/** Cursor Create Plan is kind "think" but should stay visible like a plan card. */
+export function isCreatePlanToolContent(content: MessageContent): boolean {
+	return (
+		content.type === "tool_call" &&
+		isCreatePlanTool(content.title, content.rawInput)
+	);
+}
+
 export function shouldFoldToolDetails(input: FoldToolDetailsInput): boolean {
 	if (input.verbosity === "full") return false;
 	if (input.hasPermission) return false;
 	return true;
 }
 
-/** Thought or tool that Hidden folds into the turn buffer (permissions stay visible). */
+/** Thought or tool that Hidden folds into the turn buffer (permissions and plans stay visible). */
 export function isHiddenTraceItem(content: MessageContent): boolean {
 	if (content.type === "agent_thought") return true;
 	if (content.type !== "tool_call") return false;
 	if (content.permissionRequest?.isActive === true) return false;
+	if (isCreatePlanTool(content.title, content.rawInput)) return false;
 	return (
 		isNoisyTool(content.kind, content.rawInput) ||
 		isSubagentToolCall(content)
@@ -288,6 +298,7 @@ export function shouldGroupNoisyTool(
 	if (verbosity === "full") return false;
 	if (call.permissionRequest?.isActive === true) return false;
 	if (isSubagentToolCall(call)) return false;
+	if (isCreatePlanTool(call.title, call.rawInput)) return false;
 	return isNoisyTool(call.kind, call.rawInput);
 }
 

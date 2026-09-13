@@ -14,6 +14,7 @@ import {
 	type TraceContentGroup,
 } from "../services/trace-verbosity";
 import { ToolCallBlock } from "./ToolCallBlock";
+import { PlanBlock } from "./PlanBlock";
 import { LucideIcon } from "./shared/IconButton";
 import { MarkdownRenderer } from "./shared/MarkdownRenderer";
 
@@ -364,6 +365,9 @@ function TurnContentBlock({
 	if (content.type === "text" || content.type === "text_with_context") {
 		return <MarkdownRenderer text={content.text} plugin={plugin} />;
 	}
+	if (content.type === "plan") {
+		return <PlanBlock content={content} plugin={plugin} />;
+	}
 	if (content.type === "tool_call") {
 		return (
 			<ToolCallBlock
@@ -406,12 +410,13 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 					);
 				}
 				if (row.type === "finalThought") {
+					/* Compact only — Hidden keeps the last thought inside the buffer. */
 					return (
 						<CollapsibleThought
 							key={`final-thought-${idx}`}
 							text={thoughtText(row.item)}
 							plugin={plugin}
-							expandedByDefault={false}
+							expandedByDefault={true}
 						/>
 					);
 				}
@@ -444,6 +449,26 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity="full"
+							onApprovePermission={onApprovePermission}
+						/>
+					);
+				}
+				if (row.type === "plan") {
+					return (
+						<div key={`plan-${idx}`}>
+							<PlanBlock content={row.content} plugin={plugin} />
+						</div>
+					);
+				}
+				if (row.type === "createPlan") {
+					return (
+						<ToolCallBlock
+							key={row.item.toolCallId}
+							content={row.item}
+							plugin={plugin}
+							terminalClient={terminalClient}
+							sessionId={sessionId}
+							traceVerbosity={traceVerbosity}
 							onApprovePermission={onApprovePermission}
 						/>
 					);

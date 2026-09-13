@@ -285,6 +285,18 @@ describe("shouldGroupNoisyTool", () => {
 		).toBe(true);
 	});
 
+	it("does not group create-plan tools", () => {
+		expect(
+			shouldGroupNoisyTool(
+				readCall("plan", {
+					kind: "think",
+					title: "Create Plan",
+				}),
+				"compact",
+			),
+		).toBe(false);
+	});
+
 	it("does not group permission or subagent calls", () => {
 		expect(
 			shouldGroupNoisyTool(
@@ -436,6 +448,45 @@ describe("groupTraceContent", () => {
 		}
 		expect(isHiddenTraceItem(edit)).toBe(true);
 		expect(isHiddenTraceItem(withPermission)).toBe(false);
+	});
+
+	it("keeps ACP plan as a single and excludes create-plan from hidden buffer grouping", () => {
+		const plan: MessageContent = {
+			type: "plan",
+			entries: [
+				{ content: "Fix auth", status: "pending", priority: "high" },
+			],
+		};
+		const createPlan = readCall("cp1", {
+			kind: "think",
+			title: "Create Plan",
+		});
+		expect(isHiddenTraceItem(plan)).toBe(false);
+		expect(isHiddenTraceItem(createPlan)).toBe(false);
+
+		const compactGroups = groupTraceContent(
+			[readCall("a"), readCall("b"), plan, createPlan],
+			"compact",
+		);
+		expect(compactGroups).toEqual([
+			{
+				type: "noisyTools",
+				kind: "read",
+				items: [readCall("a"), readCall("b")],
+			},
+			{ type: "single", item: plan },
+			{ type: "single", item: createPlan },
+		]);
+
+		const hiddenGroups = groupTraceContent(
+			[readCall("a"), plan, createPlan],
+			"hidden",
+		);
+		expect(hiddenGroups.map((g) => g.type)).toEqual([
+			"hiddenTrace",
+			"single",
+			"single",
+		]);
 	});
 });
 
