@@ -526,6 +526,20 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 }
 
+.agent-client-message-tool-call-header-foldable {
+	cursor: pointer;
+}
+
+.agent-client-message-tool-call-fold-icon {
+	flex-shrink: 0;
+	opacity: 0.7;
+}
+
+.agent-client-message-tool-call-fold-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
 .agent-client-message-tool-call-status-icon.agent-client-status-failed svg {
 	color: var(--color-red);
 }

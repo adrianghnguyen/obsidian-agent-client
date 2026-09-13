@@ -13,6 +13,12 @@ import {
 	findModeConfigOption,
 	getSessionModePillClass,
 } from "../services/session-modes";
+import {
+	TRACE_VERBOSITY_LABELS,
+	TRACE_VERBOSITY_LEVELS,
+	shouldShowVerbosityControl,
+	type TraceVerbosity,
+} from "../services/trace-verbosity";
 
 // ============================================================================
 // ToolbarDropdown — themed dropdown using Obsidian's Menu
@@ -175,6 +181,8 @@ export interface InputToolbarProps {
 	onModeChange?: (modeId: string) => void;
 	configOptions?: SessionConfigOption[];
 	onConfigOptionChange?: (configId: string, value: string) => void;
+	traceVerbosity: TraceVerbosity;
+	onTraceVerbosityChange: (value: TraceVerbosity) => void;
 	usage?: SessionUsage;
 	isSessionReady: boolean;
 }
@@ -188,6 +196,8 @@ export function InputToolbar({
 	onModeChange,
 	configOptions,
 	onConfigOptionChange,
+	traceVerbosity,
+	onTraceVerbosityChange,
 	usage,
 	isSessionReady,
 }: InputToolbarProps) {
@@ -347,6 +357,22 @@ export function InputToolbar({
 							/>
 						)}
 				</>
+			)}
+
+			{shouldShowVerbosityControl(configOptions) && (
+				<ToolbarDropdown
+					label={TRACE_VERBOSITY_LABELS[traceVerbosity]}
+					title="How much thinking and tool detail to show"
+					items={TRACE_VERBOSITY_LEVELS.map((level) => ({
+						value: level,
+						label: TRACE_VERBOSITY_LABELS[level],
+					}))}
+					currentValue={traceVerbosity}
+					onChange={(value) => {
+						onTraceVerbosityChange(value as TraceVerbosity);
+					}}
+					className="agent-client-config-selector-verbosity"
+				/>
 			)}
 
 			{/* Send/Stop Button */}

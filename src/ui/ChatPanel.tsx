@@ -30,6 +30,7 @@ import { getLogger } from "../utils/logger";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
 import type { AgentClientPluginSettings } from "../plugin";
+import type { TraceVerbosity } from "../types/settings";
 
 // Context imports
 import { useChatContext } from "./ChatContext";
@@ -174,7 +175,10 @@ function selectChatPanelSettings(s: AgentClientPluginSettings) {
 		// fields here).
 		presetAgents: s.presetAgents,
 		customAgents: s.customAgents,
-		displaySettings: { fontSize: s.displaySettings.fontSize },
+		displaySettings: {
+			fontSize: s.displaySettings.fontSize,
+			traceVerbosity: s.displaySettings.traceVerbosity,
+		},
 	};
 }
 
@@ -196,7 +200,8 @@ function chatPanelSettingsEqual(
 		// reference compare detects agent changes (and only those).
 		a.presetAgents === b.presetAgents &&
 		a.customAgents === b.customAgents &&
-		a.displaySettings.fontSize === b.displaySettings.fontSize
+		a.displaySettings.fontSize === b.displaySettings.fontSize &&
+		a.displaySettings.traceVerbosity === b.displaySettings.traceVerbosity
 	);
 }
 
@@ -481,6 +486,19 @@ export const ChatPanel = React.memo(function ChatPanel({
 		setAgentUpdateNotification,
 		autoExportIfEnabled,
 	} = actions;
+
+	const handleTraceVerbosityChange = useCallback(
+		(value: TraceVerbosity) => {
+			const snapshot = plugin.settingsService.getSnapshot();
+			void plugin.settingsService.updateSettings({
+				displaySettings: {
+					...snapshot.displaySettings,
+					traceVerbosity: value,
+				},
+			});
+		},
+		[plugin.settingsService],
+	);
 
 	// ============================================================
 	// Gemini CLI deprecation notice (static, agent-id driven)
@@ -1585,6 +1603,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			view={viewHost}
 			terminalClient={terminalClientRef.current}
 			sessionId={session.sessionId}
+			traceVerbosity={settings.displaySettings.traceVerbosity}
 			onApprovePermission={agent.approvePermission}
 			hasActivePermission={agent.hasActivePermission}
 		/>
@@ -1611,6 +1630,8 @@ export const ChatPanel = React.memo(function ChatPanel({
 			onConfigOptionChange={(configId, value) =>
 				void handleSetConfigOption(configId, value)
 			}
+			traceVerbosity={settings.displaySettings.traceVerbosity}
+			onTraceVerbosityChange={handleTraceVerbosityChange}
 			usage={session.usage}
 			supportsImages={session.promptCapabilities?.image ?? false}
 			agentId={session.agentId}

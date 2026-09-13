@@ -12,6 +12,7 @@ import type {
 	SessionConfigOption,
 } from "../types/session";
 import type { AttachedFile, ChatMessage } from "../types/chat";
+import type { TraceVerbosity } from "../types/settings";
 import type { UseSuggestionsReturn } from "../hooks/useSuggestions";
 import { SuggestionPopup } from "./SuggestionPopup";
 import { ErrorBanner } from "./ErrorBanner";
@@ -221,6 +222,8 @@ export interface InputAreaProps {
 	configOptions?: SessionConfigOption[];
 	/** Callback when a config option is changed */
 	onConfigOptionChange?: (configId: string, value: string) => void;
+	traceVerbosity: TraceVerbosity;
+	onTraceVerbosityChange: (value: TraceVerbosity) => void;
 	/** Context window usage (shown as percentage indicator) */
 	usage?: SessionUsage;
 	/** Whether the agent supports image attachments */
@@ -282,6 +285,8 @@ export function InputArea({
 	onModeChange,
 	configOptions,
 	onConfigOptionChange,
+	traceVerbosity,
+	onTraceVerbosityChange,
 	usage,
 	supportsImages = false,
 	agentId,
@@ -1253,6 +1258,8 @@ export function InputArea({
 					onModeChange={onModeChange}
 					configOptions={configOptions}
 					onConfigOptionChange={onConfigOptionChange}
+					traceVerbosity={traceVerbosity}
+					onTraceVerbosityChange={onTraceVerbosityChange}
 					usage={usage}
 					isSessionReady={isSessionReady}
 				/>

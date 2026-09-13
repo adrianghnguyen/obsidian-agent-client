@@ -45,6 +45,7 @@ import {
 	resolveFloatingIdleOpacityPercent,
 	needsFloatingIdleOpacityMigration,
 } from "./services/settings-normalizer";
+import { parseTraceVerbosity } from "./services/trace-verbosity";
 import {
 	createAppLocalStorageAccess,
 	extractSyncedFloatingWindowLastLayout,
@@ -802,6 +803,7 @@ export default class AgentClientPlugin extends Plugin {
 				),
 				showEmojis: bool(rd.showEmojis, D.displaySettings.showEmojis),
 				fontSize: parseChatFontSize(rd.fontSize),
+				traceVerbosity: parseTraceVerbosity(rd.traceVerbosity),
 			},
 			savedSessions: Array.isArray(raw.savedSessions)
 				? (raw.savedSessions as SavedSessionInfo[])

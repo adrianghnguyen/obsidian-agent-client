@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Verbosity level** in the chat toolbar (next to mode / thought level) and Settings → Display: Hidden, Compact (default), or Full. Hides or folds thinking traces and noisy tool details without changing ACP thought_level.
+
 ### Fixed
 - Floating chat default window size now honors Settings width/height (CSS minimums no longer override smaller configured defaults).
 

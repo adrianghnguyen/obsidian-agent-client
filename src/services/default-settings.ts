@@ -52,6 +52,7 @@ export const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 		maxSelectionLength: 10000,
 		showEmojis: true,
 		fontSize: null,
+		traceVerbosity: "compact",
 	},
 	savedSessions: [],
 	lastUsedModels: {},

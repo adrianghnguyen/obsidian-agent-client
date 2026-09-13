@@ -34,6 +34,12 @@ export type ChatViewLocation =
 /** How the floating chat UI is entered (FAB, status bar, commands, or off). */
 export type FloatingChatEntry = "off" | "button" | "status-bar" | "commands";
 
+/**
+ * How much thinking and noisy tool detail to show in chat.
+ * Independent of ACP `thought_level` (reasoning effort).
+ */
+export type TraceVerbosity = "hidden" | "compact" | "full";
+
 export interface AgentClientPluginSettings {
 	/**
 	 * Per-preset user overrides, keyed by presetId (see
@@ -92,6 +98,11 @@ export interface AgentClientPluginSettings {
 		maxSelectionLength: number;
 		showEmojis: boolean;
 		fontSize: number | null;
+		/**
+		 * How much thinking and noisy tool detail to show in chat.
+		 * Independent of ACP thought_level (reasoning effort).
+		 */
+		traceVerbosity: TraceVerbosity;
 	};
 	// Locally saved session metadata (for agents without session/list support)
 	savedSessions: SavedSessionInfo[];
