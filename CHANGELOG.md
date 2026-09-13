@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Changed
+- **Verbosity menu** uses a short header summary with per-option descriptions (Hidden, Compact, Full) in the chat toolbar dropdown.
+
 ### Fixed
 - **Hidden verbosity** now collapses thinking traces and noisy tool steps (reads, searches, commands, etc.) into one summary line instead of showing each tool card. Compact and Full are unchanged. File edits and permission prompts stay visible.
 

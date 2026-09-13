@@ -33,9 +33,18 @@ export const TRACE_VERBOSITY_LABELS: Record<TraceVerbosity, string> = {
 	full: "Full",
 };
 
-/** One-line hint for the toolbar menu and Settings. */
-export const TRACE_VERBOSITY_HINT =
-	"Hidden collapses thinking and noisy tools into one summary line. Compact folds them by type. Full shows details. File edits and permission prompts stay visible.";
+/** Short summary for the toolbar menu header and Settings description. */
+export const TRACE_VERBOSITY_SUMMARY =
+	"Controls how much agent thinking and tool activity is shown.";
+
+/** Per-level detail shown beside each verbosity option in the toolbar menu. */
+export const TRACE_VERBOSITY_DESCRIPTIONS: Record<TraceVerbosity, string> = {
+	hidden:
+		"Collapses thinking and noisy tools into one summary line. Edits and permission prompts stay visible.",
+	compact:
+		"Folds thinking and noisy tools by type. Edits and permission prompts stay visible.",
+	full: "Shows full thinking and tool details.",
+};
 
 const NOISY_KINDS = new Set<string>([
 	"execute",

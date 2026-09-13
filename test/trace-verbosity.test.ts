@@ -4,8 +4,11 @@ import { normalizeRawInput } from "../src/utils/raw-input";
 import type { MessageContent, ToolCallMessageContent } from "../src/types/chat";
 import {
 	DEFAULT_TRACE_VERBOSITY,
+	TRACE_VERBOSITY_DESCRIPTIONS,
+	TRACE_VERBOSITY_LABELS,
 	TRACE_VERBOSITY_LEVELS,
 	TRACE_VERBOSITY_SETTING_KEY,
+	TRACE_VERBOSITY_SUMMARY,
 	extractToolCommand,
 	groupTraceContent,
 	hiddenTraceSummary,
@@ -50,6 +53,24 @@ const pendingPermission = {
 	hasPermission: true,
 	rawInput: { command: "rm -rf /" },
 };
+
+describe("trace verbosity copy", () => {
+	it("exposes a short summary and per-level descriptions", () => {
+		expect(TRACE_VERBOSITY_SUMMARY.length).toBeLessThan(120);
+		expect(TRACE_VERBOSITY_SUMMARY).toMatch(/thinking and tool activity/i);
+
+		for (const level of TRACE_VERBOSITY_LEVELS) {
+			expect(TRACE_VERBOSITY_LABELS[level]).toBeTruthy();
+			expect(TRACE_VERBOSITY_DESCRIPTIONS[level].length).toBeGreaterThan(
+				10,
+			);
+		}
+
+		expect(TRACE_VERBOSITY_DESCRIPTIONS.hidden).toMatch(/summary line/i);
+		expect(TRACE_VERBOSITY_DESCRIPTIONS.compact).toMatch(/folds/i);
+		expect(TRACE_VERBOSITY_DESCRIPTIONS.full).toMatch(/full/i);
+	});
+});
 
 describe("parseTraceVerbosity", () => {
 	it("defaults to compact", () => {
