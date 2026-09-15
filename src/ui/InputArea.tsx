@@ -23,6 +23,10 @@ import { useFloatingPresence } from "./FloatingPresenceContext";
 import type { TranscriptSink } from "../voice-input/types";
 import { VoiceTranscriptAccumulator } from "../voice-input/transcript-accumulation";
 import { captureVoiceMessageForSend } from "../voice-input/format-voice-duration";
+import {
+	endVoiceTranscriptTurn,
+	isCurrentVoiceSink,
+} from "../voice-input/voice-turn-end";
 import { ENGAGEMENT_VOICE_INPUT } from "../services/engagement-latch";
 import { getLogger } from "../utils/logger";
 import type { ErrorInfo } from "../types/errors";
@@ -330,6 +334,51 @@ export function InputArea({
 	// Refs
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const dragCounterRef = useRef(0);
+
+	const [isVoiceListening, setIsVoiceListening] = useState(false);
+	const [audioLevel, setAudioLevel] = useState(0);
+	const voiceAccumulatorRef = useRef(new VoiceTranscriptAccumulator());
+	const voiceSinkGenerationRef = useRef({ current: 0 });
+	const inputValueRef = useRef(inputValue);
+	inputValueRef.current = inputValue;
+	const isVoiceListeningRef = useRef(isVoiceListening);
+	isVoiceListeningRef.current = isVoiceListening;
+	const presenceLatch = useFloatingPresence();
+
+	const finishVoiceListeningUi = useCallback(() => {
+		setIsVoiceListening(false);
+		setAudioLevel(0);
+		presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
+	}, [presenceLatch]);
+
+	/**
+	 * Stop Gemini Live. restoreTranscript keeps committed dictation in the
+	 * input (Stop button). Turn-ending actions pass false so the previous
+	 * utterance cannot refill the next prompt.
+	 */
+	const stopVoiceListening = useCallback(
+		async (options?: { restoreTranscript?: boolean }) => {
+			const restoreTranscript = options?.restoreTranscript !== false;
+			const voiceInput = plugin.voiceInput;
+			if (!restoreTranscript) {
+				endVoiceTranscriptTurn(
+					voiceAccumulatorRef.current,
+					voiceSinkGenerationRef.current,
+				);
+			}
+			if (!voiceInput?.isListening && !isVoiceListeningRef.current) {
+				return;
+			}
+			if (voiceInput?.isListening) {
+				await voiceInput.stopListening();
+			}
+			if (restoreTranscript) {
+				onInputChange(voiceAccumulatorRef.current.discardInterim());
+			}
+			finishVoiceListeningUi();
+		},
+		[plugin, onInputChange, finishVoiceListeningUi],
+	);
 
 	// Clear attached files when agent changes
 	useEffect(() => {
@@ -731,6 +780,7 @@ export function InputArea({
 	 */
 	const handleSendOrStop = useCallback(async () => {
 		if (isSending) {
+			await stopVoiceListening({ restoreTranscript: false });
 			await onStopGeneration();
 			return;
 		}
@@ -742,6 +792,8 @@ export function InputArea({
 		const messageToSend = inputValue.trim();
 		const filesToSend =
 			attachedFiles.length > 0 ? [...attachedFiles] : undefined;
+
+		await stopVoiceListening({ restoreTranscript: false });
 
 		// Clear input, files, and hint state immediately
 		onInputChange("");
@@ -760,33 +812,10 @@ export function InputArea({
 		onInputChange,
 		onAttachedFilesChange,
 		resetHistory,
+		stopVoiceListening,
 	]);
 
 	// Voice input
-	const [isVoiceListening, setIsVoiceListening] = useState(false);
-	const [audioLevel, setAudioLevel] = useState(0);
-	// Accumulates streamed transcripts so each dictated segment appends to
-	// the prompt (and to earlier segments) instead of overwriting it.
-	const voiceAccumulatorRef = useRef(new VoiceTranscriptAccumulator());
-	const inputValueRef = useRef(inputValue);
-	inputValueRef.current = inputValue;
-	const isVoiceListeningRef = useRef(isVoiceListening);
-	isVoiceListeningRef.current = isVoiceListening;
-	const presenceLatch = useFloatingPresence();
-
-	const stopVoiceListening = useCallback(async () => {
-		const voiceInput = plugin.voiceInput;
-		if (!voiceInput) return;
-		if (!voiceInput.isListening) return;
-		const acc = voiceAccumulatorRef.current;
-		await voiceInput.stopListening();
-		// Drop any lingering interim preview; committed finals stay.
-		onInputChange(acc.discardInterim());
-		setIsVoiceListening(false);
-		setAudioLevel(0);
-		presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
-	}, [plugin, onInputChange, presenceLatch]);
-
 	const handleStartVoice = useCallback(() => {
 		const voiceInput = plugin.voiceInput;
 		if (!voiceInput) return;
@@ -800,21 +829,25 @@ export function InputArea({
 
 		const acc = voiceAccumulatorRef.current;
 		acc.begin(inputValue);
+		const sinkGeneration = voiceSinkGenerationRef.current;
+		sinkGeneration.current += 1;
+		const sinkId = sinkGeneration.current;
 		const sink: TranscriptSink = {
 			onInterim: (text) => {
+				if (!isCurrentVoiceSink(sinkGeneration, sinkId)) return;
 				const preview = acc.applyInterim(text);
 				if (preview !== null) onInputChange(preview);
 			},
 			onFinal: (text) => {
+				if (!isCurrentVoiceSink(sinkGeneration, sinkId)) return;
 				const committed = acc.applyFinal(text);
 				if (committed !== null) onInputChange(committed);
 			},
 			onError: (error) => {
+				if (!isCurrentVoiceSink(sinkGeneration, sinkId)) return;
 				onInputChange(acc.discardInterim());
 				new Notice("[Agent Client] Voice: " + error);
-				setIsVoiceListening(false);
-				setAudioLevel(0);
-				presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
+				finishVoiceListeningUi();
 			},
 		};
 		void voiceInput.startListening(sink);
@@ -827,6 +860,7 @@ export function InputArea({
 		isSessionReady,
 		isVoiceListening,
 		presenceLatch,
+		finishVoiceListeningUi,
 	]);
 
 	const handleVoiceStopAndSend = useCallback(async () => {
@@ -834,7 +868,7 @@ export function InputArea({
 		const filesToSend =
 			attachedFiles.length > 0 ? [...attachedFiles] : undefined;
 
-		await stopVoiceListening();
+		await stopVoiceListening({ restoreTranscript: false });
 
 		onInputChange("");
 		onAttachedFilesChange([]);
@@ -854,6 +888,15 @@ export function InputArea({
 		resetHistory,
 		onSendMessage,
 	]);
+
+	const prevInputValueRef = useRef(inputValue);
+	useEffect(() => {
+		const previous = prevInputValueRef.current;
+		prevInputValueRef.current = inputValue;
+		if (previous.trim() !== "" && inputValue === "") {
+			void stopVoiceListening({ restoreTranscript: false });
+		}
+	}, [inputValue, stopVoiceListening]);
 
 	// Poll mic amplitude while recording for the inline level bars
 	useEffect(() => {

@@ -108,4 +108,15 @@ describe("VoiceTranscriptAccumulator", () => {
 		expect(acc.getPreview()).toBe("fresh");
 		expect(acc.applyFinal("new")).toBe("fresh new");
 	});
+
+	it("clear drops committed text so the next turn starts empty", () => {
+		const acc = new VoiceTranscriptAccumulator();
+		acc.begin("typed ");
+		acc.applyFinal("hello");
+		acc.applyInterim("wor");
+		acc.clear();
+		expect(acc.getPreview()).toBe("");
+		expect(acc.discardInterim()).toBe("");
+		expect(acc.applyFinal("next")).toBe("next");
+	});
 });

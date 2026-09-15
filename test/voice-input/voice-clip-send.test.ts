@@ -94,10 +94,14 @@ describe("voice clip → transcript → stop+send", () => {
 		const messageToSend = captureVoiceMessageForSend(inputValue);
 		await transcriber.stop();
 		inputValue = accumulator.discardInterim();
+		accumulator.clear();
+		inputValue = "";
 
 		expect(messageToSend).toBe("hello world");
 		sentMessages.push(messageToSend);
 		expect(sentMessages).toEqual(["hello world"]);
+		expect(accumulator.getPreview()).toBe("");
+		expect(accumulator.applyFinal("next")).toBe("next");
 	});
 
 	it("stop+send keeps interim preview in the captured message", async () => {
