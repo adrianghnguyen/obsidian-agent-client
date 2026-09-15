@@ -841,6 +841,10 @@ export default class AgentClientPlugin extends Plugin {
 				raw as Record<string, unknown>,
 				D.floatingIdleOpacityPercent,
 			),
+			floatingTransparencyMode: bool(
+				raw.floatingTransparencyMode,
+				D.floatingTransparencyMode,
+			),
 			voiceInput: normalizeVoiceInputSettings(
 				obj(raw.voiceInput) as Partial<VoiceInputSettings> | undefined,
 			),

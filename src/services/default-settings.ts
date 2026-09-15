@@ -67,5 +67,6 @@ export const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	floatingButtonPosition: null,
 	floatingIdleTimeoutMs: 0,
 	floatingIdleOpacityPercent: 50,
+	floatingTransparencyMode: true,
 	voiceInput: { ...DEFAULT_VOICE_INPUT },
 };

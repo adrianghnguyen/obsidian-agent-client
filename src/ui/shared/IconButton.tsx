@@ -29,10 +29,15 @@ interface HeaderButtonProps {
 	tooltip: string;
 	onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
 	className?: string;
+	/** Toggle pressed/active chrome (CSS `is-active`). */
+	pressed?: boolean;
 }
 
 export const HeaderButton = forwardRef<HTMLButtonElement, HeaderButtonProps>(
-	function HeaderButton({ iconName, tooltip, onClick, className }, ref) {
+	function HeaderButton(
+		{ iconName, tooltip, onClick, className, pressed },
+		ref,
+	) {
 		const buttonRef = useRef<HTMLButtonElement>(null);
 
 		// Expose the button ref to parent components
@@ -48,9 +53,13 @@ export const HeaderButton = forwardRef<HTMLButtonElement, HeaderButtonProps>(
 			<button
 				ref={buttonRef}
 				title={tooltip}
+				aria-pressed={
+					pressed === undefined ? undefined : pressed
+				}
 				onClick={onClick}
 				className={[
 					"clickable-icon agent-client-header-button",
+					pressed ? "is-active" : "",
 					className,
 				]
 					.filter(Boolean)
