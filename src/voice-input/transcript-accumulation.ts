@@ -39,6 +39,17 @@ export class VoiceTranscriptAccumulator {
 		this.interim = "";
 	}
 
+	/**
+	 * Drop pre-voice text, committed finals, and the in-flight interim.
+	 * Used when a turn ends (send, Enter, stop generation, voice-clip send)
+	 * so the next prompt does not reuse the previous transcript.
+	 */
+	clear(): void {
+		this.preVoiceInput = "";
+		this.committed = "";
+		this.interim = "";
+	}
+
 	/** Text to show in the input right now. */
 	getPreview(): string {
 		return joinWithBoundarySpace(

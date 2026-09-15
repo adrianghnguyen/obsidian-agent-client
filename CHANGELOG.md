@@ -11,6 +11,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Hidden and Compact** keep ACP plans and Cursor Create Plan outside the working buffer/groups (same as permission prompts).
 
 ### Fixed
+- **Voice input** clears the speech-to-text buffer on send, Enter, stop generation, and voice-clip send, so the previous transcript does not appear on the next turn.
 - **Hidden verbosity** no longer renders one summary row per tool message; intermediate thoughts, reads, searches, edits, and TODOs collapse into a single buffer per turn. Permission prompts stay visible outside the buffer.
 
 ## 0.21.0
