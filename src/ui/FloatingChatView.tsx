@@ -1,5 +1,6 @@
 import * as React from "react";
-const { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } = React;
+const { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } =
+	React;
 import { useSyncExternalStore } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
@@ -32,6 +33,11 @@ import { VaultService } from "../services/vault-service";
 import { resolveFloatingWindowLayout } from "../services/settings-normalizer";
 import { floatingWindowLocalLayoutsEqual } from "../services/floating-window-local-storage";
 import { useFloatingIdleOpacity } from "../hooks/useFloatingIdleOpacity";
+import {
+	focusChatComposerTextarea,
+	queryChatComposerTextarea,
+	scheduleChatComposerFocus,
+} from "../utils/chat-composer-focus";
 import {
 	FloatingPresenceProvider,
 	useCreateFloatingPresenceLatch,
@@ -68,7 +74,10 @@ function fitToViewport(
 	y: number,
 	width: number,
 	height: number,
-): { position: { x: number; y: number }; size: { width: number; height: number } } {
+): {
+	position: { x: number; y: number };
+	size: { width: number; height: number };
+} {
 	const size = clampSize(width, height);
 	const position = clampPosition(x, y, size.width, size.height);
 	return { position, size };
@@ -233,8 +242,19 @@ export class FloatingViewContainer implements IChatViewContainer {
 			/>,
 		);
 
+		this.isExpandedState = initialExpanded;
+		if (initialExpanded) {
+			this.scheduleFocusInput();
+		}
+
 		// Register with plugin's view registry
 		this.plugin.viewRegistry.register(this);
+	}
+
+	private scheduleFocusInput(): void {
+		scheduleChatComposerFocus(() =>
+			queryChatComposerTextarea(this.containerRefEl),
+		);
 	}
 
 	/** Flush last size/position to settings (quit / unload). */
@@ -289,26 +309,19 @@ export class FloatingViewContainer implements IChatViewContainer {
 	}
 
 	focus(): void {
-		// Expand if collapsed, then focus
+		// Expand if collapsed, then focus the composer ("bring this chat to type").
 		if (!this.isExpandedState) {
 			this.isExpandedState = true;
 			this.setExpanded?.(true);
 		}
-		// Focus after next render (expansion may need a frame)
-		window.requestAnimationFrame(() => {
-			const textarea = this.containerRefEl?.querySelector(
-				"textarea.agent-client-chat-input-textarea",
-			);
-			if (textarea instanceof HTMLTextAreaElement) {
-				textarea.focus();
-			}
-		});
+		this.scheduleFocusInput();
 	}
 
 	hasFocus(): boolean {
 		return (
 			this.isExpandedState &&
-			(this.containerRefEl?.contains(activeDocument.activeElement) ?? false)
+			(this.containerRefEl?.contains(activeDocument.activeElement) ??
+				false)
 		);
 	}
 
@@ -320,6 +333,7 @@ export class FloatingViewContainer implements IChatViewContainer {
 		if (!this.isExpandedState) {
 			this.isExpandedState = true;
 			this.setExpanded?.(true);
+			this.scheduleFocusInput();
 		}
 	}
 
@@ -582,6 +596,7 @@ export class FloatingTabbedShell {
 
 		if (initialExpanded) {
 			this.expand();
+			this.focusActiveInput(container.viewId);
 		}
 
 		this.plugin.viewRegistry.register(container);
@@ -619,8 +634,12 @@ export class FloatingTabbedShell {
 	}
 
 	expand(): void {
+		const wasCollapsed = !this.isExpandedState;
 		this.isExpandedState = true;
 		this.api?.setExpanded(true);
+		if (wasCollapsed) {
+			this.focusActiveInput();
+		}
 	}
 
 	collapse(): void {
@@ -634,13 +653,12 @@ export class FloatingTabbedShell {
 
 	focusActiveInput(viewId?: string): void {
 		const targetId = viewId ?? this.activeTabId ?? undefined;
-		// Double rAF: first after activateTab's setState is scheduled, second
-		// after React commits (so the target panel is no longer `hidden`).
-		window.requestAnimationFrame(() => {
-			window.requestAnimationFrame(() => {
-				this.api?.focusActiveInput(targetId);
-			});
-		});
+		scheduleChatComposerFocus(() =>
+			queryChatComposerTextarea(
+				this.api?.getWindowEl() ?? this.containerEl,
+				targetId,
+			),
+		);
 	}
 
 	setRegistryFocused(viewId: string): void {
@@ -1246,7 +1264,9 @@ function FloatingTabbedShellComponent({
 					setActiveTabId((current) => {
 						if (current !== viewId) return current;
 						const nextId =
-							next.length > 0 ? next[next.length - 1].viewId : null;
+							next.length > 0
+								? next[next.length - 1].viewId
+								: null;
 						activeTabIdRef.current = nextId;
 						return nextId;
 					});
@@ -1261,20 +1281,10 @@ function FloatingTabbedShellComponent({
 			bumpTitles: () => setTitleVersion((v) => v + 1),
 			focusActiveInput: (viewId) => {
 				const root = containerRef.current;
-				if (!root) return;
 				const targetId = viewId ?? activeTabIdRef.current;
-				const panel = targetId
-					? root.querySelector(
-							`.agent-client-floating-tab-panel[data-view-id="${CSS.escape(targetId)}"]`,
-						)
-					: root.querySelector(
-							".agent-client-floating-tab-panel.is-active",
-						);
-				const textarea = panel?.querySelector(
-					"textarea.agent-client-chat-input-textarea",
-				);
-				if (textarea instanceof HTMLTextAreaElement) {
-					textarea.focus();
+				const textarea = queryChatComposerTextarea(root, targetId);
+				if (textarea) {
+					focusChatComposerTextarea(textarea);
 				}
 			},
 			getWindowEl: () => containerRef.current,
@@ -1298,20 +1308,9 @@ function FloatingTabbedShellComponent({
 			activeTabIdRef.current = viewId;
 			setActiveTabId(viewId);
 			plugin.viewRegistry.setFocused(viewId);
-			window.requestAnimationFrame(() => {
-				window.requestAnimationFrame(() => {
-					const root = containerRef.current;
-					const panel = root?.querySelector(
-						`.agent-client-floating-tab-panel[data-view-id="${CSS.escape(viewId)}"]`,
-					);
-					const textarea = panel?.querySelector(
-						"textarea.agent-client-chat-input-textarea",
-					);
-					if (textarea instanceof HTMLTextAreaElement) {
-						textarea.focus();
-					}
-				});
-			});
+			scheduleChatComposerFocus(() =>
+				queryChatComposerTextarea(containerRef.current, viewId),
+			);
 		},
 		[plugin],
 	);
@@ -1336,100 +1335,100 @@ function FloatingTabbedShellComponent({
 			}}
 		>
 			<FloatingPresenceProvider latch={presenceLatch}>
-			<div
-				className="agent-client-floating-tab-bar"
-				onMouseDown={onMouseDown}
-			>
-				<div className="agent-client-floating-tab-list">
-					{tabs.map((tab) => {
-						const container = getTabContainer(tab.viewId);
-						const label =
-							container?.getSessionTitle() ??
-							container?.getDisplayName() ??
-							"Chat";
-						const status =
-							container?.getSessionStatus() ?? "disconnected";
-						const isActive = tab.viewId === activeTabId;
-						return (
-							<div
-								key={tab.viewId}
-								className={
-									isActive
-										? "agent-client-floating-tab is-active"
-										: "agent-client-floating-tab"
-								}
-								onClick={() => handleSelectTab(tab.viewId)}
-								onMouseDown={(e) =>
-									handleTabMouseDown(e, tab.viewId)
-								}
-								title={`${label} — ${sessionStatusLabel(status)}`}
-							>
-								<SessionStatusIcon status={status} />
-								<span className="agent-client-floating-tab-label">
-									{label}
-								</span>
-								<button
-									type="button"
-									className="agent-client-floating-tab-close"
-									title="Close tab"
-									onClick={(e) => {
-										e.stopPropagation();
-										onCloseTab(tab.viewId);
-									}}
+				<div
+					className="agent-client-floating-tab-bar"
+					onMouseDown={onMouseDown}
+				>
+					<div className="agent-client-floating-tab-list">
+						{tabs.map((tab) => {
+							const container = getTabContainer(tab.viewId);
+							const label =
+								container?.getSessionTitle() ??
+								container?.getDisplayName() ??
+								"Chat";
+							const status =
+								container?.getSessionStatus() ?? "disconnected";
+							const isActive = tab.viewId === activeTabId;
+							return (
+								<div
+									key={tab.viewId}
+									className={
+										isActive
+											? "agent-client-floating-tab is-active"
+											: "agent-client-floating-tab"
+									}
+									onClick={() => handleSelectTab(tab.viewId)}
+									onMouseDown={(e) =>
+										handleTabMouseDown(e, tab.viewId)
+									}
+									title={`${label} — ${sessionStatusLabel(status)}`}
 								>
-									×
-								</button>
-							</div>
-						);
-					})}
-					<HeaderButton
-						iconName="plus"
-						tooltip="Open new tab"
-						className="agent-client-floating-tab-add"
-						onClick={(e) => {
-							e.stopPropagation();
-							onOpenNewTab();
-						}}
-					/>
+									<SessionStatusIcon status={status} />
+									<span className="agent-client-floating-tab-label">
+										{label}
+									</span>
+									<button
+										type="button"
+										className="agent-client-floating-tab-close"
+										title="Close tab"
+										onClick={(e) => {
+											e.stopPropagation();
+											onCloseTab(tab.viewId);
+										}}
+									>
+										×
+									</button>
+								</div>
+							);
+						})}
+						<HeaderButton
+							iconName="plus"
+							tooltip="Open new tab"
+							className="agent-client-floating-tab-add"
+							onClick={(e) => {
+								e.stopPropagation();
+								onOpenNewTab();
+							}}
+						/>
+					</div>
+					<div className="agent-client-floating-tab-bar-actions">
+						<FloatingTransparencyLockButton
+							plugin={plugin}
+							className="agent-client-floating-tab-bar-action"
+						/>
+						<HeaderButton
+							iconName="more-vertical"
+							tooltip="More"
+							className="agent-client-floating-tab-bar-action"
+							onClick={handleTabBarShowMenu}
+						/>
+						<WindowMinimizeCloseButton
+							onMinimize={handleMinimize}
+							onCloseAll={onCloseWindow}
+							className="agent-client-floating-tab-bar-action"
+						/>
+					</div>
 				</div>
-				<div className="agent-client-floating-tab-bar-actions">
-					<FloatingTransparencyLockButton
-						plugin={plugin}
-						className="agent-client-floating-tab-bar-action"
-					/>
-					<HeaderButton
-						iconName="more-vertical"
-						tooltip="More"
-						className="agent-client-floating-tab-bar-action"
-						onClick={handleTabBarShowMenu}
-					/>
-					<WindowMinimizeCloseButton
-						onMinimize={handleMinimize}
-						onCloseAll={onCloseWindow}
-						className="agent-client-floating-tab-bar-action"
-					/>
+				<div className="agent-client-floating-tab-panels">
+					{tabs.map((tab) => (
+						<FloatingTabPanel
+							key={tab.viewId}
+							plugin={plugin}
+							viewId={tab.viewId}
+							initialAgentId={tab.initialAgentId}
+							isActive={tab.viewId === activeTabId}
+							onRegisterCallbacks={(cbs) => {
+								getTabContainer(tab.viewId)?.setCallbacks(cbs);
+							}}
+							onSessionTitleChanged={() =>
+								setTitleVersion((v) => v + 1)
+							}
+							onRegisterShowMenu={registerTabShowMenu}
+							onOpenNewTab={onOpenNewTab}
+							onFloatingHeaderMouseDown={onMouseDown}
+						/>
+					))}
 				</div>
-			</div>
-			<div className="agent-client-floating-tab-panels">
-				{tabs.map((tab) => (
-					<FloatingTabPanel
-						key={tab.viewId}
-						plugin={plugin}
-						viewId={tab.viewId}
-						initialAgentId={tab.initialAgentId}
-						isActive={tab.viewId === activeTabId}
-						onRegisterCallbacks={(cbs) => {
-							getTabContainer(tab.viewId)?.setCallbacks(cbs);
-						}}
-						onSessionTitleChanged={() =>
-							setTitleVersion((v) => v + 1)
-						}
-						onRegisterShowMenu={registerTabShowMenu}
-						onOpenNewTab={onOpenNewTab}
-						onFloatingHeaderMouseDown={onMouseDown}
-					/>
-				))}
-			</div>
 			</FloatingPresenceProvider>
 		</div>
 	);
