@@ -2718,6 +2718,11 @@ If your plugin does not need CSS, delete this file.
 	opacity: var(--agent-client-floating-idle-opacity, 0.5);
 }
 
+.agent-client-header-button.is-active {
+	color: var(--interactive-accent);
+	background-color: var(--background-modifier-hover);
+}
+
 .agent-client-floating-view-root > * {
 	pointer-events: auto;
 }

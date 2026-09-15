@@ -49,22 +49,33 @@ export function useFloatingIdleOpacity(
 	isExpanded: boolean,
 	presenceLatch: EngagementLatch | null = null,
 ): void {
-	const { floatingIdleTimeoutMs: timeoutMs, floatingIdleOpacityPercent: opacityPercent } =
-		useSettings(plugin);
+	const {
+		floatingIdleTimeoutMs: timeoutMs,
+		floatingIdleOpacityPercent: opacityPercent,
+		floatingTransparencyMode,
+	} = useSettings(plugin);
 	const featureEnabled = timeoutMs > 0;
+	const lockedOpaque = !floatingTransparencyMode;
 
 	useLayoutEffect(() => {
 		if (!windowEl) return;
 
 		const target = resolveIdleTarget(windowEl);
 
-		if (featureEnabled) {
-			const opacity = opacityPercent / 100;
-			target.style.setProperty(IDLE_OPACITY_VAR, String(opacity));
-		} else {
+		if (!featureEnabled) {
 			target.style.removeProperty(IDLE_OPACITY_VAR);
 			target.classList.remove(IDLE_CLASS);
 			return;
+		}
+
+		const opacity = opacityPercent / 100;
+		target.style.setProperty(IDLE_OPACITY_VAR, String(opacity));
+
+		if (lockedOpaque) {
+			target.classList.remove(IDLE_CLASS);
+			return () => {
+				target.classList.remove(IDLE_CLASS);
+			};
 		}
 
 		if (!isExpanded) {
@@ -189,6 +200,7 @@ export function useFloatingIdleOpacity(
 		};
 	}, [
 		featureEnabled,
+		lockedOpaque,
 		isExpanded,
 		timeoutMs,
 		opacityPercent,

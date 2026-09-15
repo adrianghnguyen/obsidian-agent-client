@@ -142,6 +142,12 @@ export interface AgentClientPluginSettings {
 	 * Lower values are more transparent. Only applies when floatingIdleTimeoutMs > 0.
 	 */
 	floatingIdleOpacityPercent: number;
+	/**
+	 * When true, idle fade may run (current delay/opacity settings).
+	 * When false, every floating window stays fully opaque (lock from the
+	 * floating header). Default true. Delay 0 already disables fade globally.
+	 */
+	floatingTransparencyMode: boolean;
 	/** Voice Input (Gemini Live) settings */
 	voiceInput: VoiceInputSettings;
 }

@@ -11,6 +11,7 @@ import {
 	parseFloatingIdleTimeoutMs,
 	parseFloatingIdleOpacityPercent,
 	resolveFloatingIdleOpacityPercent,
+	bool,
 	type ApiKeyMigrator,
 } from "../src/services/settings-normalizer";
 import { PRESET_AGENTS } from "../src/services/preset-agents";
@@ -422,6 +423,16 @@ describe("floating idle opacity clamps", () => {
 		expect(parseFloatingIdleTimeoutMs(2500, 0)).toBe(2500);
 		expect(parseFloatingIdleOpacityPercent("x", 50)).toBe(50);
 		expect(parseFloatingIdleOpacityPercent(80, 50)).toBe(80);
+	});
+
+	it("defaults transparency mode on (idle fade allowed)", async () => {
+		const { DEFAULT_SETTINGS } = await import(
+			"../src/services/default-settings"
+		);
+		expect(DEFAULT_SETTINGS.floatingTransparencyMode).toBe(true);
+		expect(bool(undefined, true)).toBe(true);
+		expect(bool(false, true)).toBe(false);
+		expect(bool("no", true)).toBe(true);
 	});
 
 	it("migrates legacy transparency percent to inverted opacity", () => {
