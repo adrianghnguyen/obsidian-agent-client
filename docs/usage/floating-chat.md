@@ -123,3 +123,5 @@ Customize the floating chat in **Settings → Agent Client → Floating chat**:
 | **Enable floating chat tabs** | Off | Group multiple floating chats as tabs in one window |
 | **One-key toggle** | On | Same hotkey opens or minimizes the floating chat. Turn off to use separate Open and Minimize hotkeys |
 | **Floating button image** | Default icon | URL or vault path to a custom button image (only when entry mode is Floating button) |
+| **Idle fade delay / opacity** | 0 ms / 50% | Optional fade after you leave the window. Set delay to 0 to disable |
+| **Transparency mode** | On | Fade when idle. Lock fully opaque from Settings or the droplet icon in the floating header (hidden when delay is 0) |

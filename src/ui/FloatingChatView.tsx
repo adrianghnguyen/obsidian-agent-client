@@ -18,6 +18,7 @@ import { ChatContextProvider } from "./ChatContext";
 import { ChatPanel, type ChatPanelCallbacks } from "./ChatPanel";
 import { ChatPanelDelegate } from "./chat-panel-delegate";
 import { HeaderButton } from "./shared/IconButton";
+import { FloatingTransparencyLockButton } from "./shared/FloatingTransparencyLockButton";
 import { WindowMinimizeCloseButton } from "./shared/WindowMinimizeCloseButton";
 import {
 	SessionStatusIcon,
@@ -1392,6 +1393,10 @@ function FloatingTabbedShellComponent({
 					/>
 				</div>
 				<div className="agent-client-floating-tab-bar-actions">
+					<FloatingTransparencyLockButton
+						plugin={plugin}
+						className="agent-client-floating-tab-bar-action"
+					/>
 					<HeaderButton
 						iconName="more-vertical"
 						tooltip="More"

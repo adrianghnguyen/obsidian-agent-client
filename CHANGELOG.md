@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Floating chat transparency lock** — when idle fade delay is greater than 0, an icon in the floating header (next to More / close) locks every floating window fully opaque or restores idle fade. Persists across restarts; delay 0 hides the button.
+
 ### Changed
 - **Verbosity menu** uses a short header summary with per-option descriptions (Hidden, Compact, Full) in the chat toolbar dropdown.
 - **Compact verbosity** groups tools across the whole assistant turn (not per bubble), including singles (`Read · 1`), in-progress tools, edits, and `other` tools (TODOs). The final thought is peeled onto the timeline and expanded; other bodies stay folded until you expand a card.

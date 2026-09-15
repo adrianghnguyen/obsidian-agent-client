@@ -2,6 +2,8 @@ import * as React from "react";
 const { useRef, useEffect, useMemo } = React;
 import { setIcon, DropdownComponent } from "obsidian";
 import { HeaderButton } from "./shared/IconButton";
+import { FloatingTransparencyLockButton } from "./shared/FloatingTransparencyLockButton";
+import { useChatContext } from "./ChatContext";
 import { WindowMinimizeCloseButton } from "./shared/WindowMinimizeCloseButton";
 import type { AgentDisplayInfo } from "../services/session-helpers";
 
@@ -231,6 +233,7 @@ function FloatingHeader({
 	onClose,
 	hideWindowControls,
 }: FloatingHeaderProps) {
+	const { plugin } = useChatContext();
 	// Refs for agent dropdown
 	const agentDropdownRef = useRef<HTMLDivElement>(null);
 	const agentDropdownInstance = useRef<DropdownComponent | null>(null);
@@ -325,6 +328,7 @@ function FloatingHeader({
 			<div className="agent-client-inline-header-actions">
 				{!hideWindowControls && (
 					<>
+						<FloatingTransparencyLockButton plugin={plugin} />
 						<HeaderButton
 							iconName="more-vertical"
 							tooltip="More"

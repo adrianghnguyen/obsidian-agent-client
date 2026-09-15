@@ -60,6 +60,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	private unsubscribe: (() => void) | null = null;
 	private idleOpacitySlider: SliderComponent | null = null;
 	private idleOpacityText: TextComponent | null = null;
+	private idleTransparencyToggle: ToggleComponent | null = null;
 	/**
 	 * Open sections: agent rows ("preset:<id>" / "custom:<id>") and
 	 * settings callouts ("settings:<id>"). Deliberately non-persisted
@@ -824,6 +825,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	private renderFloatingChatSection(containerEl: HTMLElement): void {
 		this.idleOpacitySlider = null;
 		this.idleOpacityText = null;
+		this.idleTransparencyToggle = null;
 		const entry = this.plugin.settings.floatingChatEntry;
 		const trailing =
 			entry === "off"
@@ -1046,7 +1048,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						new Setting(nestedEl)
 							.setName("Idle fade delay (ms)")
 							.setDesc(
-								`Fade the floating window this many ms after you leave it (pointer out, no focus inside). Hover, scroll, focus, or active voice recording keeps it opaque. Set to 0 to disable (max ${FLOATING_IDLE_TIMEOUT_MAX_MS}).`,
+								`Fade the floating window this many ms after you leave it (pointer out, no focus inside). Hover, scroll, focus, or active voice recording keeps it opaque. Set to 0 to disable (max ${FLOATING_IDLE_TIMEOUT_MAX_MS}). Also toggled from the floating chat header.`,
 							)
 							.addText((text) =>
 								text
@@ -1128,8 +1130,31 @@ export class AgentClientSettingTab extends PluginSettingTab {
 										await applyIdleOpacity(parsed);
 									});
 							});
+
+						new Setting(nestedEl)
+							.setName("Transparency mode")
+							.setDesc(
+								"Fade floating windows when idle. Turn off to keep every floating window fully opaque. Also toggled from the floating chat header.",
+							)
+							.addToggle((toggle) => {
+								this.idleTransparencyToggle = toggle;
+								toggle
+									.setValue(
+										this.plugin.settings
+											.floatingTransparencyMode,
+									)
+									.setDisabled(idleOpacityDisabled)
+									.onChange(async (value) => {
+										await this.plugin.settingsService.updateSettings(
+											{
+												floatingTransparencyMode:
+													value,
+											},
+										);
+									});
+							});
 					},
-					{ nested: true, foldable: nestedFoldable(5) },
+					{ nested: true, foldable: nestedFoldable(6) },
 				);
 			},
 			{ trailing },
@@ -1141,6 +1166,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			!enabled || !this.plugin.isFloatingChatEnabled();
 		this.idleOpacitySlider?.setDisabled(disabled);
 		this.idleOpacityText?.setDisabled(disabled);
+		this.idleTransparencyToggle?.setDisabled(disabled);
 	}
 
 	private renderBehaviorSection(containerEl: HTMLElement): void {
