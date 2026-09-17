@@ -352,6 +352,8 @@ Use this when ACP connection or spawn fails — console lines like `[AcpClient] 
 
 **Voice live smoke (optional, not CI):** `GEMINI_API_KEY=... npm run smoke:voice` feeds `test/voice-input/fixtures/sample-speech.wav` into Gemini Live and asserts a final transcript.
 
+Cursor Cloud env → Keychain: `.cloud-e2e/secret-bindings.json`. Preset spawn only exports a key if `presetAgents[id].apiKeySecretId` is set. Voice falls back to `agent-client-gemini-live-api-key` when `voiceInput.geminiApiKeySecretId` is empty.
+
 ## ACP Protocol
 
 **Communication**: JSON-RPC 2.0 over stdin/stdout
