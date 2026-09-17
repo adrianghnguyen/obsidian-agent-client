@@ -63,6 +63,7 @@ export default defineConfig({
           { text: "OpenCode", link: "/agent-setup/opencode" },
           { text: "Kiro", link: "/agent-setup/kiro" },
           { text: "Hermes Agent", link: "/agent-setup/hermes" },
+          { text: "Cursor", link: "/agent-setup/cursor" },
           { text: "Custom Agents", link: "/agent-setup/custom-agents" },
         ],
       },

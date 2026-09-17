@@ -17,7 +17,11 @@ import type {
 import type { AcpClient } from "../acp/acp-client";
 import type { ISettingsAccess } from "../services/settings-service";
 import type { ErrorInfo } from "../types/errors";
-import { extractErrorMessage } from "../utils/error-utils";
+import { extractErrorMessage, extractErrorCode } from "../utils/error-utils";
+import {
+	enrichCursorErrorInfo,
+	resolveCursorEndpoint,
+} from "../services/cursor-connection-errors";
 import { getLogger } from "../utils/logger";
 import {
 	type AgentDisplayInfo,
@@ -78,7 +82,7 @@ export function useAgentSession(
 	agentClient: AcpClient,
 	settingsAccess: ISettingsAccess,
 	workingDirectory: string,
-	setErrorInfo: (error: ErrorInfo | null) => void,
+	setErrorInfo: (error: ErrorInfo | null, agentId?: string) => void,
 	initialAgentId?: string,
 ): UseAgentSessionReturn {
 	// ============================================================
@@ -158,11 +162,16 @@ export function useAgentSession(
 					break;
 				case "process_error":
 					setSession((prev) => ({ ...prev, state: "error" }));
-					setErrorInfo({
-						title: update.error.title || "Agent Error",
-						message: update.error.message || "An error occurred",
-						suggestion: update.error.suggestion,
-					});
+					setErrorInfo(
+						{
+							title: update.error.title || "Agent Error",
+							message:
+								update.error.message || "An error occurred",
+							suggestion: update.error.suggestion,
+							link: update.error.link,
+						},
+						update.error.agentId,
+					);
 					break;
 			}
 		},
@@ -205,12 +214,15 @@ export function useAgentSession(
 
 				if (!agentSettings) {
 					setSession((prev) => ({ ...prev, state: "error" }));
-					setErrorInfo({
-						title: "Agent Not Found",
-						message: `Agent with ID "${agentId}" not found in settings`,
-						suggestion:
-							"Please check your agent configuration in settings.",
-					});
+					setErrorInfo(
+						{
+							title: "Agent Not Found",
+							message: `Agent with ID "${agentId}" not found in settings`,
+							suggestion:
+								"Please check your agent configuration in settings.",
+						},
+						agentId,
+					);
 					return;
 				}
 
@@ -298,12 +310,32 @@ export function useAgentSession(
 					return;
 				}
 				setSession((prev) => ({ ...prev, state: "error" }));
-				setErrorInfo({
-					title: "Session Creation Failed",
-					message: `Failed to create new session: ${extractErrorMessage(error)}`,
-					suggestion:
-						"Please check the agent configuration and try again.",
-				});
+				const agentSettings = findAgentSettings(
+					settingsAccess.getSnapshot(),
+					agentId,
+				);
+				const message = extractErrorMessage(error);
+				setErrorInfo(
+					enrichCursorErrorInfo(
+						agentId,
+						{
+							title: "Session Creation Failed",
+							message: `Failed to create new session: ${message}`,
+							suggestion:
+								"Please check the agent configuration and try again.",
+						},
+						{
+							command: agentSettings?.command.trim() || "agent",
+							args: agentSettings?.args ?? ["acp"],
+							endpoint: resolveCursorEndpoint(
+								agentSettings?.args ?? ["acp"],
+							),
+							errorMessage: message,
+							acpErrorCode: extractErrorCode(error),
+						},
+					),
+					agentId,
+				);
 			}
 		},
 		[agentClient, settingsAccess, workingDirectory, setErrorInfo],

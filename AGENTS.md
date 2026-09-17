@@ -28,7 +28,7 @@ User-facing changes: log under `CHANGELOG.md` `[Unreleased]` when ready; version
 # Agent Client Plugin - LLM Developer Guide
 
 ## Overview
-Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, custom agents) via ACP.
+Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, custom agents) via ACP.
 
 **Tech**: React 19, TypeScript, Obsidian API, Agent Client Protocol (ACP)
 
@@ -369,6 +369,7 @@ Use this when ACP connection or spawn fails — console lines like `[AcpClient] 
 - OpenCode: `opencode-ai` (CLI-managed auth, no API key env)
 - Kiro: `kiro-cli` install script (KIRO_API_KEY, optional)
 - Hermes Agent: install script (CLI-managed auth, no API key env)
+- Cursor: `agent acp` via Cursor CLI (`curl https://cursor.com/install -fsS | bash`; auth via `agent login` or `CURSOR_API_KEY`)
 - Custom: Any ACP-compatible agent
 
 ---

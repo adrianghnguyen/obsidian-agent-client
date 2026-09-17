@@ -67,6 +67,7 @@ function makeSettings(
 			"hermes-agent": preset("hermes-agent", "Hermes Agent", "hermes", {
 				args: ["acp"],
 			}),
+			cursor: preset("cursor", "Cursor", "agent", { args: ["acp"] }),
 		},
 		customAgents: [],
 		defaultAgentId: "",
@@ -87,6 +88,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			{ id: "opencode", displayName: "OpenCode" },
 			{ id: "kiro-cli", displayName: "Kiro" },
 			{ id: "hermes-agent", displayName: "Hermes Agent" },
+			{ id: "cursor", displayName: "Cursor" },
 			{ id: "my-custom", displayName: "My Custom" },
 		]);
 	});
@@ -119,6 +121,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			"opencode",
 			"kiro-cli",
 			"hermes-agent",
+			"cursor",
 			"my-custom",
 		]);
 	});
@@ -140,6 +143,7 @@ describe("getAllAgentsFromSettings", () => {
 			{ id: "opencode", displayName: "OpenCode" },
 			{ id: "kiro-cli", displayName: "Kiro" },
 			{ id: "hermes-agent", displayName: "Hermes Agent" },
+			{ id: "cursor", displayName: "Cursor" },
 			{ id: "off-custom", displayName: "Off Custom" },
 		]);
 	});

@@ -26,8 +26,10 @@ import {
 } from "../services/trace-verbosity";
 import {
 	PRESET_AGENTS,
+	CURSOR_PRESET_ID,
 	type PresetAgentDefinition,
 } from "../services/preset-agents";
+import { checkCursorCliHealth } from "../services/cursor-cli-health";
 import {
 	getAvailableAgentsFromSettings,
 	isAgentEnabled,
@@ -2032,6 +2034,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				: def.installHint.default,
 		);
 
+		if (def.presetId === CURSOR_PRESET_ID) {
+			this.renderCursorHealthCheck(bodyEl, preset);
+		}
+
 		new Setting(bodyEl)
 			.setName("Arguments")
 			.setDesc(
@@ -2409,6 +2415,73 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			candidate = `${base}-${counter}`;
 		}
 		return candidate;
+	}
+
+	private renderCursorHealthCheck(
+		bodyEl: HTMLElement,
+		preset: PresetAgentUserSettings,
+	): void {
+		const resultEl = bodyEl.createDiv({
+			cls: "agent-client-cursor-health-results",
+		});
+
+		const renderChecks = (
+			checks: Array<{ ok: boolean; message: string }>,
+			summary: string,
+		) => {
+			resultEl.empty();
+			const list = resultEl.createEl("ul");
+			for (const check of checks) {
+				list.createEl("li", {
+					text: check.message,
+					cls: check.ok
+						? "agent-client-cursor-health-ok"
+						: "agent-client-cursor-health-fail",
+				});
+			}
+			resultEl.createEl("p", {
+				text: summary,
+				cls: "setting-item-description",
+			});
+		};
+
+		new Setting(bodyEl)
+			.setName("Setup check")
+			.setDesc(
+				"Verify `agent` is on PATH, `agent acp` is available, and you are signed in.",
+			)
+			.addButton((btn) => {
+				btn.setButtonText("Check setup").onClick(async () => {
+					btn.setButtonText("Checking…");
+					btn.setDisabled(true);
+					resultEl.empty();
+					try {
+						const envRecord: Record<string, string> = {};
+						for (const entry of preset.env) {
+							if (entry.key) {
+								envRecord[entry.key] = entry.value ?? "";
+							}
+						}
+						const result = await checkCursorCliHealth({
+							command: preset.command.trim() || "agent",
+							args:
+								preset.args.length > 0 ? preset.args : ["acp"],
+							wslMode: this.plugin.settings.windowsWslMode,
+							wslDistribution:
+								this.plugin.settings.windowsWslDistribution,
+							env: envRecord,
+						});
+						renderChecks(result.checks, result.summary);
+					} catch {
+						resultEl.setText(
+							"Health check failed to run. Try again from a terminal with `agent status`.",
+						);
+					} finally {
+						btn.setButtonText("Check setup");
+						btn.setDisabled(false);
+					}
+				});
+			});
 	}
 
 	/**

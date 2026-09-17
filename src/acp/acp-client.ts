@@ -11,6 +11,10 @@ import type {
 } from "../types/session";
 import type { PromptContent } from "../types/chat";
 import type { ProcessError } from "../types/errors";
+import {
+	enrichCursorProcessError,
+	resolveCursorEndpoint,
+} from "../services/cursor-connection-errors";
 import { AcpTypeConverter } from "./type-converter";
 import { TerminalManager } from "./terminal-handler";
 import { PermissionManager } from "./permission-handler";
@@ -172,6 +176,15 @@ export class AcpClient {
 
 		const command = config.command.trim();
 		const args = config.args.length > 0 ? [...config.args] : [];
+		const cursorEndpoint = resolveCursorEndpoint(args, config.env || {});
+
+		const enrichProcessError = (error: ProcessError): ProcessError =>
+			enrichCursorProcessError(error, {
+				command,
+				args,
+				endpoint: cursorEndpoint,
+				stderr: this.recentStderr,
+			});
 
 		this.logger.log(
 			`[AcpClient] Active agent: ${config.displayName} (${config.id})`,
@@ -293,7 +306,7 @@ export class AcpClient {
 				error,
 			);
 
-			const processError: ProcessError = {
+			const processError = enrichProcessError({
 				type: "spawn_failed",
 				agentId: config.id,
 				errorCode: (error as NodeJS.ErrnoException).code,
@@ -304,7 +317,7 @@ export class AcpClient {
 					agentLabel,
 					this.plugin.settings.windowsWslMode,
 				),
-			};
+			});
 
 			this.handler.emitSessionUpdate({
 				type: "process_error",
@@ -324,7 +337,7 @@ export class AcpClient {
 			if (code === 127) {
 				this.logger.error(`[AcpClient] Command not found: ${command}`);
 
-				const processError: ProcessError = {
+				const processError = enrichProcessError({
 					type: "command_not_found",
 					agentId: config.id,
 					exitCode: code,
@@ -334,7 +347,7 @@ export class AcpClient {
 						command,
 						this.plugin.settings.windowsWslMode,
 					),
-				};
+				});
 
 				this.handler.emitSessionUpdate({
 					type: "process_error",
@@ -368,7 +381,7 @@ export class AcpClient {
 					this.handler.emitSessionUpdate({
 						type: "process_error",
 						sessionId: this.currentSessionId ?? "",
-						error: unexpectedExit,
+						error: enrichProcessError(unexpectedExit),
 					});
 				}
 			}

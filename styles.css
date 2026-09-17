@@ -1051,6 +1051,18 @@ If your plugin does not need CSS, delete this file.
 	font-size: 14px;
 }
 
+.agent-client-cursor-health-results {
+	margin: 0 0 12px 0;
+}
+
+.agent-client-cursor-health-ok {
+	color: var(--text-success);
+}
+
+.agent-client-cursor-health-fail {
+	color: var(--text-error);
+}
+
 /* ============================================================
    Notification Overlay (displayed above input field)
    Supports variants: --error (default), --info
