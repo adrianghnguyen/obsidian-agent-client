@@ -1,7 +1,9 @@
 import * as React from "react";
-const { useEffect, useRef, useState, useMemo } = React;
+const { useEffect, useRef, useState, useMemo, useCallback } = React;
 import { setIcon } from "obsidian";
 import { formatVoiceDuration } from "../voice-input/format-voice-duration";
+import { composerEnterShouldSend } from "../voice-input/composer-enter";
+import type { SendMessageShortcut } from "../types/settings";
 
 const LEVEL_BAR_COUNT = 5;
 
@@ -11,6 +13,7 @@ export interface VoiceInputInlineProps {
 	onStart: () => void;
 	onStop: () => void;
 	onStopAndSend: () => void;
+	sendMessageShortcut?: SendMessageShortcut;
 	disabled?: boolean;
 }
 
@@ -48,6 +51,7 @@ export function VoiceInputInline({
 	onStart,
 	onStop,
 	onStopAndSend,
+	sendMessageShortcut = "enter",
 	disabled = false,
 }: VoiceInputInlineProps) {
 	const micRef = useRef<HTMLButtonElement>(null);
@@ -91,6 +95,30 @@ export function VoiceInputInline({
 		return () => window.clearInterval(id);
 	}, [isListening]);
 
+	const handleRecordingKeyDownCapture = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (
+				!composerEnterShouldSend(
+					{
+						key: e.key,
+						shiftKey: e.shiftKey,
+						metaKey: e.metaKey,
+						ctrlKey: e.ctrlKey,
+						isComposing: e.nativeEvent.isComposing,
+					},
+					sendMessageShortcut,
+				)
+			) {
+				return;
+			}
+			/* Capture so Enter on Stop does not click Stop (stop-without-send). */
+			e.preventDefault();
+			e.stopPropagation();
+			onStopAndSend();
+		},
+		[onStopAndSend, sendMessageShortcut],
+	);
+
 	if (!isListening) {
 		return (
 			<div className="agent-client-voice-inline">
@@ -108,7 +136,10 @@ export function VoiceInputInline({
 	}
 
 	return (
-		<div className="agent-client-voice-inline is-recording">
+		<div
+			className="agent-client-voice-inline is-recording"
+			onKeyDownCapture={handleRecordingKeyDownCapture}
+		>
 			<div className="agent-client-voice-recording">
 				<button
 					ref={stopRef}

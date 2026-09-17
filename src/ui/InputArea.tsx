@@ -23,6 +23,7 @@ import { useFloatingPresence } from "./FloatingPresenceContext";
 import type { TranscriptSink } from "../voice-input/types";
 import { VoiceTranscriptAccumulator } from "../voice-input/transcript-accumulation";
 import { captureVoiceMessageForSend } from "../voice-input/format-voice-duration";
+import { composerEnterShouldSend } from "../voice-input/composer-enter";
 import {
 	endVoiceTranscriptTurn,
 	isCurrentVoiceSink,
@@ -853,6 +854,7 @@ export function InputArea({
 		void voiceInput.startListening(sink);
 		setIsVoiceListening(true);
 		presenceLatch?.hold(ENGAGEMENT_VOICE_INPUT);
+		textareaRef.current?.focus();
 	}, [
 		plugin,
 		inputValue,
@@ -1043,24 +1045,37 @@ export function InputArea({
 				return;
 			}
 
-			// Normal input handling - check if should send based on shortcut setting
-			const hasCmdCtrl = e.metaKey || e.ctrlKey;
 			if (
-				e.key === "Enter" &&
-				(!e.nativeEvent.isComposing || hasCmdCtrl)
+				composerEnterShouldSend(
+					{
+						key: e.key,
+						shiftKey: e.shiftKey,
+						metaKey: e.metaKey,
+						ctrlKey: e.ctrlKey,
+						isComposing: e.nativeEvent.isComposing,
+					},
+					settings.sendMessageShortcut,
+				)
 			) {
-				const shouldSend =
-					settings.sendMessageShortcut === "enter"
-						? !e.shiftKey // Enter mode: send unless Shift is pressed
-						: hasCmdCtrl; // Cmd+Enter mode: send only with Cmd/Ctrl
-
-				if (shouldSend) {
-					e.preventDefault();
-					if (!isButtonDisabled && !isSending) {
-						void handleSendOrStop();
-					}
+				e.preventDefault();
+				/*
+				 * While live dictation is active, Enter submits the current
+				 * composer/transcript buffer (same path as the voice send
+				 * control). Do not require the toolbar send button to be
+				 * enabled: the buffer lives on the input ref and may include
+				 * an in-flight interim. Shift+Enter still falls through as
+				 * a newline.
+				 */
+				if (
+					isVoiceListeningRef.current ||
+					plugin.voiceInput?.isListening
+				) {
+					void handleVoiceStopAndSend();
+					return;
 				}
-				// If not shouldSend, allow default behavior (newline)
+				if (!isButtonDisabled && !isSending) {
+					void handleSendOrStop();
+				}
 			}
 		},
 		[
@@ -1069,6 +1084,8 @@ export function InputArea({
 			isSending,
 			isButtonDisabled,
 			handleSendOrStop,
+			handleVoiceStopAndSend,
+			plugin,
 			settings.sendMessageShortcut,
 		],
 	);
@@ -1255,6 +1272,7 @@ export function InputArea({
 							onStart={handleStartVoice}
 							onStop={() => void stopVoiceListening()}
 							onStopAndSend={() => void handleVoiceStopAndSend()}
+							sendMessageShortcut={settings.sendMessageShortcut}
 							disabled={!isSessionReady || isRestoringSession}
 						/>
 					)}
