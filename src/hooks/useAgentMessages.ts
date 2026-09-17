@@ -24,6 +24,12 @@ import type { ErrorInfo } from "../types/errors";
 import type { IMentionService } from "../utils/mention-parser";
 import { preparePrompt, sendPreparedPrompt } from "../services/message-sender";
 import { extractErrorMessage } from "../utils/error-utils";
+import {
+	enrichAntigravityErrorInfo,
+	mapAntigravityAcpError,
+	resolveAntigravityEndpoint,
+} from "../services/antigravity-errors";
+import { ANTIGRAVITY_PRESET_ID } from "../services/antigravity-paths";
 import { Platform } from "obsidian";
 import {
 	rebuildToolCallIndex,
@@ -392,26 +398,60 @@ export function useAgentMessages(
 						setLastUserMessage(null);
 					} else {
 						setIsSending(false);
-						setErrorInfo(
+						const settings = settingsAccess.getSnapshot();
+						const endpoint =
+							session.agentId === ANTIGRAVITY_PRESET_ID
+								? resolveAntigravityEndpoint(
+										settings.presetAgents.antigravity?.command,
+									)
+								: "";
+						const baseError = result.error
+							? {
+									title: result.error.title,
+									message: result.error.message,
+									suggestion: result.error.suggestion,
+								}
+							: {
+									title: "Send Message Failed",
+									message: "Failed to send message",
+								};
+						if (
+							session.agentId === ANTIGRAVITY_PRESET_ID &&
 							result.error
-								? {
-										title: result.error.title,
-										message: result.error.message,
-										suggestion: result.error.suggestion,
-									}
-								: {
-										title: "Send Message Failed",
-										message: "Failed to send message",
-									},
-						);
+						) {
+							setErrorInfo(
+								mapAntigravityAcpError(
+									undefined,
+									result.error.message,
+									endpoint,
+								),
+							);
+						} else {
+							setErrorInfo(
+								enrichAntigravityErrorInfo(
+									session.agentId,
+									endpoint,
+									baseError,
+								),
+							);
+						}
 					}
 				} catch (error) {
 					if (generationRef.current !== generation) return;
 					setIsSending(false);
-					setErrorInfo({
-						title: "Send Message Failed",
-						message: `Failed to send message: ${extractErrorMessage(error)}`,
-					});
+					const settings = settingsAccess.getSnapshot();
+					const endpoint =
+						session.agentId === ANTIGRAVITY_PRESET_ID
+							? resolveAntigravityEndpoint(
+									settings.presetAgents.antigravity?.command,
+								)
+							: "";
+					setErrorInfo(
+						enrichAntigravityErrorInfo(session.agentId, endpoint, {
+							title: "Send Message Failed",
+							message: `Failed to send message: ${extractErrorMessage(error)}`,
+						}),
+					);
 				}
 			})();
 

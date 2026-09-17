@@ -65,6 +65,13 @@ The agent requires authentication before processing requests.
 **For Hermes Agent:**
 - Run `hermes model` in Terminal to configure a provider (there is no API key field in the plugin). See [Hermes Agent Setup](/agent-setup/hermes#authentication).
 
+**For Antigravity:**
+- Run `agy` in Terminal and sign in, or configure Gemini API key mode. Use **Settings → Antigravity → Health check** before chatting. See [Antigravity Setup](/agent-setup/antigravity#authentication).
+
+### Antigravity
+
+Chat banners name specific failure modes (auth, missing bridge, unreachable endpoint, timeout, process exit). Run the **Health check** in Settings and follow the banner's next step. See [Antigravity Setup — Chat error messages](/agent-setup/antigravity#chat-error-messages).
+
 ### "No Authentication Methods" error
 
 The agent didn't provide authentication options.

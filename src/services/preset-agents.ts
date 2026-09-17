@@ -1,3 +1,5 @@
+import { getDefaultAntigravityBridgePath } from "./antigravity-paths";
+
 /**
  * Static registry of preset (built-in) agents.
  *
@@ -256,6 +258,22 @@ export const PRESET_AGENTS: readonly PresetAgentDefinition[] = [
 				'Command name or path to hermes. Use just "hermes" to let the login shell resolve it, or enter an absolute path.',
 		},
 		docsPage: "hermes",
+	},
+	{
+		presetId: "antigravity",
+		defaultDisplayName: "Antigravity",
+		defaultCommand: getDefaultAntigravityBridgePath(),
+		defaultArgs: [],
+		absorbsCustomAgentId: "antigravity",
+		installHint: {
+			default:
+				"Install from the ACP Registry (e.g. Zed → Agents → Antigravity) or place agy_acp_server.par in ~/Library/agy-acp-server/ on macOS",
+		},
+		settingsCopy: {
+			pathDesc:
+				"Absolute path to agy_acp_server.par (Antigravity ACP bridge). The agy CLI has no acp subcommand — Agent Client spawns this binary directly. Use Auto-detect or the health check below.",
+		},
+		docsPage: "antigravity",
 	},
 ];
 

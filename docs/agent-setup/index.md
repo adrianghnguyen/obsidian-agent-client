@@ -13,6 +13,7 @@ Agent Client supports multiple AI agents through the [Agent Client Protocol (ACP
 | [OpenCode](./opencode) | Multi-provider | `opencode-ai` |
 | [Kiro](./kiro) | AWS | install script |
 | [Hermes Agent](./hermes) | Multi-provider | install script |
+| [Antigravity](./antigravity) | Google | ACP bridge (`agy_acp_server.par`) |
 | [Custom Agents](./custom-agents) | Various | Any ACP-compatible agent |
 
 ## Common Setup Steps

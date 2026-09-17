@@ -29,6 +29,12 @@ import {
 	createInitialSession,
 } from "../services/session-helpers";
 import {
+	enrichAntigravityErrorInfo,
+	isAntigravityAgent,
+	mapAntigravityProcessError,
+	resolveAntigravityEndpoint,
+} from "../services/antigravity-errors";
+import {
 	applyLegacyValue,
 	tryRestoreConfigOption,
 	restoreSavedConfigOptions,
@@ -158,11 +164,23 @@ export function useAgentSession(
 					break;
 				case "process_error":
 					setSession((prev) => ({ ...prev, state: "error" }));
-					setErrorInfo({
-						title: update.error.title || "Agent Error",
-						message: update.error.message || "An error occurred",
-						suggestion: update.error.suggestion,
-					});
+					{
+						const settings = settingsAccess.getSnapshot();
+						const endpoint = isAntigravityAgent(update.error.agentId)
+							? resolveAntigravityEndpoint(
+									settings.presetAgents.antigravity?.command,
+								)
+							: "";
+						const errorInfo = isAntigravityAgent(update.error.agentId)
+							? mapAntigravityProcessError(update.error, endpoint)
+							: {
+									title: update.error.title || "Agent Error",
+									message:
+										update.error.message || "An error occurred",
+									suggestion: update.error.suggestion,
+								};
+						setErrorInfo(errorInfo);
+					}
 					break;
 			}
 		},
@@ -298,12 +316,19 @@ export function useAgentSession(
 					return;
 				}
 				setSession((prev) => ({ ...prev, state: "error" }));
-				setErrorInfo({
-					title: "Session Creation Failed",
-					message: `Failed to create new session: ${extractErrorMessage(error)}`,
-					suggestion:
-						"Please check the agent configuration and try again.",
-				});
+				const settings = settingsAccess.getSnapshot();
+				const agentSettings = findAgentSettings(settings, agentId);
+				const endpoint = isAntigravityAgent(agentId)
+					? resolveAntigravityEndpoint(agentSettings?.command)
+					: "";
+				setErrorInfo(
+					enrichAntigravityErrorInfo(agentId, endpoint, {
+						title: "Session Creation Failed",
+						message: `Failed to create new session: ${extractErrorMessage(error)}`,
+						suggestion:
+							"Please check the agent configuration and try again.",
+					}),
+				);
 			}
 		},
 		[agentClient, settingsAccess, workingDirectory, setErrorInfo],
