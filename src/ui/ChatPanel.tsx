@@ -631,7 +631,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 					.setIcon("copy-plus")
 					.onClick(() => {
 						void plugin.openNewChatViewWithAgent(
-							plugin.settings.defaultAgentId,
+							getDefaultAgentId(plugin.settings),
 						);
 					});
 			});

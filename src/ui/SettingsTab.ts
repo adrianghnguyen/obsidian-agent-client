@@ -1743,7 +1743,11 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Default agent")
-			.setDesc("Choose which agent is used when opening a new chat view.")
+			.setDesc(
+				this.plugin.settings.defaultAgentPerDevice
+					? "Used when opening a new chat view on this computer only."
+					: "Used when opening a new chat view on every device (synced).",
+			)
 			.addDropdown((dropdown) => {
 				this.agentSelector = dropdown;
 				this.populateAgentDropdown(dropdown);
@@ -1755,6 +1759,27 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					};
 					this.plugin.ensureDefaultAgentId();
 					await this.plugin.saveSettingsAndNotify(nextSettings);
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Default agent scope")
+			.setDesc(
+				"All devices shares the default via Obsidian Sync. This device only keeps a local overlay that does not overwrite other computers.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption("shared", "All devices (sync)");
+				dropdown.addOption("device", "This device only");
+				dropdown.setValue(
+					this.plugin.settings.defaultAgentPerDevice
+						? "device"
+						: "shared",
+				);
+				dropdown.onChange(async (value) => {
+					await this.plugin.setDefaultAgentPerDevice(
+						value === "device",
+					);
+					this.renderContent();
 				});
 			});
 	}
