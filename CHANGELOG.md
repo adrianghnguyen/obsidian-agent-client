@@ -8,6 +8,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Floating chat transparency lock** — when idle fade delay is greater than 0, an icon in the floating header (next to More / close) locks every floating window fully opaque or restores idle fade. Persists across restarts; delay 0 hides the button.
 
 ### Changed
+- **Voice input** — pressing Enter while dictating sends the current composer (typed text plus live transcript), same as the voice send control. Shift+Enter still inserts a newline; Stop still ends dictation without sending.
 - **Verbosity menu** uses a short header summary with per-option descriptions (Hidden, Compact, Full) in the chat toolbar dropdown.
 - **Compact verbosity** groups tools across the whole assistant turn (not per bubble), including singles (`Read · 1`), in-progress tools, edits, and `other` tools (TODOs). The final thought is peeled onto the timeline and expanded; other bodies stay folded until you expand a card.
 - **Hidden verbosity** shows one folded turn-level working buffer (tools, intermediate thoughts, and the last thought). Expanding the buffer reveals Compact-style groups, not full tool cards.

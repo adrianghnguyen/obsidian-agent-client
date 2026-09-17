@@ -27,6 +27,10 @@ import {
 	endVoiceTranscriptTurn,
 	isCurrentVoiceSink,
 } from "../voice-input/voice-turn-end";
+import {
+	resolveVoiceComposerBuffer,
+	shouldCommitVoiceTurnOnEnter,
+} from "../voice-input/voice-enter-commit";
 import { ENGAGEMENT_VOICE_INPUT } from "../services/engagement-latch";
 import { getLogger } from "../utils/logger";
 import type { ErrorInfo } from "../types/errors";
@@ -333,6 +337,7 @@ export function InputArea({
 
 	// Refs
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const inputBoxRef = useRef<HTMLDivElement>(null);
 	const dragCounterRef = useRef(0);
 
 	const [isVoiceListening, setIsVoiceListening] = useState(false);
@@ -785,11 +790,18 @@ export function InputArea({
 			return;
 		}
 
-		// Allow sending if there's text OR attachments
-		if (!inputValue.trim() && attachedFiles.length === 0) return;
+		const messageToSend = captureVoiceMessageForSend(
+			isVoiceListeningRef.current
+				? resolveVoiceComposerBuffer(
+						textareaRef.current?.value ?? "",
+						voiceAccumulatorRef.current.getPreview(),
+						inputValueRef.current,
+					)
+				: inputValueRef.current,
+		);
 
-		// Save input value and files before clearing
-		const messageToSend = inputValue.trim();
+		// Allow sending if there's text OR attachments
+		if (!messageToSend && attachedFiles.length === 0) return;
 		const filesToSend =
 			attachedFiles.length > 0 ? [...attachedFiles] : undefined;
 
@@ -805,7 +817,6 @@ export function InputArea({
 		await onSendMessage(messageToSend, filesToSend);
 	}, [
 		isSending,
-		inputValue,
 		attachedFiles,
 		onSendMessage,
 		onStopGeneration,
@@ -853,6 +864,9 @@ export function InputArea({
 		void voiceInput.startListening(sink);
 		setIsVoiceListening(true);
 		presenceLatch?.hold(ENGAGEMENT_VOICE_INPUT);
+		window.setTimeout(() => {
+			textareaRef.current?.focus();
+		}, 0);
 	}, [
 		plugin,
 		inputValue,
@@ -864,7 +878,13 @@ export function InputArea({
 	]);
 
 	const handleVoiceStopAndSend = useCallback(async () => {
-		const messageToSend = captureVoiceMessageForSend(inputValueRef.current);
+		const messageToSend = captureVoiceMessageForSend(
+			resolveVoiceComposerBuffer(
+				textareaRef.current?.value ?? "",
+				voiceAccumulatorRef.current.getPreview(),
+				inputValueRef.current,
+			),
+		);
 		const filesToSend =
 			attachedFiles.length > 0 ? [...attachedFiles] : undefined;
 
@@ -887,6 +907,53 @@ export function InputArea({
 		onAttachedFilesChange,
 		resetHistory,
 		onSendMessage,
+	]);
+
+	/*
+	 * While dictating, Enter on the stop/send controls would activate the
+	 * focused button (often Stop) instead of sending. Capture at the input
+	 * box so Enter commits the composer; Shift+Enter still reaches the
+	 * textarea as a newline.
+	 */
+	useEffect(() => {
+		if (!isVoiceListening) return;
+		const box = inputBoxRef.current;
+		if (!box) return;
+		const onKeyDown = (e: KeyboardEvent) => {
+			if (
+				!shouldCommitVoiceTurnOnEnter(
+					{
+						key: e.key,
+						shiftKey: e.shiftKey,
+						metaKey: e.metaKey,
+						ctrlKey: e.ctrlKey,
+						isComposing: e.isComposing,
+					},
+					{
+						isVoiceListening: isVoiceListeningRef.current,
+						suggestionOpen:
+							slashCommands.isOpen || mentions.isOpen,
+					},
+				)
+			) {
+				return;
+			}
+			e.preventDefault();
+			e.stopPropagation();
+			if (!isSending) {
+				void handleVoiceStopAndSend();
+			}
+		};
+		box.addEventListener("keydown", onKeyDown, true);
+		return () => {
+			box.removeEventListener("keydown", onKeyDown, true);
+		};
+	}, [
+		isVoiceListening,
+		isSending,
+		handleVoiceStopAndSend,
+		slashCommands.isOpen,
+		mentions.isOpen,
 	]);
 
 	const prevInputValueRef = useRef(inputValue);
@@ -1038,6 +1105,29 @@ export function InputArea({
 				return;
 			}
 
+			const suggestionOpen = slashCommands.isOpen || mentions.isOpen;
+			if (
+				shouldCommitVoiceTurnOnEnter(
+					{
+						key: e.key,
+						shiftKey: e.shiftKey,
+						metaKey: e.metaKey,
+						ctrlKey: e.ctrlKey,
+						isComposing: e.nativeEvent.isComposing,
+					},
+					{
+						isVoiceListening: isVoiceListeningRef.current,
+						suggestionOpen,
+					},
+				)
+			) {
+				e.preventDefault();
+				if (!isSending) {
+					void handleVoiceStopAndSend();
+				}
+				return;
+			}
+
 			// Handle input history navigation (ArrowUp/ArrowDown)
 			if (handleHistoryKeyDown(e, textareaRef.current)) {
 				return;
@@ -1069,6 +1159,9 @@ export function InputArea({
 			isSending,
 			isButtonDisabled,
 			handleSendOrStop,
+			handleVoiceStopAndSend,
+			slashCommands.isOpen,
+			mentions.isOpen,
 			settings.sendMessageShortcut,
 		],
 	);
@@ -1197,6 +1290,7 @@ export function InputArea({
 
 			{/* Input Box - flexbox container with border */}
 			<div
+				ref={inputBoxRef}
 				className={`agent-client-chat-input-box ${isDraggingOver ? "agent-client-dragging-over" : ""}`}
 				onDragOver={handleDragOver}
 				onDragEnter={handleDragEnter}
