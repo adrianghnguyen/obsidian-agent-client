@@ -47,4 +47,24 @@ describe("endVoiceTranscriptTurn", () => {
 		expect(isCurrentVoiceSink(sinkGeneration, nextSinkId)).toBe(true);
 		expect(acc.applyFinal("next turn")).toBe("next turn");
 	});
+
+	it("Enter-during-listen send captures the composer buffer then clears the turn", () => {
+		const acc = new VoiceTranscriptAccumulator();
+		const sinkGeneration = { current: 0 };
+		acc.begin("typed prefix");
+		++sinkGeneration.current;
+		acc.applyInterim("hello");
+		acc.applyFinal("hello from voice");
+
+		const listening = true;
+		const shouldSend = true;
+		expect(listening && shouldSend).toBe(true);
+
+		const messageToSend = captureVoiceMessageForSend(acc.getPreview());
+		endVoiceTranscriptTurn(acc, sinkGeneration);
+
+		expect(messageToSend).toBe("typed prefix hello from voice");
+		expect(acc.getPreview()).toBe("");
+		expect(acc.discardInterim()).toBe("");
+	});
 });
