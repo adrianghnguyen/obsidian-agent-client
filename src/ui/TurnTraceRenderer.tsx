@@ -5,7 +5,7 @@ import type { TraceVerbosity } from "../types/settings";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
 import type { TurnSegment, ThoughtItem } from "../services/trace-turn";
-import { collectVisibleTurnRows } from "../services/trace-turn";
+import { collectVisibleTurnRows, flattenTurnContents } from "../services/trace-turn";
 import {
 	groupTraceContent,
 	hiddenTraceSummary,
@@ -17,6 +17,8 @@ import { ToolCallBlock } from "./ToolCallBlock";
 import { PlanBlock } from "./PlanBlock";
 import { LucideIcon } from "./shared/IconButton";
 import { MarkdownRenderer } from "./shared/MarkdownRenderer";
+import { CopyButton } from "./shared/CopyButton";
+import { hasCopyableText } from "../utils/message-copy";
 
 interface TurnTraceRendererProps {
 	segment: TurnSegment;
@@ -393,9 +395,13 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 	onApprovePermission,
 }: TurnTraceRendererProps) {
 	const rows = collectVisibleTurnRows(segment, messages, traceVerbosity);
+	const answerContents = flattenTurnContents(segment, messages);
+	const canCopy = hasCopyableText(answerContents);
 
 	return (
-		<div className="agent-client-message-renderer agent-client-message-assistant agent-client-turn-trace">
+		<div
+			className={`agent-client-message-renderer agent-client-message-assistant agent-client-turn-trace${canCopy ? " agent-client-message-has-copy" : ""}`}
+		>
 			{rows.map((row, idx) => {
 				if (row.type === "hiddenBuffer") {
 					return (
@@ -489,6 +495,11 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 				}
 				return null;
 			})}
+			{canCopy && (
+				<div className="agent-client-message-actions">
+					<CopyButton contents={answerContents} />
+				</div>
+			)}
 		</div>
 	);
 });

@@ -1,5 +1,5 @@
 import * as React from "react";
-const { useState, useCallback, useEffect } = React;
+const { useState, useEffect } = React;
 import { setIcon } from "obsidian";
 import type {
 	ChatMessage,
@@ -22,6 +22,8 @@ import { TerminalBlock } from "./TerminalBlock";
 import { ToolCallBlock } from "./ToolCallBlock";
 import { PlanBlock } from "./PlanBlock";
 import { LucideIcon } from "./shared/IconButton";
+import { CopyButton } from "./shared/CopyButton";
+import { hasCopyableText } from "../utils/message-copy";
 
 // ---------------------------------------------------------------------------
 // TextWithMentions (internal helper)
@@ -297,52 +299,6 @@ export interface MessageBubbleProps {
 	) => Promise<void>;
 }
 
-/**
- * Extract plain text from message contents for clipboard copy.
- */
-function extractTextContent(contents: MessageContent[]): string {
-	return contents
-		.filter((c) => c.type === "text" || c.type === "text_with_context")
-		.map((c) => ("text" in c ? c.text : ""))
-		.join("\n");
-}
-
-/**
- * Copy button that shows a check icon briefly after copying.
- * Uses callback ref for Obsidian's setIcon DOM manipulation.
- */
-function CopyButton({ contents }: { contents: MessageContent[] }) {
-	const [copied, setCopied] = useState(false);
-
-	const handleCopy = useCallback(() => {
-		const text = extractTextContent(contents);
-		if (!text) return;
-		void navigator.clipboard
-			.writeText(text)
-			.then(() => {
-				setCopied(true);
-				window.setTimeout(() => setCopied(false), 2000);
-			})
-			.catch(() => {});
-	}, [contents]);
-
-	const iconRef = useCallback(
-		(el: HTMLButtonElement | null) => {
-			if (el) setIcon(el, copied ? "check" : "copy");
-		},
-		[copied],
-	);
-
-	return (
-		<button
-			className="clickable-icon agent-client-message-action-button"
-			onClick={handleCopy}
-			aria-label="Copy message"
-			ref={iconRef}
-		/>
-	);
-}
-
 function noisyKindIconName(kind: string): string {
 	switch (kind) {
 		case "read":
@@ -565,10 +521,15 @@ export const MessageBubble = React.memo(function MessageBubble({
 	onApprovePermission,
 }: MessageBubbleProps) {
 	const groups = groupTraceContent(message.content, traceVerbosity);
+	const canCopy = hasCopyableText(message.content);
+	const roleClass =
+		message.role === "user"
+			? "agent-client-message-user"
+			: "agent-client-message-assistant";
 
 	return (
 		<div
-			className={`agent-client-message-renderer ${message.role === "user" ? "agent-client-message-user" : "agent-client-message-assistant"}`}
+			className={`agent-client-message-renderer ${roleClass}${canCopy ? " agent-client-message-has-copy" : ""}`}
 		>
 			{groups.map((group, idx) => {
 				if (group.type === "attachments") {
@@ -637,11 +598,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 					</div>
 				);
 			})}
-			{message.content.some(
-				(c) =>
-					(c.type === "text" || c.type === "text_with_context") &&
-					c.text,
-			) && (
+			{canCopy && (
 				<div className="agent-client-message-actions">
 					<CopyButton contents={message.content} />
 				</div>
