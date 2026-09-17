@@ -54,7 +54,7 @@ Click the **×** button next to the auto-mention badge above the input field. Cl
 
 Click the **⋮** (ellipsis) menu in the chat header. Under **"Switch agent"**, select the agent you want to use. This is a one-time change for that view only.
 
-To change the default agent for new chat views, go to **Settings → Agent Client → Default agent**.
+To change the default agent for new chat views, go to **Settings → Agent Client → Default agent**. Use **Default agent scope** to share that default across devices or keep it on this computer only.
 
 ### Can I run multiple agents at the same time?
 

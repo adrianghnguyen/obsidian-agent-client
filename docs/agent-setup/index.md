@@ -35,4 +35,4 @@ For Windows users, we recommend using **WSL Mode** for better compatibility:
 
 ## Switching Agents
 
-Once you have multiple agents configured, you can switch between them using the **⋮** menu in the chat header. To change the default agent for new chat views, go to **Settings → Agent Client → Default agent**.
+Once you have multiple agents configured, you can switch between them using the **⋮** menu in the chat header. To change the default agent for new chat views, go to **Settings → Agent Client → Default agent**. Use **Default agent scope** to share that default across devices or keep it on this computer only.

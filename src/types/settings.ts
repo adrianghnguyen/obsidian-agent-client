@@ -51,6 +51,12 @@ export interface AgentClientPluginSettings {
 	customAgents: CustomAgentSettings[];
 	/** Default agent ID for new views (renamed from activeAgentId for multi-session) */
 	defaultAgentId: string;
+	/**
+	 * When true, defaultAgentId is stored per device (localStorage) and the
+	 * synced data.json value is left unchanged. When false, the default is
+	 * shared across devices via Obsidian Sync.
+	 */
+	defaultAgentPerDevice: boolean;
 	autoAllowPermissions: boolean;
 	autoMentionActiveNote: boolean;
 	/** Surface `[[wikilinks]]` inside note content as resolved metadata so the agent can decide which links to follow */
