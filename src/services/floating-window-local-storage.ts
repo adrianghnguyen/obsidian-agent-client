@@ -18,11 +18,11 @@ export interface FloatingWindowLocalLayout {
 /** Minimal App localStorage surface for tests and plugin wiring. */
 export interface FloatingWindowLocalStorageAccess {
 	load(key: string): unknown;
-	save(key: string, data: unknown | null): void;
+	save(key: string, data: unknown): void;
 }
 
 export function createAppLocalStorageAccess(
-	app: { loadLocalStorage(key: string): unknown; saveLocalStorage(key: string, data: unknown | null): void },
+	app: { loadLocalStorage(key: string): unknown; saveLocalStorage(key: string, data: unknown): void },
 ): FloatingWindowLocalStorageAccess {
 	return {
 		load: (key) => app.loadLocalStorage(key),

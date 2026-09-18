@@ -86,8 +86,10 @@ describe("LiveTranscriber", () => {
 			socketBundle.socket.onopen?.();
 
 			expect(socketBundle.sent.length).toBe(1);
-			const sentMsg = JSON.parse(socketBundle.sent[0]);
-			expect(sentMsg.setup.model).toBe("models/gemini-3.5-transcribe-live");
+			const sentMsg = JSON.parse(socketBundle.sent[0]) as {
+				setup?: { model?: string };
+			};
+			expect(sentMsg.setup?.model).toBe("models/gemini-3.5-transcribe-live");
 			expect(recorder.start).not.toHaveBeenCalled();
 
 			socketBundle.socket.onmessage?.({ data: wsMsg({ setupComplete: true }) });
@@ -151,7 +153,7 @@ describe("LiveTranscriber", () => {
 		it("second start() is no-op while first is starting", async () => {
 			const t = createTranscriber();
 			const p1 = t.start(sink);
-			t.start(sink); // no-op
+			void t.start(sink); // no-op
 			socketBundle.socket.onopen?.();
 			socketBundle.socket.onmessage?.({ data: wsMsg({ setupComplete: true }) });
 			await p1;
@@ -335,7 +337,7 @@ describe("LiveTranscriber", () => {
 	describe("PCM chunk sending", () => {
 		it("does not send PCM chunks before setupComplete", async () => {
 			const t = createTranscriber();
-			t.start(sink);
+			void t.start(sink);
 			socketBundle.socket.onopen?.();
 			recorder.emitChunk("AAAA");
 
@@ -351,8 +353,10 @@ describe("LiveTranscriber", () => {
 
 			const rt = audioChunks(socketBundle.sent);
 			expect(rt.length).toBe(1);
-			const parsed = JSON.parse(rt[0]);
-			expect(parsed.realtimeInput.audio.data).toBe("BBBB");
+			const parsed = JSON.parse(rt[0]) as {
+				realtimeInput?: { audio?: { data?: string } };
+			};
+			expect(parsed.realtimeInput?.audio?.data).toBe("BBBB");
 		});
 
 		it("sends multiple PCM chunks", async () => {
@@ -472,7 +476,7 @@ describe("LiveTranscriber", () => {
 				audioSource: recorder,
 			});
 
-			t.start(sink);
+			void t.start(sink);
 			expect(capturedUrl).toContain("key=my-secret-key");
 			expect(capturedUrl).toContain("generativelanguage.googleapis.com");
 		});
@@ -487,7 +491,7 @@ describe("LiveTranscriber", () => {
 				audioSource: recorder,
 			});
 
-			t.start(sink);
+			void t.start(sink);
 			expect(capturedUrl).toContain("key=key%2Bwith%2Fspecial%26chars");
 		});
 	});

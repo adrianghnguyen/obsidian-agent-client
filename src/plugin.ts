@@ -49,7 +49,6 @@ import { parseTraceVerbosity } from "./services/trace-verbosity";
 import {
 	createAppLocalStorageAccess,
 	extractSyncedFloatingWindowLastLayout,
-	floatingWindowLocalLayoutsEqual,
 	readFloatingWindowLocalLayout,
 	writeFloatingWindowLocalLayout,
 	type FloatingWindowLocalLayout,
@@ -838,7 +837,7 @@ export default class AgentClientPlugin extends Plugin {
 				D.floatingIdleTimeoutMs,
 			),
 			floatingIdleOpacityPercent: resolveFloatingIdleOpacityPercent(
-				raw as Record<string, unknown>,
+				raw,
 				D.floatingIdleOpacityPercent,
 			),
 			floatingTransparencyMode: bool(
@@ -858,7 +857,7 @@ export default class AgentClientPlugin extends Plugin {
 			absorption.absorbed.length > 0 ||
 			needsFloatingChatEntryMigration(raw) ||
 			needsFloatingWindowLayoutMigration(raw) ||
-			needsFloatingIdleOpacityMigration(raw as Record<string, unknown>)
+			needsFloatingIdleOpacityMigration(raw)
 		) {
 			await this.saveSettings();
 		}

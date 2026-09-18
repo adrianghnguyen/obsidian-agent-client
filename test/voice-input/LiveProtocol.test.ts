@@ -201,7 +201,7 @@ describe("LiveProtocol", () => {
 		it("decodes ArrayBuffer", async () => {
 			const encoded = new TextEncoder().encode("hello from buffer");
 			const result = await decodeWsData(
-				encoded.buffer as ArrayBuffer,
+				encoded.buffer,
 			);
 			expect(result).toBe("hello from buffer");
 		});
@@ -213,7 +213,7 @@ describe("LiveProtocol", () => {
 		});
 
 		it("falls back to String() for unknown types", async () => {
-			const result = await decodeWsData(42 as unknown as string);
+			const result = await decodeWsData(42);
 			expect(result).toBe("42");
 		});
 	});

@@ -66,9 +66,9 @@ describe.skipIf(!apiKey)("smoke:voice (live Gemini)", () => {
 							reject(new Error(err));
 						},
 					})
-					.catch((err) => {
+					.catch((err: unknown) => {
 						clearTimeout(timer);
-						reject(err);
+						reject(err instanceof Error ? err : new Error(String(err)));
 					});
 			});
 

@@ -44,7 +44,7 @@ describe("VoiceInputSettings", () => {
 			model: "gemini-3.0-flash-live",
 			transcriptionMode: "verbatim",
 			audioDeviceId: "dev-123",
-		} as Partial<VoiceInputSettings>);
+		});
 
 		expect(result.enabled).toBe(true);
 		expect(result.model).toBe("gemini-3.0-flash-live");
@@ -57,7 +57,7 @@ describe("VoiceInputSettings", () => {
 			enabled: "yes" as unknown as boolean,
 			model: "   ",
 			transcriptionMode: "nonsense" as unknown as VoiceInputSettings["transcriptionMode"],
-		} as Partial<VoiceInputSettings>);
+		});
 
 		expect(result.enabled).toBe(false);
 		expect(result.model).toBe("gemini-3.5-transcribe-live");

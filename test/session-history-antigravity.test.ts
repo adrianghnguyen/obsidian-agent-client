@@ -77,11 +77,10 @@ describe("session history antigravity fixture", () => {
 			"cursor",
 		);
 
-		expect(merged.find((s) => s.sessionId === HARVEST_ID)).toMatchObject({
-			agentId: "antigravity",
-			agentDisplayName: "Antigravity",
-			title: expect.stringMatching(/harvest loop/i),
-		});
+		const harvest = merged.find((s) => s.sessionId === HARVEST_ID);
+		expect(harvest?.agentId).toBe("antigravity");
+		expect(harvest?.agentDisplayName).toBe("Antigravity");
+		expect(harvest?.title).toMatch(/harvest loop/i);
 	});
 
 	it("plans restart-then-restore from cursor onto antigravity", () => {

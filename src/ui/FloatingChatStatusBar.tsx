@@ -179,12 +179,14 @@ export class FloatingChatStatusBar {
 		const bottom = window.innerHeight - anchor.top + gap;
 		const maxHeight = Math.max(80, anchor.top - margin - gap);
 
-		popover.style.setProperty("width", `${width}px`);
-		popover.style.setProperty("left", `${left}px`);
-		popover.style.setProperty("right", "auto");
-		popover.style.setProperty("top", "auto");
-		popover.style.setProperty("bottom", `${bottom}px`);
-		popover.style.setProperty("max-height", `${maxHeight}px`);
+		popover.setCssProps({
+			width: `${width}px`,
+			left: `${left}px`,
+			right: "auto",
+			top: "auto",
+			bottom: `${bottom}px`,
+			"max-height": `${maxHeight}px`,
+		});
 	}
 
 	private hidePopover(): void {

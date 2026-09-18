@@ -106,7 +106,7 @@ export class AudioCapture {
 			this.mediaStream.getTracks().forEach((t) => t.stop());
 		}
 
-		this.audioContext?.close();
+		void this.audioContext?.close();
 		this.audioContext = null;
 		this.mediaStream = null;
 		this.source = null;

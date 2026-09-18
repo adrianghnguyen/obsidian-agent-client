@@ -75,7 +75,7 @@ export class LiveTranscriber {
 		this.model = model;
 		this.audioSource = deps.audioSource ?? new AudioCapture();
 		this.createSocket =
-			deps.createSocket ?? ((url) => new WebSocket(url) as unknown as LiveSocket);
+			deps.createSocket ?? ((url) => new WebSocket(url));
 		this.flushDelayMs = deps.flushDelayMs ?? 1000;
 		this.setupOptions = deps.setupOptions ?? {};
 	}
