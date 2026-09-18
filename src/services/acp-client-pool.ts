@@ -38,7 +38,7 @@ export class AcpClientPool<T extends AcpClientLike> {
 			options.disconnect ?? ((client) => client.disconnect());
 		this.setTimeoutFn =
 			options.setTimeoutFn ??
-			((fn, ms) => window.setTimeout(fn, ms) as unknown as number);
+			((fn, ms) => window.setTimeout(fn, ms));
 		this.clearTimeoutFn =
 			options.clearTimeoutFn ?? ((id) => window.clearTimeout(id));
 		this.graceMs = options.graceMs ?? ACP_TEARDOWN_GRACE_MS;

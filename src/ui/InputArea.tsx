@@ -945,7 +945,7 @@ export function InputArea({
 			} else {
 				handleStartVoiceRef.current();
 			}
-		}) as (...args: never[]) => void);
+		}));
 		return () => {
 			ws.offref(ref);
 		};

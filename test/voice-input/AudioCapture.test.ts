@@ -119,7 +119,7 @@ describe("AudioCapture", () => {
 		(globalThis as unknown as Record<string, unknown>).AudioContext =
 			function () {
 				return bundle.ctx;
-			} as unknown as typeof AudioContext;
+			};
 	});
 
 	it("is idle after construction", () => {

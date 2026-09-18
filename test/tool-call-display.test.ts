@@ -90,7 +90,9 @@ describe("isSubagentToolCall", () => {
 	it("derives the tool name from a normalized JSON-string rawInput", () => {
 		// After boundary normalization, _toolName is readable and the title
 		// falls back to it.
-		const raw = JSON.parse('{"_toolName":"RunCommand","CommandLine":"git status"}');
+		const raw = JSON.parse(
+			'{"_toolName":"RunCommand","CommandLine":"git status"}',
+		) as Record<string, unknown>;
 		expect(
 			resolveToolCallTitle({ rawInput: raw }),
 		).toBe("RunCommand");
