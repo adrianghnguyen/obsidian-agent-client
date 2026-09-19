@@ -14,6 +14,8 @@ import { Platform } from "obsidian";
 
 export const ANTIGRAVITY_PRESET_ID = "antigravity";
 export const ANTIGRAVITY_BRIDGE_FILENAME = "agy_acp_server.par";
+/** ACP authenticate method for GEMINI_API_KEY mode (already in spawn env). */
+export const ANTIGRAVITY_SESSION_AUTH_METHOD = "gemini-api-key";
 
 const home = (): string => process.env.HOME || process.env.USERPROFILE || homedir();
 

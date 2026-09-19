@@ -59,6 +59,7 @@ describe("harness registry", () => {
 			expect(harness?.traceAdapters).toBeUndefined();
 			expect(harness?.healthCheck).toBeUndefined();
 			expect(harness?.mapConnectionError).toBeUndefined();
+			expect(harness?.authenticateBeforeNewSession).toBeUndefined();
 			expect(harness?.updateRules).toBeUndefined();
 			expect(harness?.notices).toBeUndefined();
 		}
@@ -68,13 +69,15 @@ describe("harness registry", () => {
 		const cursor = getHarnessById("cursor");
 		expect(cursor?.healthCheck).toEqual(expect.any(Function));
 		expect(cursor?.mapConnectionError).toEqual(expect.any(Function));
+		expect(cursor?.authenticateBeforeNewSession).toBeUndefined();
 		expect(cursor?.docs).toEqual({ page: "cursor" });
 	});
 
-	it("registers Antigravity with health, connection-error, and docs slots", () => {
+	it("registers Antigravity with health, connection-error, auth, and docs slots", () => {
 		const antigravity = getHarnessById("antigravity");
 		expect(antigravity?.healthCheck).toEqual(expect.any(Function));
 		expect(antigravity?.mapConnectionError).toEqual(expect.any(Function));
+		expect(antigravity?.authenticateBeforeNewSession).toBe("gemini-api-key");
 		expect(antigravity?.docs).toEqual({ page: "antigravity" });
 	});
 });

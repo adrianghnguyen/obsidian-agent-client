@@ -72,6 +72,38 @@ export function applyHarnessConnectionError(
 	};
 }
 
+/** ACP authenticate method to run after initialize, or undefined (no-op). */
+export function getAuthenticateBeforeNewSession(
+	agentId: string,
+): string | undefined {
+	return getHarnessById(agentId)?.authenticateBeforeNewSession;
+}
+
+export interface HarnessSessionClient<T> {
+	authenticate(methodId: string): Promise<boolean>;
+	newSession(workingDirectory: string): Promise<T>;
+}
+
+/**
+ * Open a session after initialize: authenticate when the harness slot is
+ * set (Antigravity: gemini-api-key), then session/new. Cursor and other
+ * harnesses skip authenticate.
+ */
+export async function openHarnessSession<T>(
+	agentId: string,
+	workingDirectory: string,
+	client: HarnessSessionClient<T>,
+): Promise<T> {
+	const methodId = getAuthenticateBeforeNewSession(agentId);
+	if (methodId) {
+		const ok = await client.authenticate(methodId);
+		if (!ok) {
+			throw new Error("Authentication required");
+		}
+	}
+	return client.newSession(workingDirectory);
+}
+
 export type { HarnessDefinition } from "./shared/types";
 export type {
 	PresetAgentDefinition,

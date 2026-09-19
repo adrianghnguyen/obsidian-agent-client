@@ -73,6 +73,12 @@ export interface HarnessDefinition {
 		err: ProcessError,
 		ctx?: ConnectionErrorContext,
 	) => ConnectionErrorCard | null;
+	/**
+	 * ACP authenticate method id to call after initialize and before
+	 * session/new. Absent = no extra authenticate (Cursor and other
+	 * login-via-CLI harnesses).
+	 */
+	readonly authenticateBeforeNewSession?: string;
 	readonly updateRules?: readonly PackageUpdateRule[];
 	readonly notices?: readonly AgentNotice[];
 	readonly docs?: HarnessDocsManifest;

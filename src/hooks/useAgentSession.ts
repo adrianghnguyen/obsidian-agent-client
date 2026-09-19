@@ -22,6 +22,7 @@ import {
 	enrichCursorErrorInfo,
 	resolveCursorEndpoint,
 } from "../harnesses/cursor";
+import { openHarnessSession } from "../harnesses";
 import {
 	enrichAntigravityErrorInfo,
 	isAntigravityAgent,
@@ -258,8 +259,11 @@ export function useAgentSession(
 						? await agentClient.initialize(agentConfig)
 						: null;
 
-				const sessionResult =
-					await agentClient.newSession(effectiveCwd);
+				const sessionResult = await openHarnessSession(
+					agentId,
+					effectiveCwd,
+					agentClient,
+				);
 
 				// Pre-compute restored modes/configOptions BEFORE
 				// marking state as "ready" to avoid a UI race: without this,

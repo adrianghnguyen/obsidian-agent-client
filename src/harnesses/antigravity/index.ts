@@ -8,13 +8,17 @@ import type {
 } from "../shared/types";
 import { mapAntigravityProcessError, resolveAntigravityEndpoint } from "./errors";
 import { checkAntigravityHealth } from "./health";
-import { ANTIGRAVITY_PRESET_ID } from "./paths";
+import {
+	ANTIGRAVITY_PRESET_ID,
+	ANTIGRAVITY_SESSION_AUTH_METHOD,
+} from "./paths";
 import { antigravityPreset } from "./preset";
 
 export { antigravityPreset } from "./preset";
 export {
 	ANTIGRAVITY_PRESET_ID,
 	ANTIGRAVITY_BRIDGE_FILENAME,
+	ANTIGRAVITY_SESSION_AUTH_METHOD,
 	getDefaultAntigravityBridgePath,
 	resolveAntigravityBridgePath,
 	resolveAntigravityBridgeForSpawn,
@@ -78,5 +82,6 @@ function mapConnectionError(
 export const antigravityHarness = defineHarness(antigravityPreset, {
 	healthCheck,
 	mapConnectionError,
+	authenticateBeforeNewSession: ANTIGRAVITY_SESSION_AUTH_METHOD,
 	docs: { page: "antigravity" },
 });
