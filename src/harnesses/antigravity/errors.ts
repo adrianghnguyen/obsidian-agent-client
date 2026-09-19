@@ -16,7 +16,9 @@ import {
 const DOCS_URL =
 	"https://rait-09.github.io/obsidian-agent-client/agent-setup/antigravity.html";
 
-export function isAntigravityAgent(agentId: string | undefined | null): boolean {
+export function isAntigravityAgent(
+	agentId: string | undefined | null,
+): boolean {
 	return agentId === ANTIGRAVITY_PRESET_ID;
 }
 
@@ -50,12 +52,15 @@ export function mapAntigravityProcessError(
 	switch (error.type) {
 		case "spawn_failed":
 		case "command_not_found":
-			if (error.errorCode === "ENOENT" || error.type === "command_not_found") {
+			if (
+				error.errorCode === "ENOENT" ||
+				error.type === "command_not_found"
+			) {
 				return withDocs({
 					title: "Antigravity ACP bridge not found",
 					message: `${endpointMsg} — the bridge binary could not be executed.`,
 					suggestion:
-						"Install agy_acp_server.par (ACP Registry or ~/Library/agy-acp-server/ on macOS), click Auto-detect in Settings, then start a new chat.",
+						"Install the ACP bridge (agy_acp_server.par or agy_acp_server.exe on Windows), click Auto-detect in Settings, then start a new chat.",
 				});
 			}
 			return withDocs({
@@ -86,7 +91,9 @@ export function mapAntigravityProcessError(
 			return withDocs({
 				title: "Antigravity agent error",
 				message: `${endpointMsg} — ${error.message}`,
-				suggestion: error.suggestion ?? "See the Antigravity setup guide and health check.",
+				suggestion:
+					error.suggestion ??
+					"See the Antigravity setup guide and health check.",
 			});
 	}
 }
@@ -111,7 +118,7 @@ export function mapAntigravityAcpError(
 			title: "Antigravity authentication failed",
 			message: `${endpointMsg} — ${message}`,
 			suggestion:
-				"Run `agy` in Terminal and sign in, or set modelProvider=gemini with GEMINI_API_KEY. Then retry.",
+				"Confirm ~/.gemini/antigravity-acp/settings.json exists (Google login), or set GEMINI_API_KEY for API-key mode. Running `agy` alone fills the CLI store, not ACP.",
 		});
 	}
 
@@ -141,7 +148,8 @@ export function mapAntigravityAcpError(
 	return withDocs({
 		title: "Antigravity agent error",
 		message: `${endpointMsg} — ${message}`,
-		suggestion: "Check Settings → Antigravity health, then restart the chat.",
+		suggestion:
+			"Check Settings → Antigravity health, then restart the chat.",
 	});
 }
 
@@ -190,7 +198,10 @@ export function mapAntigravityMessageError(
 		return mapAntigravityAcpError(undefined, message, endpoint);
 	}
 
-	if (lower.includes("connection closed") || lower.includes("acp connection")) {
+	if (
+		lower.includes("connection closed") ||
+		lower.includes("acp connection")
+	) {
 		return mapAntigravityAcpError(undefined, message, endpoint);
 	}
 

@@ -77,7 +77,9 @@ describe("harness registry", () => {
 		const antigravity = getHarnessById("antigravity");
 		expect(antigravity?.healthCheck).toEqual(expect.any(Function));
 		expect(antigravity?.mapConnectionError).toEqual(expect.any(Function));
-		expect(antigravity?.authenticateBeforeNewSession).toBe("gemini-api-key");
+		expect(antigravity?.authenticateBeforeNewSession).toEqual(
+			expect.any(Function),
+		);
 		expect(antigravity?.docs).toEqual({ page: "antigravity" });
 	});
 });

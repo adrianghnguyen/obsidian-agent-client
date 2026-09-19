@@ -373,7 +373,7 @@ Cursor Cloud env → Keychain: `.cloud-e2e/secret-bindings.json`. Preset spawn o
 - Kiro: `kiro-cli` install script (KIRO_API_KEY, optional)
 - Hermes Agent: install script (CLI-managed auth, no API key env)
 - Cursor: `agent acp` via Cursor CLI (`curl https://cursor.com/install -fsS | bash`; auth via `agent login` or `CURSOR_API_KEY`)
-- Antigravity: ACP bridge (`agy_acp_server.par`); OAuth via `agy` / `~/.gemini/` or Gemini API key mode
+- Antigravity: ACP bridge (`agy_acp_server.par` / `.exe` on Windows); OAuth via `~/.gemini/antigravity-acp/` or Gemini API key mode
 - Custom: Any ACP-compatible agent
 
 ---

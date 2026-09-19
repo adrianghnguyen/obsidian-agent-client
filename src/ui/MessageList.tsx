@@ -11,6 +11,10 @@ import { buildDisplayListItems } from "../services/trace-turn";
 import { MessageBubble } from "./MessageBubble";
 import { TurnTraceRenderer } from "./TurnTraceRenderer";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+	ANTIGRAVITY_CONNECTING_COPY,
+	ANTIGRAVITY_PRESET_ID,
+} from "../harnesses/antigravity";
 
 // How long (ms) after a tab is re-shown we refuse to shrink measured item
 // sizes. Right after re-show the items briefly re-measure small while their
@@ -33,6 +37,8 @@ export interface MessageListProps {
 	isRestoringSession: boolean;
 	/** Display name of the active agent */
 	agentLabel: string;
+	/** Active agent id (Antigravity uses a slower first-connect message). */
+	agentId?: string;
 	/** Plugin instance */
 	plugin: AgentClientPlugin;
 	/** View instance for event registration */
@@ -69,6 +75,7 @@ export function MessageList({
 	isSessionReady,
 	isRestoringSession,
 	agentLabel,
+	agentId,
 	plugin,
 	view,
 	terminalClient,
@@ -245,7 +252,9 @@ export function MessageList({
 					{isRestoringSession
 						? "Restoring session..."
 						: !isSessionReady
-							? `Connecting to ${agentLabel}...`
+							? agentId === ANTIGRAVITY_PRESET_ID
+								? ANTIGRAVITY_CONNECTING_COPY
+								: `Connecting to ${agentLabel}...`
 							: `Start a conversation with ${agentLabel}...`}
 				</div>
 			</div>

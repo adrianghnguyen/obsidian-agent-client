@@ -6,23 +6,33 @@ import type {
 	HealthContext,
 	HealthReport,
 } from "../shared/types";
-import { mapAntigravityProcessError, resolveAntigravityEndpoint } from "./errors";
-import { checkAntigravityHealth } from "./health";
 import {
-	ANTIGRAVITY_PRESET_ID,
-	ANTIGRAVITY_SESSION_AUTH_METHOD,
-} from "./paths";
+	mapAntigravityProcessError,
+	resolveAntigravityEndpoint,
+} from "./errors";
+import { checkAntigravityHealth } from "./health";
+import { resolveAntigravitySessionAuthMethod } from "./auth";
+import { ANTIGRAVITY_PRESET_ID } from "./paths";
 import { antigravityPreset } from "./preset";
 
 export { antigravityPreset } from "./preset";
 export {
 	ANTIGRAVITY_PRESET_ID,
 	ANTIGRAVITY_BRIDGE_FILENAME,
+	ANTIGRAVITY_BRIDGE_PAR,
+	ANTIGRAVITY_BRIDGE_EXE,
 	ANTIGRAVITY_SESSION_AUTH_METHOD,
+	getAntigravityBridgeFilename,
 	getDefaultAntigravityBridgePath,
 	resolveAntigravityBridgePath,
 	resolveAntigravityBridgeForSpawn,
 } from "./paths";
+export {
+	classifyAntigravityAuth,
+	extractAcpAuthMethod,
+	resolveAntigravitySessionAuthMethod,
+	ANTIGRAVITY_OAUTH_PERSONAL,
+} from "./auth";
 export {
 	checkAntigravityHealth,
 	getAntigravityMcpConfigNote,
@@ -79,9 +89,13 @@ function mapConnectionError(
 	};
 }
 
+/** Empty-state copy while the ACP bridge finishes a cold initialize. */
+export const ANTIGRAVITY_CONNECTING_COPY =
+	"Starting ACP bridge… first initialize can take about 30 seconds";
+
 export const antigravityHarness = defineHarness(antigravityPreset, {
 	healthCheck,
 	mapConnectionError,
-	authenticateBeforeNewSession: ANTIGRAVITY_SESSION_AUTH_METHOD,
+	authenticateBeforeNewSession: resolveAntigravitySessionAuthMethod,
 	docs: { page: "antigravity" },
 });

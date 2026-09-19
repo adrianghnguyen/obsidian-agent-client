@@ -1,8 +1,9 @@
 /**
- * Platform paths for the Antigravity ACP bridge (agy_acp_server.par).
+ * Platform paths for the Antigravity ACP bridge.
  *
  * The `agy` CLI has no `acp` subcommand — Agent Client spawns the bridge
- * binary directly. macOS ACP Registry installs land under
+ * binary directly. macOS/Linux use agy_acp_server.par; Windows uses
+ * agy_acp_server.exe. macOS ACP Registry installs land under
  * ~/Library/agy-acp-server/; Linux/Windows follow the same layout pattern.
  */
 
@@ -13,11 +14,21 @@ import { join } from "path";
 import { Platform } from "obsidian";
 
 export const ANTIGRAVITY_PRESET_ID = "antigravity";
-export const ANTIGRAVITY_BRIDGE_FILENAME = "agy_acp_server.par";
+export const ANTIGRAVITY_BRIDGE_PAR = "agy_acp_server.par";
+export const ANTIGRAVITY_BRIDGE_EXE = "agy_acp_server.exe";
 /** ACP authenticate method for GEMINI_API_KEY mode (already in spawn env). */
 export const ANTIGRAVITY_SESSION_AUTH_METHOD = "gemini-api-key";
 
-const home = (): string => process.env.HOME || process.env.USERPROFILE || homedir();
+/** Current-platform bridge basename (.exe on Windows, .par elsewhere). */
+export function getAntigravityBridgeFilename(): string {
+	return Platform.isWin ? ANTIGRAVITY_BRIDGE_EXE : ANTIGRAVITY_BRIDGE_PAR;
+}
+
+/** Legacy alias for the macOS/Linux basename. Prefer getAntigravityBridgeFilename(). */
+export const ANTIGRAVITY_BRIDGE_FILENAME = ANTIGRAVITY_BRIDGE_PAR;
+
+const home = (): string =>
+	process.env.HOME || process.env.USERPROFILE || homedir();
 
 /** Candidate bridge paths in probe order (AGY_ACP_BIN first when set). */
 export function getAntigravityBridgeCandidates(): string[] {
@@ -29,24 +40,25 @@ export function getAntigravityBridgeCandidates(): string[] {
 
 	if (Platform.isMacOS) {
 		candidates.push(
-			join(home(), "Library", "agy-acp-server", ANTIGRAVITY_BRIDGE_FILENAME),
+			join(home(), "Library", "agy-acp-server", ANTIGRAVITY_BRIDGE_PAR),
 		);
 	} else if (Platform.isWin) {
 		const localAppData =
 			process.env.LOCALAPPDATA ?? join(home(), "AppData", "Local");
 		candidates.push(
-			join(localAppData, "agy-acp-server", ANTIGRAVITY_BRIDGE_FILENAME),
+			join(localAppData, "agy-acp-server", ANTIGRAVITY_BRIDGE_EXE),
+			join(localAppData, "agy-acp-server", ANTIGRAVITY_BRIDGE_PAR),
 		);
 	} else {
 		candidates.push(
-			join(home(), ".local", "bin", ANTIGRAVITY_BRIDGE_FILENAME),
+			join(home(), ".local", "bin", ANTIGRAVITY_BRIDGE_PAR),
 			join(
 				home(),
 				".local",
 				"opt",
 				"agy-acp",
 				"current",
-				ANTIGRAVITY_BRIDGE_FILENAME,
+				ANTIGRAVITY_BRIDGE_PAR,
 			),
 		);
 	}
@@ -56,7 +68,9 @@ export function getAntigravityBridgeCandidates(): string[] {
 
 /** Default bridge path shown in settings before auto-detect runs. */
 export function getDefaultAntigravityBridgePath(): string {
-	return getAntigravityBridgeCandidates()[0] ?? ANTIGRAVITY_BRIDGE_FILENAME;
+	return (
+		getAntigravityBridgeCandidates()[0] ?? getAntigravityBridgeFilename()
+	);
 }
 
 async function isExecutableBridge(path: string): Promise<boolean> {
@@ -112,6 +126,19 @@ export function getAntigravityOAuthTokenPath(): string {
 		"antigravity-cli",
 		"antigravity-oauth-token",
 	);
+}
+
+/** Official ACP OAuth store (~/.gemini/antigravity-acp/). */
+export function getAntigravityAcpDir(): string {
+	return join(home(), ".gemini", "antigravity-acp");
+}
+
+export function getAntigravityAcpSettingsPath(): string {
+	return join(getAntigravityAcpDir(), "settings.json");
+}
+
+export function getAntigravityAcpTokenPath(): string {
+	return join(getAntigravityAcpDir(), "acp_token.json");
 }
 
 export function getAntigravityMcpConfigPath(): string {

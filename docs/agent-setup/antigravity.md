@@ -1,6 +1,6 @@
 # Antigravity Setup
 
-[Antigravity](https://antigravity.google/) is Google's AI coding agent (the `agy` CLI). It does **not** expose ACP through the CLI itself — there is no `agy acp` subcommand. Agent Client connects via Google's **ACP bridge** binary `agy_acp_server.par`.
+[Antigravity](https://antigravity.google/) is Google's AI coding agent (the `agy` CLI). It does **not** expose ACP through the CLI itself — there is no `agy acp` subcommand. Agent Client connects via Google's **ACP bridge** binary (`agy_acp_server.par` on macOS/Linux, `agy_acp_server.exe` on Windows).
 
 ::: tip Migrating from a custom agent
 If you previously configured Antigravity as a custom agent with id `antigravity`, your settings migrate to this preset automatically — saved sessions keep working.
@@ -14,40 +14,46 @@ The bridge is distributed through the [ACP Registry](https://agentclientprotocol
 |----------|--------------|
 | macOS | `~/Library/agy-acp-server/agy_acp_server.par` |
 | Linux | `~/.local/bin/agy_acp_server.par` or `~/.local/opt/agy-acp/current/agy_acp_server.par` |
-| Windows | `%LOCALAPPDATA%\agy-acp-server\agy_acp_server.par` |
+| Windows | `%LOCALAPPDATA%\agy-acp-server\agy_acp_server.exe` |
 
 You can override the location with the `AGY_ACP_BIN` environment variable.
 
 ::: warning Not the agy CLI alone
-Pointing Agent Client at the `agy` binary will not work for ACP. The Path must be `agy_acp_server.par` (or your platform equivalent).
+Pointing Agent Client at the `agy` binary will not work for ACP. The Path must be the ACP bridge (`agy_acp_server.par` or `agy_acp_server.exe` on Windows).
 :::
 
 ## Configure Agent Client
 
 1. Open **Settings → Agent Client → Antigravity**
-2. Click **Auto-detect** on the Path row (or paste the absolute path to `agy_acp_server.par`)
+2. Click **Auto-detect** on the Path row (or paste the absolute path to the bridge binary)
 3. Click **Run** under **Health check** — it verifies:
    - the bridge binary exists and is executable
-   - Antigravity auth signals under `~/.gemini/`
+   - Antigravity ACP auth under `~/.gemini/antigravity-acp/`
    - which ACP endpoint Agent Client will spawn
 
 ## Authentication
 
-Antigravity auth lives under **`~/.gemini/`** (not `~/.antigravity/`). Choose one:
+Official ACP auth lives under **`~/.gemini/antigravity-acp/`** (`settings.json` and usually `acp_token.json`). That is what Agent Client and the health check use. `~/.gemini/antigravity-cli/` is the `agy` CLI store and is **not** required for chat.
+
+Choose one:
 
 ### Option A — Google account (recommended)
 
-1. Install the `agy` CLI from [Antigravity docs](https://antigravity.google/docs/cli/install/)
-2. Run `agy` in Terminal and complete browser sign-in
-3. Credentials are stored in your OS keychain; Agent Client picks them up through the bridge
+1. Complete Google login through Antigravity / the ACP bridge (AI Pro and personal Google login use `oauth-personal`)
+2. Confirm `%USERPROFILE%\.gemini\antigravity-acp\settings.json` (Windows) or `~/.gemini/antigravity-acp/settings.json` exists
+3. Agent Client starts a session with that OAuth store — it does **not** call `authenticate("gemini-api-key")` when these files are present
+
+Running `agy` login alone only fills `antigravity-cli/` and will not turn the health row green.
 
 ### Option B — Gemini API key (headless / CI)
 
 1. Create a key in [Google AI Studio](https://aistudio.google.com/apikey)
-2. Set `modelProvider` to `gemini` in `~/.gemini/antigravity-cli/settings.json`
-3. Export `GEMINI_API_KEY` in your environment (Obsidian inherits shell env on macOS/Linux; on Windows set user env vars and restart Obsidian)
+2. Export `GEMINI_API_KEY` in your environment (Obsidian inherits shell env on macOS/Linux; on Windows set user env vars and restart Obsidian)
+3. Optional: set `modelProvider` to `gemini` in `~/.gemini/antigravity-cli/settings.json`
 
 See [Antigravity CLI auth docs](https://antigravity.google/docs/cli/install/) for details.
+
+First chat can sit on **Starting ACP bridge…** for about 30 seconds while a cold `agy_acp_server` finishes `initialize`. That is not an auth failure.
 
 ## Empty MCP config (intentional)
 
@@ -65,8 +71,8 @@ If something fails, the chat banner names the failure mode and the **ACP endpoin
 
 | Banner | Meaning | Next step |
 |--------|---------|-----------|
-| **Antigravity authentication failed** | Bridge could not authenticate | Run `agy` in Terminal or configure API key mode |
-| **Antigravity ACP bridge not found** | `agy_acp_server.par` missing | Install bridge, Auto-detect, health check |
+| **Antigravity authentication failed** | Bridge could not authenticate | Confirm `antigravity-acp/settings.json` exists, or configure API key mode |
+| **Antigravity ACP bridge not found** | Bridge binary missing | Install bridge, Auto-detect, health check |
 | **Antigravity ACP endpoint unreachable** | Binary exists but connection failed | Run bridge in Terminal, check quarantine (macOS) |
 | **Antigravity connection timed out** | Slow first init | Wait and retry; first launch can take minutes |
 | **Antigravity ACP server exited** | Bridge crashed | Read Terminal stderr, fix auth/install |

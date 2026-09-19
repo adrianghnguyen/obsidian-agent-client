@@ -1599,6 +1599,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			isSessionReady={isSessionReady}
 			isRestoringSession={sessionHistory.loading}
 			agentLabel={activeAgentLabel}
+			agentId={session.agentId}
 			plugin={plugin}
 			view={viewHost}
 			terminalClient={terminalClientRef.current}

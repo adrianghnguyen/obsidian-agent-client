@@ -72,11 +72,22 @@ export function applyHarnessConnectionError(
 	};
 }
 
-/** ACP authenticate method to run after initialize, or undefined (no-op). */
+/** Raw harness authenticate slot (string, resolver, or missing). */
 export function getAuthenticateBeforeNewSession(
 	agentId: string,
-): string | undefined {
+): HarnessDefinition["authenticateBeforeNewSession"] {
 	return getHarnessById(agentId)?.authenticateBeforeNewSession;
+}
+
+/** ACP authenticate method to run after initialize, or undefined (no-op). */
+export async function resolveAuthenticateBeforeNewSession(
+	agentId: string,
+): Promise<string | undefined> {
+	const slot = getAuthenticateBeforeNewSession(agentId);
+	if (typeof slot === "function") {
+		return slot();
+	}
+	return slot;
 }
 
 export interface HarnessSessionClient<T> {
@@ -85,16 +96,16 @@ export interface HarnessSessionClient<T> {
 }
 
 /**
- * Open a session after initialize: authenticate when the harness slot is
- * set (Antigravity: gemini-api-key), then session/new. Cursor and other
- * harnesses skip authenticate.
+ * Open a session after initialize: authenticate when the harness slot
+ * resolves to a method id, then session/new. Antigravity skips authenticate
+ * when ACP OAuth is already on disk. Cursor and other harnesses skip.
  */
 export async function openHarnessSession<T>(
 	agentId: string,
 	workingDirectory: string,
 	client: HarnessSessionClient<T>,
 ): Promise<T> {
-	const methodId = getAuthenticateBeforeNewSession(agentId);
+	const methodId = await resolveAuthenticateBeforeNewSession(agentId);
 	if (methodId) {
 		const ok = await client.authenticate(methodId);
 		if (!ok) {
