@@ -80,6 +80,13 @@ The agent requires authentication before processing requests.
 **For Cursor:**
 - Run `agent login` in Terminal first, or set `CURSOR_API_KEY` in Environment variables. Use **Check setup** under **Settings → Agent Client → Cursor**. See [Cursor Setup](/agent-setup/cursor#authentication).
 
+**For Antigravity:**
+- Run `agy` in Terminal and sign in, or configure Gemini API key mode. Use **Settings → Antigravity → Health check** before chatting. See [Antigravity Setup](/agent-setup/antigravity#authentication).
+
+### Antigravity
+
+Chat banners name specific failure modes (auth, missing bridge, unreachable endpoint, timeout, process exit). Run the **Health check** in Settings and follow the banner's next step. See [Antigravity Setup — Chat error messages](/agent-setup/antigravity#chat-error-messages).
+
 ### "No Authentication Methods" error
 
 The agent didn't provide authentication options.

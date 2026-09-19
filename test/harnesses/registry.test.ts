@@ -17,7 +17,11 @@ const MIGRATED_PRESET_IDS = [
 	"hermes-agent",
 ] as const;
 
-const EXPECTED_PRESET_IDS = [...MIGRATED_PRESET_IDS, "cursor"] as const;
+const EXPECTED_PRESET_IDS = [
+	...MIGRATED_PRESET_IDS,
+	"cursor",
+	"antigravity",
+] as const;
 
 describe("harness registry", () => {
 	it("registers every in-tree preset harness", () => {
@@ -65,5 +69,12 @@ describe("harness registry", () => {
 		expect(cursor?.healthCheck).toEqual(expect.any(Function));
 		expect(cursor?.mapConnectionError).toEqual(expect.any(Function));
 		expect(cursor?.docs).toEqual({ page: "cursor" });
+	});
+
+	it("registers Antigravity with health, connection-error, and docs slots", () => {
+		const antigravity = getHarnessById("antigravity");
+		expect(antigravity?.healthCheck).toEqual(expect.any(Function));
+		expect(antigravity?.mapConnectionError).toEqual(expect.any(Function));
+		expect(antigravity?.docs).toEqual({ page: "antigravity" });
 	});
 });

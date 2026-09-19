@@ -19,3 +19,4 @@ export type {
 
 export { PRESET_AGENTS, GEMINI_PRESET_ID } from "../harnesses";
 export { CURSOR_PRESET_ID } from "../harnesses/cursor";
+export { ANTIGRAVITY_PRESET_ID } from "../harnesses/antigravity";

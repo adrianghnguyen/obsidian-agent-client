@@ -24,6 +24,7 @@ Each agent uses its own context file:
 | Kiro | `AGENTS.md` (also `.kiro/steering/*.md`) |
 | Hermes Agent | `AGENTS.md` (falls back to `CLAUDE.md`) |
 | Cursor | `.cursor/rules`, `AGENTS.md`, project rules (Cursor CLI) |
+| Antigravity | `AGENTS.md` and `~/.gemini/GEMINI.md` (global) |
 
 Place the context file in your **vault root** to have the agent read it automatically.
 

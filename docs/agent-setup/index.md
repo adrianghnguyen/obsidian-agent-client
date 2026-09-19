@@ -14,6 +14,7 @@ Agent Client supports multiple AI agents through the [Agent Client Protocol (ACP
 | [Kiro](./kiro) | AWS | install script |
 | [Hermes Agent](./hermes) | Multi-provider | install script |
 | [Cursor](./cursor) | Cursor | `agent acp` (Cursor CLI) |
+| [Antigravity](./antigravity) | Google | ACP bridge (`agy_acp_server.par`) |
 | [Custom Agents](./custom-agents) | Various | Any ACP-compatible agent |
 
 ## Common Setup Steps

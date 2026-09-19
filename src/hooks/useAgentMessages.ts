@@ -28,6 +28,12 @@ import {
 	enrichCursorErrorInfo,
 	resolveCursorEndpoint,
 } from "../harnesses/cursor";
+import {
+	ANTIGRAVITY_PRESET_ID,
+	enrichAntigravityErrorInfo,
+	mapAntigravityAcpError,
+	resolveAntigravityEndpoint,
+} from "../harnesses/antigravity";
 import { Platform } from "obsidian";
 import {
 	rebuildToolCallIndex,
@@ -417,21 +423,40 @@ export function useAgentMessages(
 									title: "Send Message Failed",
 									message: "Failed to send message",
 								};
+						const cursorEnriched = enrichCursorErrorInfo(
+							session.agentId,
+							fallback,
+							{
+								command:
+									agentSettings?.command.trim() || "agent",
+								args: agentSettings?.args ?? ["acp"],
+								endpoint: resolveCursorEndpoint(
+									agentSettings?.args ?? ["acp"],
+								),
+								errorMessage: fallback.message,
+								acpErrorCode: result.error?.code,
+							},
+						);
+						const antiEndpoint =
+							session.agentId === ANTIGRAVITY_PRESET_ID
+								? resolveAntigravityEndpoint(
+										settings.presetAgents.antigravity
+											?.command,
+									)
+								: "";
 						setErrorInfo(
-							enrichCursorErrorInfo(
-								session.agentId,
-								fallback,
-								{
-									command:
-										agentSettings?.command.trim() || "agent",
-									args: agentSettings?.args ?? ["acp"],
-									endpoint: resolveCursorEndpoint(
-										agentSettings?.args ?? ["acp"],
+							session.agentId === ANTIGRAVITY_PRESET_ID &&
+								result.error
+								? mapAntigravityAcpError(
+										result.error.code,
+										result.error.message,
+										antiEndpoint,
+									)
+								: enrichAntigravityErrorInfo(
+										session.agentId,
+										antiEndpoint,
+										cursorEnriched,
 									),
-									errorMessage: fallback.message,
-									acpErrorCode: result.error?.code,
-								},
-							),
 							session.agentId,
 						);
 					}
@@ -444,22 +469,33 @@ export function useAgentMessages(
 						session.agentId,
 					);
 					const message = extractErrorMessage(error);
+					const cursorEnriched = enrichCursorErrorInfo(
+						session.agentId,
+						{
+							title: "Send Message Failed",
+							message: `Failed to send message: ${message}`,
+						},
+						{
+							command: agentSettings?.command.trim() || "agent",
+							args: agentSettings?.args ?? ["acp"],
+							endpoint: resolveCursorEndpoint(
+								agentSettings?.args ?? ["acp"],
+							),
+							errorMessage: message,
+							acpErrorCode: extractErrorCode(error),
+						},
+					);
+					const antiEndpoint =
+						session.agentId === ANTIGRAVITY_PRESET_ID
+							? resolveAntigravityEndpoint(
+									settings.presetAgents.antigravity?.command,
+								)
+							: "";
 					setErrorInfo(
-						enrichCursorErrorInfo(
+						enrichAntigravityErrorInfo(
 							session.agentId,
-							{
-								title: "Send Message Failed",
-								message: `Failed to send message: ${message}`,
-							},
-							{
-								command: agentSettings?.command.trim() || "agent",
-								args: agentSettings?.args ?? ["acp"],
-								endpoint: resolveCursorEndpoint(
-									agentSettings?.args ?? ["acp"],
-								),
-								errorMessage: message,
-								acpErrorCode: extractErrorCode(error),
-							},
+							antiEndpoint,
+							cursorEnriched,
 						),
 						session.agentId,
 					);

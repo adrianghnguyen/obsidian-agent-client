@@ -6,6 +6,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Added
 - **Cursor preset** — first-class ACP via `agent acp` (not a custom-agent JSON recipe), setup docs, settings **Check setup** health probe, and distinct connection-failure copy in chat when auth, PATH, endpoint, or process exit fails.
+- **Antigravity preset** — first-class support for Google's Antigravity ACP bridge (`agy_acp_server.par`), with platform path auto-detect, settings health check (bridge, auth, endpoint), and chat error banners that name failure modes and next steps.
 - **Default agent scope** — Settings → Getting started: keep the default agent on **All devices (sync)** or **This device only** (local overlay, does not overwrite other computers via Sync).
 - **Floating chat transparency lock** — when idle fade delay is greater than 0, an icon in the floating header (next to More / close) locks every floating window fully opaque or restores idle fade. Persists across restarts; delay 0 hides the button.
 

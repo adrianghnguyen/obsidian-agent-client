@@ -31,6 +31,13 @@ import {
 import { getHarnessById } from "../harnesses";
 import type { HarnessDefinition } from "../harnesses/shared/types";
 import {
+	ANTIGRAVITY_PRESET_ID,
+	checkAntigravityHealth,
+	getAntigravityMcpConfigNote,
+	resolveAntigravityBridgePath,
+	type AntigravityHealthReport,
+} from "../harnesses/antigravity";
+import {
 	getAvailableAgentsFromSettings,
 	isAgentEnabled,
 } from "../services/session-helpers";
@@ -2046,6 +2053,9 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			async (path) => {
 				await this.updatePresetAgent(def.presetId, { command: path });
 			},
+			def.presetId === ANTIGRAVITY_PRESET_ID
+				? () => resolveAntigravityBridgePath()
+				: undefined,
 		);
 		// Native Windows may need a different install command than the
 		// POSIX-shell one (WSL mode runs commands in bash, so it keeps the
@@ -2059,9 +2069,13 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				: def.installHint.default,
 		);
 
-		const harness = getHarnessById(def.presetId);
-		if (harness?.healthCheck) {
-			this.renderHarnessHealthCheck(bodyEl, preset, harness);
+		if (def.presetId === ANTIGRAVITY_PRESET_ID) {
+			this.renderAntigravityHealthCheck(bodyEl, preset.command);
+		} else {
+			const harness = getHarnessById(def.presetId);
+			if (harness?.healthCheck) {
+				this.renderHarnessHealthCheck(bodyEl, preset, harness);
+			}
 		}
 
 		new Setting(bodyEl)
@@ -2520,6 +2534,86 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			});
 	}
 
+	private renderAntigravityHealthCheck(
+		bodyEl: HTMLElement,
+		configuredPath: string,
+	): void {
+		const container = bodyEl.createDiv({
+			cls: "agent-client-antigravity-health",
+		});
+		const statusEl = container.createDiv({
+			cls: "agent-client-antigravity-health-status",
+			text: "Health check: click Run to probe bridge, auth, and endpoint.",
+		});
+		const listEl = container.createDiv({
+			cls: "agent-client-antigravity-health-list",
+		});
+
+		const renderReport = (report: AntigravityHealthReport) => {
+			listEl.empty();
+			statusEl.setText(
+				report.overall === "ok"
+					? "Health check: ready"
+					: report.overall === "warning"
+						? "Health check: warnings — review below"
+						: "Health check: issues found",
+			);
+			statusEl.toggleClass(
+				"agent-client-antigravity-health--ok",
+				report.overall === "ok",
+			);
+			statusEl.toggleClass(
+				"agent-client-antigravity-health--warning",
+				report.overall === "warning",
+			);
+			statusEl.toggleClass(
+				"agent-client-antigravity-health--error",
+				report.overall === "error",
+			);
+
+			for (const check of report.checks) {
+				const row = listEl.createDiv({
+					cls: `agent-client-antigravity-health-row agent-client-antigravity-health-row--${check.status}`,
+				});
+				row.createEl("strong", { text: `${check.label}: ` });
+				row.createSpan({ text: check.detail });
+				if (check.suggestion) {
+					row.createEl("p", {
+						cls: "agent-client-antigravity-health-suggestion",
+						text: check.suggestion,
+					});
+				}
+			}
+		};
+
+		new Setting(container)
+			.setName("Health check")
+			.setDesc(
+				"Verify the ACP bridge binary, Antigravity auth (~/.gemini/), and spawn endpoint before chatting.",
+			)
+			.addButton((btn) => {
+				btn.setButtonText("Run").onClick(async () => {
+					btn.setButtonText("Checking…");
+					btn.setDisabled(true);
+					try {
+						const report =
+							await checkAntigravityHealth(configuredPath);
+						renderReport(report);
+						const mcpNote = await getAntigravityMcpConfigNote();
+						if (mcpNote) {
+							listEl.createEl("p", {
+								cls: "agent-client-antigravity-health-note",
+								text: mcpNote,
+							});
+						}
+					} finally {
+						btn.setButtonText("Run");
+						btn.setDisabled(false);
+					}
+				});
+			});
+	}
+
 	/**
 	 * Renders a copyable install command hint below a Path setting.
 	 */
@@ -2551,25 +2645,30 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		setting: import("obsidian").Setting,
 		commandName: string,
 		onResolved: (path: string) => Promise<void>,
+		resolvePath?: () => Promise<string | null>,
 	): void {
 		setting.addButton((btn) => {
 			const isWsl = Platform.isWin && this.plugin.settings.windowsWslMode;
 			const lookupCmd = Platform.isWin && !isWsl ? "where" : "which";
 			btn.setButtonText("Auto-detect")
 				.setTooltip(
-					`Run \`${lookupCmd} ${commandName}\` to find the path`,
+					resolvePath
+						? "Probe platform paths for agy_acp_server.par"
+						: `Run \`${lookupCmd} ${commandName}\` to find the path`,
 				)
 				.onClick(async () => {
 					btn.setButtonText("Detecting…");
 					btn.setDisabled(true);
 					try {
-						const found = isWsl
-							? await resolveCommandPathInWsl(
-									commandName,
-									this.plugin.settings
-										.windowsWslDistribution || undefined,
-								)
-							: await resolveCommandPath(commandName);
+						const found = resolvePath
+							? await resolvePath()
+							: isWsl
+								? await resolveCommandPathInWsl(
+										commandName,
+										this.plugin.settings
+											.windowsWslDistribution || undefined,
+									)
+								: await resolveCommandPath(commandName);
 						if (found) {
 							await onResolved(found);
 							this.renderContent();

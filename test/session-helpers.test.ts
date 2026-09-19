@@ -68,6 +68,11 @@ function makeSettings(
 				args: ["acp"],
 			}),
 			cursor: preset("cursor", "Cursor", "agent", { args: ["acp"] }),
+			antigravity: preset(
+				"antigravity",
+				"Antigravity",
+				"/Users/test/Library/agy-acp-server/agy_acp_server.par",
+			),
 		},
 		customAgents: [],
 		defaultAgentId: "",
@@ -89,6 +94,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			{ id: "kiro-cli", displayName: "Kiro" },
 			{ id: "hermes-agent", displayName: "Hermes Agent" },
 			{ id: "cursor", displayName: "Cursor" },
+			{ id: "antigravity", displayName: "Antigravity" },
 			{ id: "my-custom", displayName: "My Custom" },
 		]);
 	});
@@ -122,6 +128,7 @@ describe("getAvailableAgentsFromSettings", () => {
 			"kiro-cli",
 			"hermes-agent",
 			"cursor",
+			"antigravity",
 			"my-custom",
 		]);
 	});
@@ -144,6 +151,7 @@ describe("getAllAgentsFromSettings", () => {
 			{ id: "kiro-cli", displayName: "Kiro" },
 			{ id: "hermes-agent", displayName: "Hermes Agent" },
 			{ id: "cursor", displayName: "Cursor" },
+			{ id: "antigravity", displayName: "Antigravity" },
 			{ id: "off-custom", displayName: "Off Custom" },
 		]);
 	});

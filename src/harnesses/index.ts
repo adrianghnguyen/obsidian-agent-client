@@ -1,4 +1,5 @@
 import type { ProcessError } from "../types/errors";
+import { antigravityHarness } from "./antigravity";
 import { claudeCodeHarness } from "./claude-code";
 import { codexHarness } from "./codex";
 import { cursorHarness } from "./cursor";
@@ -20,6 +21,7 @@ export const HARNESS_DEFINITIONS: readonly HarnessDefinition[] = [
 	kiroCliHarness,
 	hermesAgentHarness,
 	cursorHarness,
+	antigravityHarness,
 ];
 
 /** Preset rows derived from harness modules (legacy PRESET_AGENTS consumers). */

@@ -22,6 +22,12 @@ import {
 	enrichCursorErrorInfo,
 	resolveCursorEndpoint,
 } from "../harnesses/cursor";
+import {
+	enrichAntigravityErrorInfo,
+	isAntigravityAgent,
+	mapAntigravityProcessError,
+	resolveAntigravityEndpoint,
+} from "../harnesses/antigravity";
 import { getLogger } from "../utils/logger";
 import {
 	type AgentDisplayInfo,
@@ -162,20 +168,34 @@ export function useAgentSession(
 					break;
 				case "process_error":
 					setSession((prev) => ({ ...prev, state: "error" }));
-					setErrorInfo(
-						{
-							title: update.error.title || "Agent Error",
-							message:
-								update.error.message || "An error occurred",
-							suggestion: update.error.suggestion,
-							link: update.error.link,
-						},
-						update.error.agentId,
-					);
+					{
+						const settings = settingsAccess.getSnapshot();
+						const endpoint = isAntigravityAgent(update.error.agentId)
+							? resolveAntigravityEndpoint(
+									settings.presetAgents.antigravity?.command,
+								)
+							: "";
+						const errorInfo = isAntigravityAgent(
+							update.error.agentId,
+						)
+							? mapAntigravityProcessError(
+									update.error,
+									endpoint,
+								)
+							: {
+									title: update.error.title || "Agent Error",
+									message:
+										update.error.message ||
+										"An error occurred",
+									suggestion: update.error.suggestion,
+									link: update.error.link,
+								};
+						setErrorInfo(errorInfo, update.error.agentId);
+					}
 					break;
 			}
 		},
-		[setErrorInfo],
+		[setErrorInfo, settingsAccess],
 	);
 
 	// ============================================================
@@ -315,25 +335,29 @@ export function useAgentSession(
 					agentId,
 				);
 				const message = extractErrorMessage(error);
+				const cursorEnriched = enrichCursorErrorInfo(
+					agentId,
+					{
+						title: "Session Creation Failed",
+						message: `Failed to create new session: ${message}`,
+						suggestion:
+							"Please check the agent configuration and try again.",
+					},
+					{
+						command: agentSettings?.command.trim() || "agent",
+						args: agentSettings?.args ?? ["acp"],
+						endpoint: resolveCursorEndpoint(
+							agentSettings?.args ?? ["acp"],
+						),
+						errorMessage: message,
+						acpErrorCode: extractErrorCode(error),
+					},
+				);
+				const endpoint = isAntigravityAgent(agentId)
+					? resolveAntigravityEndpoint(agentSettings?.command)
+					: "";
 				setErrorInfo(
-					enrichCursorErrorInfo(
-						agentId,
-						{
-							title: "Session Creation Failed",
-							message: `Failed to create new session: ${message}`,
-							suggestion:
-								"Please check the agent configuration and try again.",
-						},
-						{
-							command: agentSettings?.command.trim() || "agent",
-							args: agentSettings?.args ?? ["acp"],
-							endpoint: resolveCursorEndpoint(
-								agentSettings?.args ?? ["acp"],
-							),
-							errorMessage: message,
-							acpErrorCode: extractErrorCode(error),
-						},
-					),
+					enrichAntigravityErrorInfo(agentId, endpoint, cursorEnriched),
 					agentId,
 				);
 			}
