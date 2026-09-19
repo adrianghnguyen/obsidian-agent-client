@@ -1,20 +1,21 @@
 /**
  * Antigravity preset health checks for Settings → Agent Client.
  *
- * Probes the ACP bridge binary, Antigravity auth signals under ~/.gemini/,
- * and the configured spawn endpoint. Does not spawn the bridge (too slow).
+ * Probes the ACP bridge binary, Antigravity ACP auth under
+ * ~/.gemini/antigravity-acp/, the localharness companion, and the configured
+ * spawn endpoint. Does not spawn the bridge (too slow).
  */
 
 import { access, readFile, stat } from "fs/promises";
 import { constants } from "fs";
+import { basename } from "path";
+import { classifyAntigravityAuth, gatherAntigravityAuthSignals } from "./auth";
 import {
 	ANTIGRAVITY_HARNESS_FILENAME,
 	getAntigravityBridgeCandidates,
-	getAntigravityCliSettingsPath,
+	getAntigravityBridgeFilename,
 	getAntigravityCompanionCandidates,
 	getAntigravityMcpConfigPath,
-	getAntigravityOAuthTokenPath,
-	hasGeminiApiKey,
 	resolveAntigravityCompanionPath,
 	resolveAntigravitySpawnBridge,
 } from "./paths";
@@ -48,26 +49,17 @@ async function fileExists(path: string): Promise<boolean> {
 	}
 }
 
-async function readJsonFile(path: string): Promise<Record<string, unknown> | null> {
-	try {
-		const raw = await readFile(path, "utf8");
-		const parsed = JSON.parse(raw) as unknown;
-		return parsed && typeof parsed === "object"
-			? (parsed as Record<string, unknown>)
-			: null;
-	} catch {
-		return null;
-	}
-}
-
-async function checkBridge(configuredPath: string): Promise<AntigravityHealthCheck> {
+async function checkBridge(
+	configuredPath: string,
+): Promise<AntigravityHealthCheck> {
+	const filename = getAntigravityBridgeFilename();
 	const resolved = await resolveAntigravitySpawnBridge(configuredPath);
 	if (resolved) {
 		return {
 			id: "bridge",
 			label: "ACP bridge",
 			status: "ok",
-			detail: `Found agy_acp_server.par at ${resolved}`,
+			detail: `Found ${basename(resolved)} at ${resolved}`,
 		};
 	}
 
@@ -88,75 +80,32 @@ async function checkBridge(configuredPath: string): Promise<AntigravityHealthChe
 		id: "bridge",
 		label: "ACP bridge",
 		status: "error",
-		detail: `agy_acp_server.par not found. Probed: ${probed}${candidates.length > 3 ? ", …" : ""}`,
-		suggestion:
-			"Install the Antigravity ACP bridge from the ACP Registry (Zed: Agents → Antigravity) or copy agy_acp_server.par into ~/Library/agy-acp-server/ on macOS, then click Auto-detect.",
+		detail: `${filename} not found. Probed: ${probed}${candidates.length > 3 ? ", …" : ""}`,
+		suggestion: `Install the Antigravity ACP bridge from the ACP Registry (Zed: Agents → Antigravity) or copy ${filename} into the platform install folder, then click Auto-detect.`,
 	};
 }
 
 async function checkAuth(
 	env?: Record<string, string>,
 ): Promise<AntigravityHealthCheck> {
-	const oauthPath = getAntigravityOAuthTokenPath();
-	if (await fileExists(oauthPath)) {
-		return {
-			id: "auth",
-			label: "Authentication",
-			status: "ok",
-			detail: "OAuth token file present (~/.gemini/antigravity-cli/).",
-		};
-	}
-
-	if (hasGeminiApiKey(env)) {
-		return {
-			id: "auth",
-			label: "Authentication",
-			status: "ok",
-			detail: "Gemini API key is set (GEMINI_API_KEY).",
-		};
-	}
-
-	const settings = await readJsonFile(getAntigravityCliSettingsPath());
-	const modelProvider =
-		typeof settings?.modelProvider === "string"
-			? settings.modelProvider.trim().toLowerCase()
-			: "";
-
-	if (modelProvider === "gemini") {
-		return {
-			id: "auth",
-			label: "Authentication",
-			status: "error",
-			detail:
-				"settings.json uses modelProvider=gemini but GEMINI_API_KEY is not set in this environment.",
-			suggestion:
-				"Export GEMINI_API_KEY in your shell profile or Antigravity Environment variables, or remove modelProvider from ~/.gemini/antigravity-cli/settings.json and run `agy` in Terminal to sign in with your Google account.",
-		};
-	}
-
-	if (settings) {
-		return {
-			id: "auth",
-			label: "Authentication",
-			status: "warning",
-			detail:
-				"Antigravity CLI settings exist; account auth is stored in your OS keychain (not readable from Obsidian).",
-			suggestion:
-				"Run `agy` once in Terminal and complete sign-in if you have not already. Empty ~/.gemini/config/mcp_config.json is normal.",
-		};
-	}
-
+	const classification = classifyAntigravityAuth(
+		await gatherAntigravityAuthSignals(undefined, {
+			...process.env,
+			...env,
+		}),
+	);
 	return {
 		id: "auth",
 		label: "Authentication",
-		status: "error",
-		detail: "No Antigravity auth detected under ~/.gemini/antigravity-cli/.",
-		suggestion:
-			"Run `agy` in Terminal and sign in with your Google account, or set GEMINI_API_KEY (shell or Environment variables) per the Antigravity setup guide.",
+		status: classification.health.status,
+		detail: classification.health.detail,
+		suggestion: classification.health.suggestion,
 	};
 }
 
-async function checkEndpoint(configuredPath: string): Promise<AntigravityHealthCheck> {
+async function checkEndpoint(
+	configuredPath: string,
+): Promise<AntigravityHealthCheck> {
 	const resolved = await resolveAntigravitySpawnBridge(configuredPath);
 
 	if (resolved) {
@@ -223,7 +172,9 @@ async function checkHarness(
 	};
 }
 
-function overallStatus(checks: AntigravityHealthCheck[]): AntigravityHealthLevel {
+function overallStatus(
+	checks: AntigravityHealthCheck[],
+): AntigravityHealthLevel {
 	if (checks.some((c) => c.status === "error")) return "error";
 	if (checks.some((c) => c.status === "warning")) return "warning";
 	return "ok";
@@ -259,7 +210,11 @@ export async function getAntigravityMcpConfigNote(): Promise<string | null> {
 	try {
 		const raw = await readFile(path, "utf8");
 		const trimmed = raw.trim();
-		if (trimmed === "" || trimmed === "{}" || trimmed === '{"mcpServers":{}}') {
+		if (
+			trimmed === "" ||
+			trimmed === "{}" ||
+			trimmed === '{"mcpServers":{}}'
+		) {
 			return "Empty ~/.gemini/config/mcp_config.json is intentional — Antigravity manages MCP separately.";
 		}
 	} catch {

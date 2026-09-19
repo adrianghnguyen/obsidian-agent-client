@@ -2593,7 +2593,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName("Health check")
 			.setDesc(
-				"Verify the ACP bridge binary, Antigravity auth (~/.gemini/), and spawn endpoint before chatting.",
+				"Verify the ACP bridge binary, Antigravity ACP auth (~/.gemini/antigravity-acp/), and spawn endpoint before chatting.",
 			)
 			.addButton((btn) => {
 				btn.setButtonText("Run").onClick(async () => {
@@ -2669,7 +2669,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			btn.setButtonText("Auto-detect")
 				.setTooltip(
 					resolvePath
-						? "Probe platform paths for agy_acp_server.par"
+						? "Probe platform paths for agy_acp_server.par or agy_acp_server.exe"
 						: `Run \`${lookupCmd} ${commandName}\` to find the path`,
 				)
 				.onClick(async () => {
