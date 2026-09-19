@@ -73,7 +73,10 @@ describe("openHarnessSession", () => {
 
 	it("does not call session/new when Antigravity authenticate fails", async () => {
 		const client = makeClient();
-		client.authenticate.mockResolvedValue(false);
+		client.authenticate.mockImplementation(async (methodId: string) => {
+			client.calls.push(`authenticate:${methodId}`);
+			return false;
+		});
 		await client.initialize();
 		await expect(
 			openHarnessSession("antigravity", "/vault", client),
