@@ -5,6 +5,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## [Unreleased]
 
 ### Added
+- **Cursor preset** — first-class ACP via `agent acp` (not a custom-agent JSON recipe), setup docs, settings **Check setup** health probe, and distinct connection-failure copy in chat when auth, PATH, endpoint, or process exit fails.
+- **Antigravity preset** — first-class support for Google's Antigravity ACP bridge (`agy_acp_server.par`), with platform path auto-detect, settings health check (bridge, auth, endpoint), and chat error banners that name failure modes and next steps.
+- **Default agent scope** — Settings → Getting started: keep the default agent on **All devices (sync)** or **This device only** (local overlay, does not overwrite other computers via Sync).
 - **Floating chat transparency lock** — when idle fade delay is greater than 0, an icon in the floating header (next to More / close) locks every floating window fully opaque or restores idle fade. Persists across restarts; delay 0 hides the button.
 
 ### Changed
@@ -14,6 +17,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Hidden and Compact** keep ACP plans and Cursor Create Plan outside the working buffer/groups (same as permission prompts).
 
 ### Fixed
+- **Antigravity** authenticates with `gemini-api-key` (the same `GEMINI_API_KEY` already in the spawn env) after initialize and before `session/new`, so a green health card no longer leads to "Authentication required" on first chat. Cursor and other harnesses are unchanged.
 - **Copy assistant replies** from the copy control at the bottom of the agent message (same hover action as user-sent commands). Copies visible reply text only, not Hidden/Compact tool buffers or thoughts.
 - **Floating chat** places the caret in the composer when a window is opened, expanded from minimized, or focused via hotkey/API. Already-visible windows are not refocused on vault clicks, dragging, or header/transparency controls.
 - **Voice input** Enter during live dictation sends the current composer/transcript buffer (same as the send control), then clears the speech-to-text turn. Shift+Enter still inserts a newline; the Stop button still stops without sending.

@@ -6,7 +6,7 @@
  */
 
 import * as React from "react";
-const { useState, useCallback, useEffect, useMemo } = React;
+const { useState, useCallback, useEffect, useMemo, useRef } = React;
 
 import type { SessionUpdate } from "../types/session";
 import type { AcpClient } from "../acp/acp-client";
@@ -15,6 +15,8 @@ import type { ISettingsAccess } from "../services/settings-service";
 import type { ErrorInfo } from "../types/errors";
 import type { IMentionService } from "../utils/mention-parser";
 import type { IWikilinkResolver } from "../utils/wikilink-resolver";
+import { errorInfoToChatMessage } from "../services/connection-error-message";
+import { isCursorAgent } from "../harnesses/cursor";
 import { useAgentSession } from "./useAgentSession";
 import { useAgentMessages, type SendMessageOptions } from "./useAgentMessages";
 
@@ -119,7 +121,18 @@ export function useAgent(
 	// Shared Error State
 	// ============================================================
 
-	const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
+	const [errorInfo, setErrorInfoState] = useState<ErrorInfo | null>(null);
+	const addMessageRef = useRef<(message: ChatMessage) => void>(() => {});
+
+	const setErrorInfo = useCallback(
+		(error: ErrorInfo | null, agentId?: string) => {
+			setErrorInfoState(error);
+			if (error && agentId && isCursorAgent(agentId)) {
+				addMessageRef.current(errorInfoToChatMessage(error));
+			}
+		},
+		[],
+	);
 
 	// ============================================================
 	// Sub-hooks
@@ -140,6 +153,8 @@ export function useAgent(
 		agentSession.session,
 		setErrorInfo,
 	);
+
+	addMessageRef.current = agentMessages.addMessage;
 
 	// ============================================================
 	// Unified Session Update Handler

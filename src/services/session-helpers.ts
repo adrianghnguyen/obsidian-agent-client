@@ -89,6 +89,10 @@ export function repairNoEnabledAgents(
  * first enabled agent when the stored default is unknown or disabled —
  * second line of defense behind plugin.ensureDefaultAgentId, so a stale
  * default can't keep spawning a disabled agent.
+ *
+ * `settings.defaultAgentId` is the runtime value: when Default agent scope
+ * is "This device only", the plugin overlays localStorage before callers
+ * read settings.
  */
 export function getDefaultAgentId(settings: AgentClientPluginSettings): string {
 	const stored = settings.defaultAgentId;

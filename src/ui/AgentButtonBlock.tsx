@@ -5,7 +5,10 @@ import { Notice } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
 import type { AgentButtonBlockConfig } from "../utils/agent-block-parser";
-import { findAgentSettings } from "../services/session-helpers";
+import {
+	findAgentSettings,
+	getDefaultAgentId,
+} from "../services/session-helpers";
 import { LucideIcon } from "./shared/IconButton";
 
 interface AgentButtonBlockProps {
@@ -29,7 +32,7 @@ function resolveAgentId(
 	if (preferred && findAgentSettings(plugin.settings, preferred)) {
 		return preferred;
 	}
-	return plugin.settings.defaultAgentId;
+	return getDefaultAgentId(plugin.settings);
 }
 
 function AgentButtonBlockComponent({

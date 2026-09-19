@@ -19,8 +19,8 @@ You can use any agent that implements the [Agent Client Protocol (ACP)](https://
 
 ## Configuration Examples
 
-::: tip OpenCode and Kiro
-OpenCode and Kiro are now built-in presets — see [OpenCode Setup](./opencode) and [Kiro Setup](./kiro). If you previously configured them here as custom agents (ids `opencode` / `kiro-cli`), your settings migrate to the presets automatically.
+::: tip OpenCode, Kiro, Cursor, and Antigravity
+OpenCode, Kiro, Cursor, and Antigravity are built-in presets — see [OpenCode Setup](./opencode), [Kiro Setup](./kiro), [Cursor Setup](./cursor), and [Antigravity Setup](./antigravity). If you previously configured them as custom agents (ids `opencode` / `kiro-cli` / `cursor` / `antigravity`), your settings migrate to the presets automatically where noted on each page.
 :::
 
 ### Qwen Code

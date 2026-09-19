@@ -28,7 +28,7 @@ User-facing changes: log under `CHANGELOG.md` `[Unreleased]` when ready; version
 # Agent Client Plugin - LLM Developer Guide
 
 ## Overview
-Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, custom agents) via ACP.
+Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, Antigravity, custom agents) via ACP.
 
 **Tech**: React 19, TypeScript, Obsidian API, Agent Client Protocol (ACP)
 
@@ -314,8 +314,9 @@ interface ISettingsAccess {
 6. Wrap return object in `useMemo` if passed as dependency to other hooks
 
 ### Add Preset Agent
-1. Add one entry to `PRESET_AGENTS` in `services/preset-agents.ts`
-   (presetId, defaults, optional apiKey wiring, install hint, settings copy, docsPage).
+1. Add one harness module under `src/harnesses/<id>/` (preset row plus optional
+   `healthCheck` / `mapConnectionError` / `docs` slots) and register it in
+   `src/harnesses/index.ts`. `PRESET_AGENTS` is derived from the registry.
    Settings storage, enumeration, API key injection, and the settings UI are all
    registry-driven — no per-agent code elsewhere.
 2. Add docs — the full file list (do not shorten it; every past addition that
@@ -371,6 +372,8 @@ Cursor Cloud env → Keychain: `.cloud-e2e/secret-bindings.json`. Preset spawn o
 - OpenCode: `opencode-ai` (CLI-managed auth, no API key env)
 - Kiro: `kiro-cli` install script (KIRO_API_KEY, optional)
 - Hermes Agent: install script (CLI-managed auth, no API key env)
+- Cursor: `agent acp` via Cursor CLI (`curl https://cursor.com/install -fsS | bash`; auth via `agent login` or `CURSOR_API_KEY`)
+- Antigravity: ACP bridge (`agy_acp_server.par`); OAuth via `agy` / `~/.gemini/` or Gemini API key mode
 - Custom: Any ACP-compatible agent
 
 ---

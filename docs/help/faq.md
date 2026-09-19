@@ -6,7 +6,7 @@ Frequently asked questions about Agent Client.
 
 ### What is Agent Client?
 
-Agent Client is an Obsidian plugin that lets you chat with AI agents directly within Obsidian. It supports Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, and any ACP-compatible agent. The plugin uses the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) to communicate with agents.
+Agent Client is an Obsidian plugin that lets you chat with AI agents directly within Obsidian. It supports Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, Antigravity, and any ACP-compatible agent. The plugin uses the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) to communicate with agents.
 
 ### Is this an official Anthropic/OpenAI/Google plugin?
 
@@ -54,7 +54,7 @@ Click the **×** button next to the auto-mention badge above the input field. Cl
 
 Click the **⋮** (ellipsis) menu in the chat header. Under **"Switch agent"**, select the agent you want to use. This is a one-time change for that view only.
 
-To change the default agent for new chat views, go to **Settings → Agent Client → Default agent**.
+To change the default agent for new chat views, go to **Settings → Agent Client → Default agent**. Use **Default agent scope** to share that default across devices or keep it on this computer only.
 
 ### Can I run multiple agents at the same time?
 
@@ -81,7 +81,7 @@ Disabling only hides the agent from lists: already-open chats, restored sessions
 
 ### What is a custom agent?
 
-Any ACP-compatible agent beyond the preset ones (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent). You can add custom agents in **Settings → Agent Client → Custom agents**. See [Custom Agents](/agent-setup/custom-agents).
+Any ACP-compatible agent beyond the preset ones (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, Antigravity). You can add custom agents in **Settings → Agent Client → Custom agents**. See [Custom Agents](/agent-setup/custom-agents).
 
 ### Do all agents support the same features?
 
@@ -95,7 +95,7 @@ Slash commands are provided by the agent, not the plugin. If the input placehold
 
 ### Why are the commands different from what I expected?
 
-Each agent provides its own commands. Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, and Hermes Agent all have different command sets. Refer to your agent's documentation for available commands.
+Each agent provides its own commands. Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, and Antigravity all have different command sets. Refer to your agent's documentation for available commands.
 
 ## Permissions
 

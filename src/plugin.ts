@@ -60,9 +60,16 @@ import type { VoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import { normalizeVoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import {
 	getAvailableAgentsFromSettings,
+	getDefaultAgentId,
 	firstEnabledAgentId,
 	repairNoEnabledAgents,
 } from "./services/session-helpers";
+import {
+	applyDefaultAgentLocalOverlay,
+	readDefaultAgentLocalId,
+	settingsForSyncedSave,
+	writeDefaultAgentLocalId,
+} from "./services/default-agent-local-storage";
 import {
 	AgentEnvVar,
 	PresetAgentUserSettings,
@@ -129,6 +136,8 @@ export default class AgentClientPlugin extends Plugin {
 	voiceInput: VoiceInputModule | null = null;
 	/** Device-local floating window layout (size/position after drag/resize). */
 	private floatingWindowLocalStorage!: FloatingWindowLocalStorageAccess;
+	/** Last default agent id written to data.json (vault-wide, may lag local). */
+	private syncedDefaultAgentId = "";
 
 	getFloatingWindowLocalLayout(): FloatingWindowLocalLayout | null {
 		return readFloatingWindowLocalLayout(this.floatingWindowLocalStorage);
@@ -215,7 +224,7 @@ export default class AgentClientPlugin extends Plugin {
 			name: "Open new chat view",
 			callback: () => {
 				void this.openNewChatViewWithAgent(
-					this.settings.defaultAgentId,
+					getDefaultAgentId(this.settings),
 				);
 			},
 		});
@@ -698,6 +707,10 @@ export default class AgentClientPlugin extends Plugin {
 			),
 			customAgents,
 			defaultAgentId,
+			defaultAgentPerDevice: bool(
+				raw.defaultAgentPerDevice,
+				D.defaultAgentPerDevice,
+			),
 			autoAllowPermissions: bool(
 				raw.autoAllowPermissions,
 				D.autoAllowPermissions,
@@ -850,7 +863,9 @@ export default class AgentClientPlugin extends Plugin {
 		};
 
 		this.ensureAtLeastOneEnabled();
+		this.applyDefaultAgentOverlay();
 		this.ensureDefaultAgentId();
+		this.persistDefaultAgentLocalIfNeeded();
 
 		if (
 			migratedSecrets ||
@@ -864,7 +879,51 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	async saveSettings() {
-		await this.saveData(this.settings);
+		if (!this.settings.defaultAgentPerDevice) {
+			this.syncedDefaultAgentId = this.settings.defaultAgentId;
+		} else {
+			writeDefaultAgentLocalId(
+				this.floatingWindowLocalStorage,
+				this.settings.defaultAgentId,
+			);
+		}
+		await this.saveData(
+			settingsForSyncedSave(this.settings, this.syncedDefaultAgentId),
+		);
+	}
+
+	/**
+	 * Switch Default agent scope. This-device keeps the current pick locally
+	 * and stops writing it to Sync; All-devices promotes this computer's
+	 * pick to the vault-wide default.
+	 */
+	async setDefaultAgentPerDevice(perDevice: boolean): Promise<void> {
+		if (perDevice === this.settings.defaultAgentPerDevice) {
+			return;
+		}
+		if (perDevice) {
+			const overlay = applyDefaultAgentLocalOverlay({
+				perDevice: true,
+				syncedId: this.settings.defaultAgentId,
+				localId: readDefaultAgentLocalId(
+					this.floatingWindowLocalStorage,
+				),
+			});
+			this.settings.defaultAgentId = overlay.runtimeId;
+			if (overlay.seedLocal) {
+				writeDefaultAgentLocalId(
+					this.floatingWindowLocalStorage,
+					overlay.runtimeId,
+				);
+			}
+		} else {
+			this.syncedDefaultAgentId = this.settings.defaultAgentId;
+		}
+		this.ensureDefaultAgentId();
+		await this.settingsService.updateSettings({
+			defaultAgentPerDevice: perDevice,
+			defaultAgentId: this.settings.defaultAgentId,
+		});
 	}
 
 	async saveSettingsAndNotify(nextSettings: AgentClientPluginSettings) {
@@ -959,6 +1018,32 @@ export default class AgentClientPlugin extends Plugin {
 		if (!availableIds.includes(this.settings.defaultAgentId)) {
 			this.settings.defaultAgentId = firstEnabledAgentId(this.settings);
 		}
+	}
+
+	private applyDefaultAgentOverlay(): void {
+		this.syncedDefaultAgentId = this.settings.defaultAgentId;
+		const overlay = applyDefaultAgentLocalOverlay({
+			perDevice: this.settings.defaultAgentPerDevice,
+			syncedId: this.syncedDefaultAgentId,
+			localId: readDefaultAgentLocalId(this.floatingWindowLocalStorage),
+		});
+		this.settings.defaultAgentId = overlay.runtimeId;
+		if (overlay.seedLocal) {
+			writeDefaultAgentLocalId(
+				this.floatingWindowLocalStorage,
+				overlay.runtimeId,
+			);
+		}
+	}
+
+	private persistDefaultAgentLocalIfNeeded(): void {
+		if (!this.settings.defaultAgentPerDevice) {
+			return;
+		}
+		writeDefaultAgentLocalId(
+			this.floatingWindowLocalStorage,
+			this.settings.defaultAgentId,
+		);
 	}
 
 	/**
