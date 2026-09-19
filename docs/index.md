@@ -55,6 +55,7 @@ Agent Client is an Obsidian plugin that brings AI coding agents directly into yo
 | **[OpenCode](https://github.com/anomalyco/opencode)** | Multi-provider | with built-in ACP support (`opencode acp`) |
 | **[Kiro](https://kiro.dev/)** | AWS | with built-in ACP support (`kiro-cli acp`) |
 | **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** | Multi-provider | with built-in ACP support (`hermes acp`) |
+| **[Cursor](https://cursor.com/docs/cli/overview)** | Cursor | with built-in ACP support (`agent acp`) |
 | **Custom** | Various | [Any ACP-compatible agent](https://agentclientprotocol.com/overview/agents) (e.g., Qwen Code) |
 
 ### Key Features

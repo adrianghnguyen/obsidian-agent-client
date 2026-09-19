@@ -23,6 +23,7 @@ Each agent uses its own context file:
 | OpenCode | `AGENTS.md` (falls back to `CLAUDE.md`) |
 | Kiro | `AGENTS.md` (also `.kiro/steering/*.md`) |
 | Hermes Agent | `AGENTS.md` (falls back to `CLAUDE.md`) |
+| Cursor | `.cursor/rules`, `AGENTS.md`, project rules (Cursor CLI) |
 
 Place the context file in your **vault root** to have the agent read it automatically.
 

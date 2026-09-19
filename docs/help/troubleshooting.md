@@ -2,6 +2,18 @@
 
 This guide covers common issues and solutions for Agent Client.
 
+### Cursor connection errors in chat
+
+When the **Cursor** preset cannot start or connect, the chat shows a specific card (not a generic “Agent Error”):
+
+| Symptom | What you see | Next step |
+|---------|----------------|-----------|
+| Not signed in | **Cursor Not Signed In** | Run `agent login`, then **Check setup** in Cursor settings |
+| CLI missing | **Cursor CLI Not Found** | Install the CLI, use **Auto-detect**, or set Path to `which agent` |
+| Old CLI | **Cursor ACP Subcommand Missing** | Run `agent update`, verify `agent acp --help` |
+| Bad endpoint | **Cursor API Unreachable** (shows the URL) | Fix `-e` / `CURSOR_API_URL` or network |
+| Crash / timeout | **Cursor Agent Stopped Unexpectedly** | Run `agent acp` in a terminal for stderr |
+
 ## Connection Issues
 
 ### "Connecting to [Agent]..." doesn't complete
@@ -64,6 +76,9 @@ The agent requires authentication before processing requests.
 
 **For Hermes Agent:**
 - Run `hermes model` in Terminal to configure a provider (there is no API key field in the plugin). See [Hermes Agent Setup](/agent-setup/hermes#authentication).
+
+**For Cursor:**
+- Run `agent login` in Terminal first, or set `CURSOR_API_KEY` in Environment variables. Use **Check setup** under **Settings → Agent Client → Cursor**. See [Cursor Setup](/agent-setup/cursor#authentication).
 
 ### "No Authentication Methods" error
 

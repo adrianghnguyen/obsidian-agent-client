@@ -277,6 +277,33 @@ function ContentBlock({
 				</div>
 			);
 
+		case "connection_error":
+			return (
+				<div className="agent-client-chat-error-container">
+					<h4 className="agent-client-chat-error-title">
+						{content.title}
+					</h4>
+					<p className="agent-client-chat-error-message">
+						{content.message}
+					</p>
+					{content.suggestion && (
+						<p className="agent-client-chat-error-suggestion">
+							{content.suggestion}
+						</p>
+					)}
+					{content.link && (
+						<a
+							className="agent-client-error-overlay-link"
+							href={content.link.url}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{content.link.text}
+						</a>
+					)}
+				</div>
+			);
+
 		default:
 			return <span>Unsupported content type</span>;
 	}

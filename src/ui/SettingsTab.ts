@@ -28,6 +28,8 @@ import {
 	PRESET_AGENTS,
 	type PresetAgentDefinition,
 } from "../services/preset-agents";
+import { getHarnessById } from "../harnesses";
+import type { HarnessDefinition } from "../harnesses/shared/types";
 import {
 	getAvailableAgentsFromSettings,
 	isAgentEnabled,
@@ -2057,6 +2059,11 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				: def.installHint.default,
 		);
 
+		const harness = getHarnessById(def.presetId);
+		if (harness?.healthCheck) {
+			this.renderHarnessHealthCheck(bodyEl, preset, harness);
+		}
+
 		new Setting(bodyEl)
 			.setName("Arguments")
 			.setDesc(
@@ -2434,6 +2441,83 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			candidate = `${base}-${counter}`;
 		}
 		return candidate;
+	}
+
+	private renderHarnessHealthCheck(
+		bodyEl: HTMLElement,
+		preset: PresetAgentUserSettings,
+		harness: HarnessDefinition,
+	): void {
+		const resultEl = bodyEl.createDiv({
+			cls: "agent-client-cursor-health-results",
+		});
+		const displayName = harness.preset.defaultDisplayName;
+		const defaultCommand = harness.preset.defaultCommand;
+		const defaultArgs = harness.preset.defaultArgs;
+
+		const renderChecks = (
+			checks: Array<{ ok: boolean; message: string }>,
+			summary: string,
+		) => {
+			resultEl.empty();
+			const list = resultEl.createEl("ul");
+			for (const check of checks) {
+				list.createEl("li", {
+					text: check.message,
+					cls: check.ok
+						? "agent-client-cursor-health-ok"
+						: "agent-client-cursor-health-fail",
+				});
+			}
+			resultEl.createEl("p", {
+				text: summary,
+				cls: "setting-item-description",
+			});
+		};
+
+		new Setting(bodyEl)
+			.setName("Setup check")
+			.setDesc(
+				`Verify ${displayName} is installed, reachable, and authenticated.`,
+			)
+			.addButton((btn) => {
+				btn.setButtonText("Check setup").onClick(async () => {
+					btn.setButtonText("Checking…");
+					btn.setDisabled(true);
+					resultEl.empty();
+					try {
+						const envRecord: Record<string, string> = {};
+						for (const entry of preset.env) {
+							if (entry.key) {
+								envRecord[entry.key] = entry.value ?? "";
+							}
+						}
+						const result = await harness.healthCheck!({
+							agentId: harness.preset.presetId,
+							command: preset.command.trim() || defaultCommand,
+							args:
+								preset.args.length > 0
+									? preset.args
+									: defaultArgs,
+							wslMode: this.plugin.settings.windowsWslMode,
+							wslDistribution:
+								this.plugin.settings.windowsWslDistribution,
+							env: envRecord,
+						});
+						renderChecks(
+							result.checks ? [...result.checks] : [],
+							result.summary ?? result.message ?? "",
+						);
+					} catch {
+						resultEl.setText(
+							"Health check failed to run. Try again from a terminal.",
+						);
+					} finally {
+						btn.setButtonText("Check setup");
+						btn.setDisabled(false);
+					}
+				});
+			});
 	}
 
 	/**

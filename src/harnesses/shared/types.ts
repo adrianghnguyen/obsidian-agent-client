@@ -14,16 +14,37 @@ export interface TraceCommandExtractor {
 
 export interface HealthContext {
 	readonly agentId: string;
+	readonly command?: string;
+	readonly args?: readonly string[];
+	readonly wslMode?: boolean;
+	readonly wslDistribution?: string;
+	readonly env?: Record<string, string>;
+}
+
+export interface HealthCheckItem {
+	readonly ok: boolean;
+	readonly message: string;
 }
 
 export interface HealthReport {
 	readonly ok: boolean;
 	readonly message?: string;
+	readonly summary?: string;
+	readonly checks?: readonly HealthCheckItem[];
+}
+
+export interface ConnectionErrorContext {
+	readonly command?: string;
+	readonly args?: readonly string[];
+	readonly env?: Record<string, string>;
+	readonly stderr?: string;
 }
 
 export interface ConnectionErrorCard {
 	readonly title: string;
 	readonly body: string;
+	readonly suggestion?: string;
+	readonly link?: { text: string; url: string };
 }
 
 export interface PackageUpdateRule {
@@ -50,6 +71,7 @@ export interface HarnessDefinition {
 	readonly healthCheck?: (ctx: HealthContext) => Promise<HealthReport>;
 	readonly mapConnectionError?: (
 		err: ProcessError,
+		ctx?: ConnectionErrorContext,
 	) => ConnectionErrorCard | null;
 	readonly updateRules?: readonly PackageUpdateRule[];
 	readonly notices?: readonly AgentNotice[];

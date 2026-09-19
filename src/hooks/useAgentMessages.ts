@@ -23,7 +23,11 @@ import type { ISettingsAccess } from "../services/settings-service";
 import type { ErrorInfo } from "../types/errors";
 import type { IMentionService } from "../utils/mention-parser";
 import { preparePrompt, sendPreparedPrompt } from "../services/message-sender";
-import { extractErrorMessage } from "../utils/error-utils";
+import { extractErrorMessage, extractErrorCode } from "../utils/error-utils";
+import {
+	enrichCursorErrorInfo,
+	resolveCursorEndpoint,
+} from "../harnesses/cursor";
 import { Platform } from "obsidian";
 import {
 	rebuildToolCallIndex,
@@ -31,6 +35,7 @@ import {
 	findActivePermission,
 	selectOption,
 } from "../services/message-state";
+import { findAgentSettings } from "../services/session-helpers";
 
 // ============================================================================
 // Types
@@ -76,6 +81,8 @@ export interface UseAgentMessagesReturn {
 	setMessagesFromLocal: (localMessages: ChatMessage[]) => void;
 	clearError: () => void;
 	setIgnoreUpdates: (ignore: boolean) => void;
+	/** Append a message to the transcript (used for Cursor connection errors). */
+	addMessage: (message: ChatMessage) => void;
 	/** Discard any pending RAF updates and reset streaming state (call after stop/cancel). */
 	clearPendingUpdates: () => void;
 
@@ -99,7 +106,7 @@ export function useAgentMessages(
 	settingsAccess: ISettingsAccess,
 	vaultAccess: IVaultAccess & IMentionService & IWikilinkResolver,
 	session: ChatSession,
-	setErrorInfo: (error: ErrorInfo | null) => void,
+	setErrorInfo: (error: ErrorInfo | null, agentId?: string) => void,
 ): UseAgentMessagesReturn {
 	// ============================================================
 	// Message State
@@ -278,10 +285,13 @@ export function useAgentMessages(
 	const sendMessage = useCallback(
 		async (content: string, options: SendMessageOptions): Promise<void> => {
 			if (!session.sessionId) {
-				setErrorInfo({
-					title: "Cannot Send Message",
-					message: "No active session. Please wait for connection.",
-				});
+				setErrorInfo(
+					{
+						title: "Cannot Send Message",
+						message: "No active session. Please wait for connection.",
+					},
+					session.agentId,
+				);
 				return;
 			}
 
@@ -392,26 +402,67 @@ export function useAgentMessages(
 						setLastUserMessage(null);
 					} else {
 						setIsSending(false);
+						const agentSettings = findAgentSettings(
+							settings,
+							session.agentId,
+						);
+						const fallback = result.error
+							? {
+									title: result.error.title,
+									message: result.error.message,
+									suggestion: result.error.suggestion,
+									link: result.error.link,
+								}
+							: {
+									title: "Send Message Failed",
+									message: "Failed to send message",
+								};
 						setErrorInfo(
-							result.error
-								? {
-										title: result.error.title,
-										message: result.error.message,
-										suggestion: result.error.suggestion,
-									}
-								: {
-										title: "Send Message Failed",
-										message: "Failed to send message",
-									},
+							enrichCursorErrorInfo(
+								session.agentId,
+								fallback,
+								{
+									command:
+										agentSettings?.command.trim() || "agent",
+									args: agentSettings?.args ?? ["acp"],
+									endpoint: resolveCursorEndpoint(
+										agentSettings?.args ?? ["acp"],
+									),
+									errorMessage: fallback.message,
+									acpErrorCode: result.error?.code,
+								},
+							),
+							session.agentId,
 						);
 					}
 				} catch (error) {
 					if (generationRef.current !== generation) return;
 					setIsSending(false);
-					setErrorInfo({
-						title: "Send Message Failed",
-						message: `Failed to send message: ${extractErrorMessage(error)}`,
-					});
+					const settings = settingsAccess.getSnapshot();
+					const agentSettings = findAgentSettings(
+						settings,
+						session.agentId,
+					);
+					const message = extractErrorMessage(error);
+					setErrorInfo(
+						enrichCursorErrorInfo(
+							session.agentId,
+							{
+								title: "Send Message Failed",
+								message: `Failed to send message: ${message}`,
+							},
+							{
+								command: agentSettings?.command.trim() || "agent",
+								args: agentSettings?.args ?? ["acp"],
+								endpoint: resolveCursorEndpoint(
+									agentSettings?.args ?? ["acp"],
+								),
+								errorMessage: message,
+								acpErrorCode: extractErrorCode(error),
+							},
+						),
+						session.agentId,
+					);
 				}
 			})();
 
@@ -504,6 +555,7 @@ export function useAgentMessages(
 		clearError,
 		setIgnoreUpdates,
 		clearPendingUpdates,
+		addMessage,
 		activePermission,
 		hasActivePermission,
 		approvePermission,

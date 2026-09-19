@@ -7,7 +7,7 @@ import {
 	listHarnessIds,
 } from "../../src/harnesses";
 
-const EXPECTED_PRESET_IDS = [
+const MIGRATED_PRESET_IDS = [
 	"claude-code-acp",
 	"codex-acp",
 	"gemini-cli",
@@ -16,6 +16,8 @@ const EXPECTED_PRESET_IDS = [
 	"kiro-cli",
 	"hermes-agent",
 ] as const;
+
+const EXPECTED_PRESET_IDS = [...MIGRATED_PRESET_IDS, "cursor"] as const;
 
 describe("harness registry", () => {
 	it("registers every in-tree preset harness", () => {
@@ -47,13 +49,21 @@ describe("harness registry", () => {
 	});
 
 	it("leaves optional harness slots empty for migrated presets", () => {
-		for (const harness of HARNESS_DEFINITIONS) {
-			expect(harness.vendorAcp).toBeUndefined();
-			expect(harness.traceAdapters).toBeUndefined();
-			expect(harness.healthCheck).toBeUndefined();
-			expect(harness.mapConnectionError).toBeUndefined();
-			expect(harness.updateRules).toBeUndefined();
-			expect(harness.notices).toBeUndefined();
+		for (const id of MIGRATED_PRESET_IDS) {
+			const harness = getHarnessById(id);
+			expect(harness?.vendorAcp).toBeUndefined();
+			expect(harness?.traceAdapters).toBeUndefined();
+			expect(harness?.healthCheck).toBeUndefined();
+			expect(harness?.mapConnectionError).toBeUndefined();
+			expect(harness?.updateRules).toBeUndefined();
+			expect(harness?.notices).toBeUndefined();
 		}
+	});
+
+	it("registers Cursor with health, connection-error, and docs slots", () => {
+		const cursor = getHarnessById("cursor");
+		expect(cursor?.healthCheck).toEqual(expect.any(Function));
+		expect(cursor?.mapConnectionError).toEqual(expect.any(Function));
+		expect(cursor?.docs).toEqual({ page: "cursor" });
 	});
 });

@@ -18,3 +18,4 @@ export type {
 } from "../harnesses/shared/preset-types";
 
 export { PRESET_AGENTS, GEMINI_PRESET_ID } from "../harnesses";
+export { CURSOR_PRESET_ID } from "../harnesses/cursor";

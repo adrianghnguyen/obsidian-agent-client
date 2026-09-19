@@ -1,12 +1,14 @@
+import type { ProcessError } from "../types/errors";
 import { claudeCodeHarness } from "./claude-code";
 import { codexHarness } from "./codex";
+import { cursorHarness } from "./cursor";
 import { geminiCliHarness } from "./gemini-cli";
 import { hermesAgentHarness } from "./hermes-agent";
 import { kiroCliHarness } from "./kiro-cli";
 import { mistralVibeHarness } from "./mistral-vibe";
 import { opencodeHarness } from "./opencode";
 import type { PresetAgentDefinition } from "./shared/preset-types";
-import type { HarnessDefinition } from "./shared/types";
+import type { ConnectionErrorContext, HarnessDefinition } from "./shared/types";
 
 /** All first-class harness modules, registration order = preset list order. */
 export const HARNESS_DEFINITIONS: readonly HarnessDefinition[] = [
@@ -17,6 +19,7 @@ export const HARNESS_DEFINITIONS: readonly HarnessDefinition[] = [
 	opencodeHarness,
 	kiroCliHarness,
 	hermesAgentHarness,
+	cursorHarness,
 ];
 
 /** Preset rows derived from harness modules (legacy PRESET_AGENTS consumers). */
@@ -44,6 +47,27 @@ export function getHarnessById(
 
 export function listHarnessIds(): readonly string[] {
 	return HARNESS_DEFINITIONS.map((h) => h.preset.presetId);
+}
+
+/** Apply a harness `mapConnectionError` slot onto a process error, if any. */
+export function applyHarnessConnectionError(
+	error: ProcessError,
+	ctx?: ConnectionErrorContext,
+): ProcessError {
+	const card = getHarnessById(error.agentId)?.mapConnectionError?.(
+		error,
+		ctx,
+	);
+	if (!card) {
+		return error;
+	}
+	return {
+		...error,
+		title: card.title,
+		message: card.body,
+		suggestion: card.suggestion ?? error.suggestion,
+		link: card.link ?? error.link,
+	};
 }
 
 export type { HarnessDefinition } from "./shared/types";

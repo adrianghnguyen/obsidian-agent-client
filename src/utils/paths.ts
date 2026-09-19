@@ -2,6 +2,7 @@ import { execFile } from "child_process";
 import { Platform } from "obsidian";
 import { access, stat } from "fs/promises";
 import { constants } from "fs";
+import { homedir } from "os";
 import { join } from "path";
 import {
 	buildWslShellWrapper,
@@ -38,9 +39,10 @@ async function findInKnownPaths(command: string): Promise<string | null> {
 	// escape via join() (defensive — current callers pass hardcoded names).
 	if (command.includes("/") || command.includes("\\")) return null;
 
+	const localBin = join(homedir(), ".local", "bin");
 	const dirs = Platform.isMacOS
-		? ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
-		: ["/usr/local/bin", "/usr/bin", "/bin"];
+		? [localBin, "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+		: [localBin, "/usr/local/bin", "/usr/bin", "/bin"];
 
 	for (const dir of dirs) {
 		const candidate = join(dir, command);
