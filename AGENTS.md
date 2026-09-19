@@ -23,6 +23,18 @@ Vault catalog: `Notes/obsidian plugin tweaks.md`. Fork/deploy workflow: plugin s
 
 User-facing changes: log under `CHANGELOG.md` `[Unreleased]` when ready; version bump on `main` only — see plugin skill `obsidian-plugin-dev` (Obsidian Plugin Development) — Release notes and semantic versioning. This repo also syncs `package.json` and `versions.json` at release (or via `npm version` / release script).
 
+### Cursor Cloud environment
+
+Setup is owned by `obsidian-plugin-development`. This repo ships the shared pointer plus its own secret-id map. **Do not copy script bodies here.**
+
+- Pointer: `.cursor/environment.json` (same `install` / `start` on all four `main`s)
+- Scripts (plugin-development only): `scripts/cloud-e2e/env-install.sh`, `env-start.sh`, `install-acp-agents.sh`, `paths.env`
+- Walkthrough: `scripts/cloud-e2e/README.md`, `GETTING-STARTED.md`
+- Secret **ids**: this repo’s `.cloud-e2e/secret-bindings.json`; fallbacks `obsidian-plugin-development/scripts/cloud-e2e/bindings/*.json` via `load-bindings.mjs`
+- Identity gate: `env-start.sh` CDP eval + `paths.env` (no separate id file)
+
+Project doc: `/cursor/stores/bc-a8a2e9ee-3f2b-4d31-ae8c-85b3734c071e/docs/cursor-environment-docs.md`
+
 ---
 
 # Agent Client Plugin - LLM Developer Guide
@@ -352,7 +364,7 @@ Use this when ACP connection or spawn fails — console lines like `[AcpClient] 
 
 **Voice live smoke (optional, not CI):** `GEMINI_API_KEY=... npm run smoke:voice` feeds `test/voice-input/fixtures/sample-speech.wav` into Gemini Live and asserts a final transcript.
 
-Cursor Cloud env → Keychain: `.cloud-e2e/secret-bindings.json`. Preset spawn only exports a key if `presetAgents[id].apiKeySecretId` is set. Voice falls back to `agent-client-gemini-live-api-key` when `voiceInput.geminiApiKeySecretId` is empty.
+Secret **ids** for Keychain inject: see [Cursor Cloud environment](#cursor-cloud-environment). Preset spawn only exports a key if `presetAgents[id].apiKeySecretId` is set. Voice falls back to `agent-client-gemini-live-api-key` when `voiceInput.geminiApiKeySecretId` is empty.
 
 ## ACP Protocol
 
