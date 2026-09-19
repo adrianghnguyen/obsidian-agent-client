@@ -41,6 +41,15 @@ describe("antigravity-errors", () => {
 		expect(info.message).toContain(endpoint);
 	});
 
+	it("maps missing localharness errors", () => {
+		const info = mapAntigravityMessageError(
+			"Could not find default localharness binary. Set ANTIGRAVITY_HARNESS_PATH.",
+			endpoint,
+		);
+		expect(info?.title).toMatch(/local harness/i);
+		expect(info?.suggestion).toMatch(/ANTIGRAVITY_HARNESS_PATH/);
+	});
+
 	it("maps timeout message errors", () => {
 		const info = mapAntigravityMessageError(
 			"connection timed out waiting for initialize",

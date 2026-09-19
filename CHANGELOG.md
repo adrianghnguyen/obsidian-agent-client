@@ -17,7 +17,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Hidden and Compact** keep ACP plans and Cursor Create Plan outside the working buffer/groups (same as permission prompts).
 
 ### Fixed
-- **Antigravity** authenticates with `gemini-api-key` (the same `GEMINI_API_KEY` already in the spawn env) after initialize and before `session/new`, so a green health card no longer leads to "Authentication required" on first chat. Cursor and other harnesses are unchanged.
+- **Cursor Check setup** treats `agent status` "Not logged in" (exit 0) as missing auth unless `CURSOR_API_KEY` is set, so a green card no longer appears before `agent login`.
+- **Antigravity health** now requires `localharness_external` or `ANTIGRAVITY_HARNESS_PATH`, accepts `GEMINI_API_KEY` without a `settings.json`, and no longer reports a fallback binary when the configured Path is wrong.
 - **Copy assistant replies** from the copy control at the bottom of the agent message (same hover action as user-sent commands). Copies visible reply text only, not Hidden/Compact tool buffers or thoughts.
 - **Floating chat** places the caret in the composer when a window is opened, expanded from minimized, or focused via hotkey/API. Already-visible windows are not refocused on vault clicks, dragging, or header/transparency controls.
 - **Voice input** Enter during live dictation sends the current composer/transcript buffer (same as the send control), then clears the speech-to-text turn. Shift+Enter still inserts a newline; the Stop button still stops without sending.

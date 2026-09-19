@@ -2500,18 +2500,22 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					btn.setDisabled(true);
 					resultEl.empty();
 					try {
+						const live =
+							this.plugin.settings.presetAgents[
+								harness.preset.presetId
+							] ?? preset;
 						const envRecord: Record<string, string> = {};
-						for (const entry of preset.env) {
+						for (const entry of live.env) {
 							if (entry.key) {
 								envRecord[entry.key] = entry.value ?? "";
 							}
 						}
 						const result = await harness.healthCheck!({
 							agentId: harness.preset.presetId,
-							command: preset.command.trim() || defaultCommand,
+							command: live.command.trim() || defaultCommand,
 							args:
-								preset.args.length > 0
-									? preset.args
+								live.args.length > 0
+									? live.args
 									: defaultArgs,
 							wslMode: this.plugin.settings.windowsWslMode,
 							wslDistribution:
@@ -2596,8 +2600,20 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					btn.setButtonText("Checking…");
 					btn.setDisabled(true);
 					try {
-						const report =
-							await checkAntigravityHealth(configuredPath);
+						const live =
+							this.plugin.settings.presetAgents[
+								ANTIGRAVITY_PRESET_ID
+							];
+						const path = live?.command ?? configuredPath;
+						const envRecord: Record<string, string> = {};
+						for (const entry of live?.env ?? []) {
+							if (entry.key) {
+								envRecord[entry.key] = entry.value ?? "";
+							}
+						}
+						const report = await checkAntigravityHealth(path, {
+							env: envRecord,
+						});
 						renderReport(report);
 						const mcpNote = await getAntigravityMcpConfigNote();
 						if (mcpNote) {

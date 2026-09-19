@@ -149,7 +149,7 @@ export async function checkCursorCliHealth(
 	checks.push({
 		id: "path",
 		ok: true,
-		message: `Found \`agent\` at ${resolved}`,
+		message: `Found \`${command}\` at ${resolved}`,
 	});
 
 	const bin = shellQuote(resolved);
@@ -202,11 +202,22 @@ export async function checkCursorCliHealth(
 	});
 
 	const statusProbe = await runProbe(`${bin} status 2>&1`, options);
-	const statusText = `${statusProbe.stdout}\n${statusProbe.stderr}`.toLowerCase();
-	const hasApiKey =
-		!!env.CURSOR_API_KEY?.trim() || !!process.env.CURSOR_API_KEY?.trim();
+	const statusText = `${statusProbe.stdout}\n${statusProbe.stderr}`;
+	const hasApiKey = hasCursorApiKey(env);
 
-	if (statusProbe.code !== 0 && !hasApiKey) {
+	if (hasApiKey) {
+		checks.push({
+			id: "auth",
+			ok: true,
+			message: "Authenticated via CURSOR_API_KEY.",
+		});
+		return finalize(checks);
+	}
+
+	if (
+		statusProbe.code !== 0 ||
+		!isCursorStatusAuthenticated(statusText)
+	) {
 		const copy = cursorFailureCopy("auth_missing", {
 			command,
 			args,
@@ -225,12 +236,27 @@ export async function checkCursorCliHealth(
 	checks.push({
 		id: "auth",
 		ok: true,
-		message: hasApiKey
-			? "Authenticated via CURSOR_API_KEY."
-			: "Signed in (`agent status` OK).",
+		message: "Signed in (`agent status` OK).",
 	});
 
 	return finalize(checks);
+}
+
+/** True when Cursor CLI status output shows a real login (not API-key mode). */
+export function isCursorStatusAuthenticated(statusText: string): boolean {
+	const text = statusText.toLowerCase();
+	if (!text.trim()) return false;
+	if (/\bnot logged in\b/.test(text)) return false;
+	if (/\bunauthenticated\b/.test(text)) return false;
+	return true;
+}
+
+export function hasCursorApiKey(
+	env: Record<string, string> | undefined,
+): boolean {
+	return Boolean(
+		env?.CURSOR_API_KEY?.trim() || process.env.CURSOR_API_KEY?.trim(),
+	);
 }
 
 function finalize(checks: CursorCliHealthCheck[]): CursorCliHealthResult {

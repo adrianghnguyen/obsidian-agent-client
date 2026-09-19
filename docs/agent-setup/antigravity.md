@@ -16,7 +16,9 @@ The bridge is distributed through the [ACP Registry](https://agentclientprotocol
 | Linux | `~/.local/bin/agy_acp_server.par` or `~/.local/opt/agy-acp/current/agy_acp_server.par` |
 | Windows | `%LOCALAPPDATA%\agy-acp-server\agy_acp_server.par` |
 
-You can override the location with the `AGY_ACP_BIN` environment variable.
+The official zip also includes **`localharness_external`**. Place it next to the `.par` (or set `ANTIGRAVITY_HARNESS_PATH` to that file). The bridge binary alone is not enough for `session/new`.
+
+You can override the bridge location with the `AGY_ACP_BIN` environment variable.
 
 ::: warning Not the agy CLI alone
 Pointing Agent Client at the `agy` binary will not work for ACP. The Path must be `agy_acp_server.par` (or your platform equivalent).
@@ -28,8 +30,9 @@ Pointing Agent Client at the `agy` binary will not work for ACP. The Path must b
 2. Click **Auto-detect** on the Path row (or paste the absolute path to `agy_acp_server.par`)
 3. Click **Run** under **Health check** — it verifies:
    - the bridge binary exists and is executable
-   - Antigravity auth signals under `~/.gemini/`
-   - which ACP endpoint Agent Client will spawn
+   - the companion `localharness_external` binary (or `ANTIGRAVITY_HARNESS_PATH`)
+   - Antigravity auth signals under `~/.gemini/` or `GEMINI_API_KEY`
+   - which ACP endpoint Agent Client will spawn (the Path you configured — it does not silently fall back)
 
 ## Authentication
 
@@ -45,7 +48,7 @@ Antigravity auth lives under **`~/.gemini/`** (not `~/.antigravity/`). Choose on
 
 1. Create a key in [Google AI Studio](https://aistudio.google.com/apikey)
 2. Set `modelProvider` to `gemini` in `~/.gemini/antigravity-cli/settings.json`
-3. Export `GEMINI_API_KEY` in your environment (Obsidian inherits shell env on macOS/Linux; on Windows set user env vars and restart Obsidian)
+3. Export `GEMINI_API_KEY` in your environment (Obsidian inherits shell env on macOS/Linux; on Windows set user env vars and restart Obsidian), or put `GEMINI_API_KEY=…` in **Environment variables**. The health check accepts the key even if `settings.json` is missing.
 
 See [Antigravity CLI auth docs](https://antigravity.google/docs/cli/install/) for details.
 

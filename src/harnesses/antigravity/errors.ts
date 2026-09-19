@@ -174,6 +174,18 @@ export function mapAntigravityMessageError(
 	}
 
 	if (
+		lower.includes("localharness") ||
+		lower.includes("antigravity_harness_path")
+	) {
+		return withDocs({
+			title: "Antigravity local harness not found",
+			message: `${endpointMsg} — ${message}`,
+			suggestion:
+				"Install localharness_external next to agy_acp_server.par, or set ANTIGRAVITY_HARNESS_PATH. Then re-run the health check.",
+		});
+	}
+
+	if (
 		lower.includes("enoent") ||
 		lower.includes("not found") ||
 		lower.includes("spawn")

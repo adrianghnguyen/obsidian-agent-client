@@ -8,17 +8,21 @@
 import { access, readFile, stat } from "fs/promises";
 import { constants } from "fs";
 import {
+	ANTIGRAVITY_HARNESS_FILENAME,
 	getAntigravityBridgeCandidates,
 	getAntigravityCliSettingsPath,
+	getAntigravityCompanionCandidates,
 	getAntigravityMcpConfigPath,
 	getAntigravityOAuthTokenPath,
-	resolveAntigravityBridgeForSpawn,
+	hasGeminiApiKey,
+	resolveAntigravityCompanionPath,
+	resolveAntigravitySpawnBridge,
 } from "./paths";
 
 export type AntigravityHealthLevel = "ok" | "warning" | "error";
 
 export interface AntigravityHealthCheck {
-	id: "bridge" | "auth" | "endpoint";
+	id: "bridge" | "auth" | "endpoint" | "harness";
 	label: string;
 	status: AntigravityHealthLevel;
 	detail: string;
@@ -29,6 +33,10 @@ export interface AntigravityHealthReport {
 	overall: AntigravityHealthLevel;
 	checks: AntigravityHealthCheck[];
 	endpoint: string;
+}
+
+export interface AntigravityHealthOptions {
+	env?: Record<string, string>;
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -53,13 +61,24 @@ async function readJsonFile(path: string): Promise<Record<string, unknown> | nul
 }
 
 async function checkBridge(configuredPath: string): Promise<AntigravityHealthCheck> {
-	const resolved = await resolveAntigravityBridgeForSpawn(configuredPath);
+	const resolved = await resolveAntigravitySpawnBridge(configuredPath);
 	if (resolved) {
 		return {
 			id: "bridge",
 			label: "ACP bridge",
 			status: "ok",
 			detail: `Found agy_acp_server.par at ${resolved}`,
+		};
+	}
+
+	if (configuredPath.trim()) {
+		return {
+			id: "bridge",
+			label: "ACP bridge",
+			status: "error",
+			detail: `Configured path ${configuredPath.trim()} is missing or not executable.`,
+			suggestion:
+				"Fix the Path or click Auto-detect. Chat spawns this path as-is and will not fall back to another install.",
 		};
 	}
 
@@ -75,7 +94,9 @@ async function checkBridge(configuredPath: string): Promise<AntigravityHealthChe
 	};
 }
 
-async function checkAuth(): Promise<AntigravityHealthCheck> {
+async function checkAuth(
+	env?: Record<string, string>,
+): Promise<AntigravityHealthCheck> {
 	const oauthPath = getAntigravityOAuthTokenPath();
 	if (await fileExists(oauthPath)) {
 		return {
@@ -86,6 +107,15 @@ async function checkAuth(): Promise<AntigravityHealthCheck> {
 		};
 	}
 
+	if (hasGeminiApiKey(env)) {
+		return {
+			id: "auth",
+			label: "Authentication",
+			status: "ok",
+			detail: "Gemini API key is set (GEMINI_API_KEY).",
+		};
+	}
+
 	const settings = await readJsonFile(getAntigravityCliSettingsPath());
 	const modelProvider =
 		typeof settings?.modelProvider === "string"
@@ -93,15 +123,6 @@ async function checkAuth(): Promise<AntigravityHealthCheck> {
 			: "";
 
 	if (modelProvider === "gemini") {
-		const hasKey = Boolean(process.env.GEMINI_API_KEY?.trim());
-		if (hasKey) {
-			return {
-				id: "auth",
-				label: "Authentication",
-				status: "ok",
-				detail: "Gemini API key mode (modelProvider=gemini, GEMINI_API_KEY set).",
-			};
-		}
 		return {
 			id: "auth",
 			label: "Authentication",
@@ -109,7 +130,7 @@ async function checkAuth(): Promise<AntigravityHealthCheck> {
 			detail:
 				"settings.json uses modelProvider=gemini but GEMINI_API_KEY is not set in this environment.",
 			suggestion:
-				"Export GEMINI_API_KEY in your shell profile, or remove modelProvider from ~/.gemini/antigravity-cli/settings.json and run `agy` in Terminal to sign in with your Google account.",
+				"Export GEMINI_API_KEY in your shell profile or Antigravity Environment variables, or remove modelProvider from ~/.gemini/antigravity-cli/settings.json and run `agy` in Terminal to sign in with your Google account.",
 		};
 	}
 
@@ -131,14 +152,12 @@ async function checkAuth(): Promise<AntigravityHealthCheck> {
 		status: "error",
 		detail: "No Antigravity auth detected under ~/.gemini/antigravity-cli/.",
 		suggestion:
-			"Run `agy` in Terminal and sign in with your Google account, or configure Gemini API key mode per the Antigravity setup guide.",
+			"Run `agy` in Terminal and sign in with your Google account, or set GEMINI_API_KEY (shell or Environment variables) per the Antigravity setup guide.",
 	};
 }
 
 async function checkEndpoint(configuredPath: string): Promise<AntigravityHealthCheck> {
-	const endpoint =
-		configuredPath.trim() || "(not configured — auto-detect on connect)";
-	const resolved = await resolveAntigravityBridgeForSpawn(configuredPath);
+	const resolved = await resolveAntigravitySpawnBridge(configuredPath);
 
 	if (resolved) {
 		return {
@@ -171,8 +190,36 @@ async function checkEndpoint(configuredPath: string): Promise<AntigravityHealthC
 		id: "endpoint",
 		label: "ACP endpoint",
 		status: "warning",
-		detail: `No path configured; will probe ${endpoint} on connect.`,
+		detail: "No path configured; chat will spawn an empty command until you set Path or click Auto-detect.",
 		suggestion: "Click Auto-detect to fill the bridge path before starting a chat.",
+	};
+}
+
+async function checkHarness(
+	configuredPath: string,
+	env?: Record<string, string>,
+): Promise<AntigravityHealthCheck> {
+	const bridge = await resolveAntigravitySpawnBridge(configuredPath);
+	const resolved = await resolveAntigravityCompanionPath(bridge, env ?? {});
+	if (resolved) {
+		return {
+			id: "harness",
+			label: "Local harness",
+			status: "ok",
+			detail: `Found ${ANTIGRAVITY_HARNESS_FILENAME} at ${resolved}`,
+		};
+	}
+
+	const probed = getAntigravityCompanionCandidates(bridge, env ?? {})
+		.slice(0, 3)
+		.join(", ");
+	return {
+		id: "harness",
+		label: "Local harness",
+		status: "error",
+		detail: `${ANTIGRAVITY_HARNESS_FILENAME} not found. Probed: ${probed}`,
+		suggestion:
+			"Install the zip sibling localharness_external next to agy_acp_server.par, or set ANTIGRAVITY_HARNESS_PATH to that binary. The ACP bridge alone is not enough for session/new.",
 	};
 }
 
@@ -185,14 +232,17 @@ function overallStatus(checks: AntigravityHealthCheck[]): AntigravityHealthLevel
 /** Run Antigravity health checks for the settings UI. */
 export async function checkAntigravityHealth(
 	configuredPath: string,
+	options: AntigravityHealthOptions = {},
 ): Promise<AntigravityHealthReport> {
-	const [bridge, auth, endpoint] = await Promise.all([
+	const env = options.env;
+	const [bridge, auth, endpoint, harness] = await Promise.all([
 		checkBridge(configuredPath),
-		checkAuth(),
+		checkAuth(env),
 		checkEndpoint(configuredPath),
+		checkHarness(configuredPath, env),
 	]);
-	const checks = [bridge, auth, endpoint];
-	const resolved = await resolveAntigravityBridgeForSpawn(configuredPath);
+	const checks = [bridge, auth, endpoint, harness];
+	const resolved = await resolveAntigravitySpawnBridge(configuredPath);
 	return {
 		overall: overallStatus(checks),
 		checks,

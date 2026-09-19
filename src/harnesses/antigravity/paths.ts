@@ -9,11 +9,13 @@
 import { access, stat } from "fs/promises";
 import { constants } from "fs";
 import { homedir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 import { Platform } from "obsidian";
 
 export const ANTIGRAVITY_PRESET_ID = "antigravity";
 export const ANTIGRAVITY_BRIDGE_FILENAME = "agy_acp_server.par";
+/** Zip sibling required for session/new unless ANTIGRAVITY_HARNESS_PATH is set. */
+export const ANTIGRAVITY_HARNESS_FILENAME = "localharness_external";
 /** ACP authenticate method for GEMINI_API_KEY mode (already in spawn env). */
 export const ANTIGRAVITY_SESSION_AUTH_METHOD = "gemini-api-key";
 
@@ -94,6 +96,60 @@ export async function resolveAntigravityBridgeForSpawn(
 		return trimmed;
 	}
 	return resolveAntigravityBridgePath();
+}
+
+/**
+ * Bridge path the settings command will actually spawn.
+ * Does not fall back when a configured path is set but missing — spawn
+ * uses `preset.command` as-is, so health must not report a different binary.
+ */
+export async function resolveAntigravitySpawnBridge(
+	configuredPath: string,
+): Promise<string | null> {
+	const trimmed = configuredPath.trim();
+	if (trimmed.length > 0) {
+		return (await isExecutableBridge(trimmed)) ? trimmed : null;
+	}
+	return resolveAntigravityBridgePath();
+}
+
+/** Companion binary candidates: env override, sibling of the .par, ~/.local/bin. */
+export function getAntigravityCompanionCandidates(
+	bridgePath: string | null,
+	env: Record<string, string> = {},
+): string[] {
+	const candidates: string[] = [];
+	const fromEnv =
+		env.ANTIGRAVITY_HARNESS_PATH?.trim() ||
+		process.env.ANTIGRAVITY_HARNESS_PATH?.trim();
+	if (fromEnv) {
+		candidates.push(fromEnv);
+	}
+	if (bridgePath?.trim()) {
+		candidates.push(join(dirname(bridgePath), ANTIGRAVITY_HARNESS_FILENAME));
+	}
+	candidates.push(join(home(), ".local", "bin", ANTIGRAVITY_HARNESS_FILENAME));
+	return [...new Set(candidates)];
+}
+
+export async function resolveAntigravityCompanionPath(
+	bridgePath: string | null,
+	env: Record<string, string> = {},
+): Promise<string | null> {
+	for (const candidate of getAntigravityCompanionCandidates(bridgePath, env)) {
+		if (await isExecutableBridge(candidate)) {
+			return candidate;
+		}
+	}
+	return null;
+}
+
+export function hasGeminiApiKey(
+	env: Record<string, string> | undefined,
+): boolean {
+	return Boolean(
+		env?.GEMINI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim(),
+	);
 }
 
 /** Antigravity CLI config root (~/.gemini/ — not ~/.antigravity/). */

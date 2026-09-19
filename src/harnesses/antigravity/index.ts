@@ -18,10 +18,15 @@ export { antigravityPreset } from "./preset";
 export {
 	ANTIGRAVITY_PRESET_ID,
 	ANTIGRAVITY_BRIDGE_FILENAME,
+	ANTIGRAVITY_HARNESS_FILENAME,
 	ANTIGRAVITY_SESSION_AUTH_METHOD,
 	getDefaultAntigravityBridgePath,
+	getAntigravityCompanionCandidates,
+	hasGeminiApiKey,
 	resolveAntigravityBridgePath,
 	resolveAntigravityBridgeForSpawn,
+	resolveAntigravityCompanionPath,
+	resolveAntigravitySpawnBridge,
 } from "./paths";
 export {
 	checkAntigravityHealth,
@@ -38,7 +43,9 @@ export {
 } from "./errors";
 
 async function healthCheck(ctx: HealthContext): Promise<HealthReport> {
-	const report = await checkAntigravityHealth(ctx.command ?? "");
+	const report = await checkAntigravityHealth(ctx.command ?? "", {
+		env: ctx.env,
+	});
 	return {
 		ok: report.overall === "ok",
 		message:

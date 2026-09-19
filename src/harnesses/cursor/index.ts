@@ -14,7 +14,11 @@ import { checkCursorCliHealth } from "./health";
 import { CURSOR_PRESET_ID, cursorPreset } from "./preset";
 
 export { CURSOR_PRESET_ID, cursorPreset } from "./preset";
-export { checkCursorCliHealth } from "./health";
+export {
+	checkCursorCliHealth,
+	hasCursorApiKey,
+	isCursorStatusAuthenticated,
+} from "./health";
 export {
 	isCursorAgent,
 	resolveCursorEndpoint,
