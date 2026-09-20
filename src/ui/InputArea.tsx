@@ -14,9 +14,11 @@ import type {
 import type { AttachedFile, ChatMessage } from "../types/chat";
 import type { TraceVerbosity } from "../types/settings";
 import type { UseSuggestionsReturn } from "../hooks/useSuggestions";
+import type { QueuedComposerSend } from "../services/composer-send-queue";
 import { SuggestionPopup } from "./SuggestionPopup";
 import { ErrorBanner } from "./ErrorBanner";
 import { AttachmentStrip } from "./shared/AttachmentStrip";
+import { QueuedSendStrip } from "./shared/QueuedSendStrip";
 import { InputToolbar } from "./InputToolbar";
 import { VoiceInputInline } from "./VoiceInputInline";
 import { useFloatingPresence } from "./FloatingPresenceContext";
@@ -219,6 +221,10 @@ export interface InputAreaProps {
 	onStopGeneration: () => Promise<void>;
 	/** Callback when restored message has been consumed */
 	onRestoredMessageConsumed: () => void;
+	/** Composer submits waiting for harness ready or turn idle */
+	queuedSends: QueuedComposerSend[];
+	/** Remove a queued submit so it will not auto-send */
+	onCancelQueuedSend: (id: string) => void;
 	/** Session mode state (available modes and current mode) */
 	modes?: SessionModeState;
 	/** Callback when mode is changed */
@@ -282,6 +288,8 @@ export function InputArea({
 	onSendMessage,
 	onStopGeneration,
 	onRestoredMessageConsumed,
+	queuedSends,
+	onCancelQueuedSend,
 	modes,
 	onModeChange,
 	configOptions,
@@ -770,26 +778,17 @@ export function InputArea({
 	}, []);
 
 	/**
-	 * Handle sending or stopping based on current state.
+	 * Queue or send the current composer payload. Does not stop generation.
 	 */
-	const handleSendOrStop = useCallback(async () => {
-		if (isSending) {
-			await stopVoiceListening({ restoreTranscript: false });
-			await onStopGeneration();
-			return;
-		}
-
-		// Allow sending if there's text OR attachments
+	const handleSend = useCallback(async () => {
 		if (!inputValue.trim() && attachedFiles.length === 0) return;
 
-		// Save input value and files before clearing
 		const messageToSend = inputValue.trim();
 		const filesToSend =
 			attachedFiles.length > 0 ? [...attachedFiles] : undefined;
 
 		await stopVoiceListening({ restoreTranscript: false });
 
-		// Clear input, files, and hint state immediately
 		onInputChange("");
 		onAttachedFilesChange([]);
 		setHintText(null);
@@ -798,16 +797,19 @@ export function InputArea({
 
 		await onSendMessage(messageToSend, filesToSend);
 	}, [
-		isSending,
 		inputValue,
 		attachedFiles,
 		onSendMessage,
-		onStopGeneration,
 		onInputChange,
 		onAttachedFilesChange,
 		resetHistory,
 		stopVoiceListening,
 	]);
+
+	const handleStop = useCallback(async () => {
+		await stopVoiceListening({ restoreTranscript: false });
+		await onStopGeneration();
+	}, [onStopGeneration, stopVoiceListening]);
 
 	// Voice input
 	const handleStartVoice = useCallback(() => {
@@ -932,13 +934,13 @@ export function InputArea({
 			) => { e?: unknown };
 			offref: (ref: { e?: unknown }) => void;
 		};
-		const ref = ws.on("agent-client:voice-input-toggle", (() => {
+		const ref = ws.on("agent-client:voice-input-toggle", () => {
 			if (isVoiceListeningRef.current) {
 				void stopVoiceListeningRef.current();
 			} else {
 				handleStartVoiceRef.current();
 			}
-		}));
+		});
 		return () => {
 			ws.offref(ref);
 		};
@@ -1016,12 +1018,9 @@ export function InputArea({
 		[slashCommands, mentions, handleSelectSlashCommand, selectMention],
 	);
 
-	// Button disabled state - also allow sending if files are attached
-	const isButtonDisabled =
-		!isSending &&
-		((inputValue.trim() === "" && attachedFiles.length === 0) ||
-			!isSessionReady ||
-			isRestoringSession);
+	// Send is allowed whenever there is a payload; ChatPanel queues if busy.
+	const isSendDisabled =
+		inputValue.trim() === "" && attachedFiles.length === 0;
 
 	/**
 	 * Handle keyboard events in the textarea.
@@ -1066,17 +1065,16 @@ export function InputArea({
 					void handleVoiceStopAndSend();
 					return;
 				}
-				if (!isButtonDisabled && !isSending) {
-					void handleSendOrStop();
+				if (!isSendDisabled) {
+					void handleSend();
 				}
 			}
 		},
 		[
 			handleDropdownKeyPress,
 			handleHistoryKeyDown,
-			isSending,
-			isButtonDisabled,
-			handleSendOrStop,
+			isSendDisabled,
+			handleSend,
 			handleVoiceStopAndSend,
 			plugin,
 			settings.sendMessageShortcut,
@@ -1147,7 +1145,9 @@ export function InputArea({
 	}, [restoredMessage, onRestoredMessageConsumed, inputValue, onInputChange]);
 
 	// Placeholder text
-	const placeholder = `Message ${agentLabel} - @ to mention notes${availableCommands.length > 0 ? ", / for commands" : ""}`;
+	const placeholder = isSessionReady
+		? `Message ${agentLabel} - @ to mention notes${availableCommands.length > 0 ? ", / for commands" : ""}`
+		: `Message ${agentLabel} — sends when connected`;
 
 	return (
 		<div className="agent-client-chat-input-container">
@@ -1289,14 +1289,20 @@ export function InputArea({
 				{/* Attachment Preview Strip (images + file references) */}
 				<AttachmentStrip files={attachedFiles} onRemove={removeFile} />
 
+				<QueuedSendStrip
+					items={queuedSends}
+					onCancel={onCancelQueuedSend}
+				/>
+
 				{/* Input Actions (Config Options / Mode Selector / Model Selector + Send Button) */}
 				<InputToolbar
 					isSending={isSending}
-					isButtonDisabled={isButtonDisabled}
+					isSendDisabled={isSendDisabled}
 					hasContent={
 						inputValue.trim() !== "" || attachedFiles.length > 0
 					}
-					onSendOrStop={() => void handleSendOrStop()}
+					onSend={() => void handleSend()}
+					onStop={() => void handleStop()}
 					modes={modes}
 					onModeChange={onModeChange}
 					configOptions={configOptions}

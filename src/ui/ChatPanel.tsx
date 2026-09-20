@@ -58,6 +58,14 @@ import { SessionModeSuggestModal } from "./SessionModeModal";
 import { checkAgentUpdate } from "../services/update-checker";
 import type { SessionStatus } from "../services/view-registry";
 import { PRESET_AGENTS } from "../services/preset-agents";
+import {
+	cancelComposerSend,
+	enqueueComposerSend,
+	hasComposerSendPayload,
+	resolveComposerSubmit,
+	takeFlushableComposerSend,
+	type QueuedComposerSend,
+} from "../services/composer-send-queue";
 
 /** Stable empty array for useSuggestions when no commands available */
 const EMPTY_COMMANDS: SlashCommand[] = [];
@@ -406,8 +414,11 @@ export const ChatPanel = React.memo(function ChatPanel({
 	const [inputValue, setInputValue] = useState("");
 	const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
 
-	// Pending auto-send queued by the pending-prompt handler (drained when ready)
-	const [pendingAutoSend, setPendingAutoSend] = useState<string | null>(null);
+	// Composer submits waiting for harness ready / turn idle (FIFO)
+	const [queuedSends, setQueuedSends] = useState<QueuedComposerSend[]>([]);
+	const queuedSendsRef = useRef<QueuedComposerSend[]>([]);
+	queuedSendsRef.current = queuedSends;
+	const flushingQueuedSendRef = useRef(false);
 	const persistRestoreAttemptedRef = useRef(false);
 	// Tracks whether we've already re-spawned the agent to match a saved
 	// conversation before restoring it (prevents a restart loop).
@@ -466,6 +477,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 		settings,
 		vaultPath,
 		embeddedConfig?.persist ? embeddedConfig.id : undefined,
+		() => queuedSendsRef.current.length > 0,
 	);
 
 	const {
@@ -522,6 +534,58 @@ export const ChatPanel = React.memo(function ChatPanel({
 		},
 		[handleNewChat, onAgentIdChanged],
 	);
+
+	const composerFlushGates = useMemo(
+		() => ({
+			isSessionReady,
+			isSending,
+			isRestoringSession: sessionHistory.loading,
+			sessionState: session.state,
+		}),
+		[isSessionReady, isSending, sessionHistory.loading, session.state],
+	);
+
+	const enqueueOrSendComposerPayload = useCallback(
+		async (text: string, files?: AttachedFile[]): Promise<boolean> => {
+			const result = resolveComposerSubmit(
+				queuedSendsRef.current,
+				text,
+				files,
+				composerFlushGates,
+			);
+			if (result.kind === "empty") return false;
+			const sendNow =
+				result.kind === "send" && !flushingQueuedSendRef.current;
+			if (sendNow) {
+				await handleSendMessage(
+					result.item.text,
+					result.item.files.length > 0
+						? result.item.files
+						: undefined,
+				);
+				return true;
+			}
+			setQueuedSends((queue) => {
+				const next = enqueueComposerSend(queue, result.item);
+				queuedSendsRef.current = next;
+				return next;
+			});
+			return true;
+		},
+		[composerFlushGates, handleSendMessage],
+	);
+	const enqueueOrSendComposerPayloadRef = useRef(
+		enqueueOrSendComposerPayload,
+	);
+	enqueueOrSendComposerPayloadRef.current = enqueueOrSendComposerPayload;
+
+	const handleCancelQueuedSend = useCallback((id: string) => {
+		setQueuedSends((queue) => {
+			const next = cancelComposerSend(queue, id);
+			queuedSendsRef.current = next;
+			return next;
+		});
+	}, []);
 
 	// ============================================================
 	// Sidebar-specific: Header Menu (Obsidian native Menu API)
@@ -1322,42 +1386,50 @@ export const ChatPanel = React.memo(function ChatPanel({
 
 	// Deterministic prompt delivery: register a handler the plugin invokes
 	// directly (or that drains a queued prompt) instead of a timed workspace
-	// broadcast. setInputValue / setPendingAutoSend are stable useState
-	// setters, so [plugin, viewId] deps suffice.
+	// broadcast. setInputValue / enqueueOrSendComposerPayloadRef are stable,
+	// so [plugin, viewId] deps suffice.
 	useEffect(() => {
 		return plugin.registerPendingPromptHandler(
 			viewId,
 			(prompt, autoSend) => {
 				if (typeof prompt !== "string" || prompt.length === 0) return;
-				setInputValue(prompt);
 				// Injected prompts are a fresh message — don't carry over any
 				// attachments already staged in this panel (#341/#6).
 				setAttachedFiles([]);
-				if (autoSend) setPendingAutoSend(prompt);
+				if (autoSend) {
+					setInputValue("");
+					void enqueueOrSendComposerPayloadRef.current(prompt);
+					return;
+				}
+				setInputValue(prompt);
 			},
 		);
 	}, [plugin, viewId]);
 
 	// ============================================================
-	// Effects - Drain pending auto-send when session becomes ready
+	// Effects - Drain queued composer sends when session becomes ready
 	// ============================================================
 	useEffect(() => {
-		if (!pendingAutoSend) return;
-		if (!isSessionReady) return;
-		if (isSending) return;
-		if (sessionHistory.loading) return;
+		if (flushingQueuedSendRef.current) return;
+		const taken = takeFlushableComposerSend(
+			queuedSends,
+			composerFlushGates,
+		);
+		if (!taken) return;
 
-		const prompt = pendingAutoSend;
-		setPendingAutoSend(null);
-		setInputValue("");
-		void handleSendMessage(prompt);
-	}, [
-		pendingAutoSend,
-		isSessionReady,
-		isSending,
-		sessionHistory.loading,
-		handleSendMessage,
-	]);
+		flushingQueuedSendRef.current = true;
+		setQueuedSends((queue) => {
+			const next = cancelComposerSend(queue, taken.item.id);
+			queuedSendsRef.current = next;
+			return next;
+		});
+		void handleSendMessage(
+			taken.item.text,
+			taken.item.files.length > 0 ? taken.item.files : undefined,
+		).finally(() => {
+			flushingQueuedSendRef.current = false;
+		});
+	}, [queuedSends, composerFlushGates, handleSendMessage]);
 
 	// ============================================================
 	// Effects - Focus Tracking
@@ -1389,23 +1461,19 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// Use refs so callbacks always access latest values
 	const inputValueRef = useRef(inputValue);
 	const attachedFilesRef = useRef(attachedFiles);
-	const isSessionReadyRef = useRef(isSessionReady);
 	const isSendingRef = useRef(isSending);
 	const sessionStateRef = useRef(session.state);
 	const sessionIdRef = useRef(session.sessionId);
 	const hasActivePermissionRef = useRef(agent.hasActivePermission);
 	const sessionHistoryLoadingRef = useRef(sessionHistory.loading);
-	const handleSendMessageRef = useRef(handleSendMessage);
 	const handleOpenHistoryRef = useRef(handleOpenHistory);
 	inputValueRef.current = inputValue;
 	attachedFilesRef.current = attachedFiles;
-	isSessionReadyRef.current = isSessionReady;
 	isSendingRef.current = isSending;
 	sessionStateRef.current = session.state;
 	sessionIdRef.current = session.sessionId;
 	hasActivePermissionRef.current = agent.hasActivePermission;
 	sessionHistoryLoadingRef.current = sessionHistory.loading;
-	handleSendMessageRef.current = handleSendMessage;
 	handleOpenHistoryRef.current = handleOpenHistory;
 
 	useEffect(() => {
@@ -1437,42 +1505,28 @@ export const ChatPanel = React.memo(function ChatPanel({
 				setAttachedFiles(state.files);
 			},
 			canSend: () => {
-				const hasContent =
-					inputValueRef.current.trim() !== "" ||
-					attachedFilesRef.current.length > 0;
-				return (
-					hasContent &&
-					isSessionReadyRef.current &&
-					!sessionHistoryLoadingRef.current &&
-					!isSendingRef.current
+				return hasComposerSendPayload(
+					inputValueRef.current,
+					attachedFilesRef.current,
 				);
 			},
 			sendMessage: async () => {
 				const currentInput = inputValueRef.current;
 				const currentFiles = attachedFilesRef.current;
-				// Allow sending if there's text OR attachments
-				if (!currentInput.trim() && currentFiles.length === 0) {
-					return false;
-				}
-				if (
-					!isSessionReadyRef.current ||
-					sessionHistoryLoadingRef.current
-				) {
-					return false;
-				}
-				if (isSendingRef.current) {
+				if (!hasComposerSendPayload(currentInput, currentFiles)) {
 					return false;
 				}
 
-				// Clear input before sending
 				const messageToSend = currentInput.trim();
 				const filesToSend =
 					currentFiles.length > 0 ? [...currentFiles] : undefined;
 				setInputValue("");
 				setAttachedFiles([]);
 
-				await handleSendMessageRef.current(messageToSend, filesToSend);
-				return true;
+				return enqueueOrSendComposerPayloadRef.current(
+					messageToSend,
+					filesToSend,
+				);
 			},
 			cancelOperation: async () => {
 				if (isSendingRef.current) {
@@ -1581,9 +1635,13 @@ export const ChatPanel = React.memo(function ChatPanel({
 			suggestions={suggestions}
 			plugin={plugin}
 			view={viewHost}
-			onSendMessage={handleSendMessage}
+			onSendMessage={async (content, attachments) => {
+				await enqueueOrSendComposerPayload(content, attachments);
+			}}
 			onStopGeneration={handleStopGeneration}
 			onRestoredMessageConsumed={handleRestoredMessageConsumed}
+			queuedSends={queuedSends}
+			onCancelQueuedSend={handleCancelQueuedSend}
 			modes={session.modes}
 			onModeChange={(modeId) => void handleSetMode(modeId)}
 			configOptions={session.configOptions}
