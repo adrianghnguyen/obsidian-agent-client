@@ -5,7 +5,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## [Unreleased]
 
 ### Added
-- **Composer send buffer** — Send/Enter while a harness is connecting, switching, or finishing a turn queues the message. Cancellable chips sit above the composer; the next item flushes when the session is ready and idle (Cursor and Antigravity).
+- **Composer send buffer** — Send/Enter while a harness is connecting, switching, or finishing a turn queues the message. Cancellable chips sit above the text box; the toolbar uses a queue icon (`list-plus`) instead of send until the session is ready and idle. The next item flushes then (Cursor and Antigravity).
 - **Settings version banner** — Settings shows the installed plugin version, a short list of recent changelog items, and a link to GitHub Releases and tags.
 - **Cursor / Antigravity Path** is per device. Enable the harness once; Auto-detect and typed absolute paths stay on this computer and are not written to synced `data.json`. Empty / `agent` / `agy_acp_server.par` probe this machine, so you do not need separate Windows vs Mac agents.
 - **Cursor preset** — first-class ACP via `agent acp` (not a custom-agent JSON recipe), setup docs, settings **Check setup** health probe, and distinct connection-failure copy in chat when auth, PATH, endpoint, or process exit fails.

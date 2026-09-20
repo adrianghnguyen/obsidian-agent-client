@@ -219,8 +219,7 @@ If your plugin does not need CSS, delete this file.
 	transition: transform 100ms ease-in-out;
 }
 
-.agent-client-settings-callout.is-open
-	.agent-client-settings-callout-chevron {
+.agent-client-settings-callout.is-open .agent-client-settings-callout-chevron {
 	transform: rotate(90deg);
 }
 
@@ -727,7 +726,8 @@ If your plugin does not need CSS, delete this file.
 	padding: 6px;
 }
 
-.agent-client-noisy-tool-group-items .agent-client-message-tool-call:last-child {
+.agent-client-noisy-tool-group-items
+	.agent-client-message-tool-call:last-child {
 	margin-bottom: 0;
 }
 
@@ -1595,37 +1595,21 @@ If your plugin does not need CSS, delete this file.
 }
 
 .menu-item.agent-client-mode-plan {
-	background-color: color-mix(
-		in srgb,
-		var(--color-yellow) 20%,
-		transparent
-	);
+	background-color: color-mix(in srgb, var(--color-yellow) 20%, transparent);
 }
 
 .menu-item.agent-client-mode-plan:hover,
 .menu-item.agent-client-mode-plan.is-selected {
-	background-color: color-mix(
-		in srgb,
-		var(--color-yellow) 30%,
-		transparent
-	);
+	background-color: color-mix(in srgb, var(--color-yellow) 30%, transparent);
 }
 
 .menu-item.agent-client-mode-ask {
-	background-color: color-mix(
-		in srgb,
-		var(--color-green) 20%,
-		transparent
-	);
+	background-color: color-mix(in srgb, var(--color-green) 20%, transparent);
 }
 
 .menu-item.agent-client-mode-ask:hover,
 .menu-item.agent-client-mode-ask.is-selected {
-	background-color: color-mix(
-		in srgb,
-		var(--color-green) 30%,
-		transparent
-	);
+	background-color: color-mix(in srgb, var(--color-green) 30%, transparent);
 }
 
 .menu-item .agent-client-menu-item-content {
@@ -1719,11 +1703,15 @@ If your plugin does not need CSS, delete this file.
 	flex-shrink: 0;
 }
 
+.agent-client-chat-send-button svg.agent-client-icon-queue {
+	color: var(--interactive-accent);
+}
+
 .agent-client-queued-send-strip {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
-	padding: 0 12px 6px 12px;
+	padding: 0 4px 8px 4px;
 }
 
 .agent-client-queued-send-item {
@@ -1734,6 +1722,21 @@ If your plugin does not need CSS, delete this file.
 	padding: 4px 8px;
 	border-radius: 6px;
 	background-color: var(--background-modifier-hover);
+}
+
+.agent-client-queued-send-icon {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	width: 16px;
+	height: 16px;
+}
+
+.agent-client-queued-send-icon svg {
+	width: 14px;
+	height: 14px;
 }
 
 .agent-client-queued-send-label {
@@ -1797,7 +1800,9 @@ If your plugin does not need CSS, delete this file.
 	outline: none !important;
 	appearance: none;
 	box-shadow: none !important;
-	transition: background-color 0.15s ease, color 0.15s ease;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease;
 }
 
 .agent-client-voice-mic-button svg {
@@ -3166,7 +3171,10 @@ If your plugin does not need CSS, delete this file.
 
 /* Window minimize/close button (long-press): armed (danger) state */
 .agent-client-window-close.is-armed {
-	border-color: var(--background-modifier-error-border, var(--text-error)) !important;
+	border-color: var(
+		--background-modifier-error-border,
+		var(--text-error)
+	) !important;
 	color: var(--text-error) !important;
 	background: color-mix(
 		in srgb,

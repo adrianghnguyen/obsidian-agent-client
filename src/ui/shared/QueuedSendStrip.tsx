@@ -9,6 +9,20 @@ interface QueuedSendStripProps {
 	onCancel: (id: string) => void;
 }
 
+function QueuedSendIcon() {
+	const ref = useRef<HTMLSpanElement>(null);
+	useEffect(() => {
+		if (ref.current) setIcon(ref.current, "list-plus");
+	}, []);
+	return (
+		<span
+			ref={ref}
+			className="agent-client-queued-send-icon"
+			aria-hidden="true"
+		/>
+	);
+}
+
 function CancelQueuedSendButton({
 	id,
 	onCancel,
@@ -50,6 +64,7 @@ export function QueuedSendStrip({ items, onCancel }: QueuedSendStripProps) {
 					className="agent-client-queued-send-item"
 					role="listitem"
 				>
+					<QueuedSendIcon />
 					<span className="agent-client-queued-send-label">
 						{summarizeQueuedSend(item)}
 					</span>
