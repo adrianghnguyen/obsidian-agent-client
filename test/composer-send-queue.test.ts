@@ -275,3 +275,93 @@ describe("summarizeQueuedSend", () => {
 		).toBe("2 files");
 	});
 });
+
+describe("floating chat: Cursor and Antigravity", () => {
+	it("open floating chat on Cursor: submit while initializing, send on ready", () => {
+		const submitted = resolveComposerSubmit(
+			[],
+			"hello cursor",
+			undefined,
+			connecting("initializing"),
+		);
+		expect(submitted.kind).toBe("enqueue");
+		if (submitted.kind !== "enqueue") return;
+		expect(
+			takeFlushableComposerSend(
+				submitted.queue,
+				connecting("initializing"),
+			),
+		).toBeNull();
+		expect(
+			takeFlushableComposerSend(submitted.queue, gates())?.item.text,
+		).toBe("hello cursor");
+	});
+
+	it("open floating chat on Antigravity: submit during long init/auth, send on ready", () => {
+		const duringBridge = resolveComposerSubmit(
+			[],
+			"hello agy",
+			undefined,
+			connecting("initializing"),
+		);
+		expect(duringBridge.kind).toBe("enqueue");
+		if (duringBridge.kind !== "enqueue") return;
+
+		expect(
+			takeFlushableComposerSend(
+				duringBridge.queue,
+				connecting("authenticating"),
+			),
+		).toBeNull();
+
+		expect(
+			takeFlushableComposerSend(duringBridge.queue, gates())?.item.text,
+		).toBe("hello agy");
+	});
+
+	it("open floating chat, switch Cursor → Antigravity, buffer, submit when ready", () => {
+		const cursorReady = resolveComposerSubmit(
+			[],
+			"stays on cursor",
+			undefined,
+			gates(),
+		);
+		expect(cursorReady.kind).toBe("send");
+
+		const whileSwitching = resolveComposerSubmit(
+			[],
+			"for antigravity",
+			undefined,
+			connecting("initializing"),
+		);
+		expect(whileSwitching.kind).toBe("enqueue");
+		if (whileSwitching.kind !== "enqueue") return;
+
+		expect(
+			takeFlushableComposerSend(
+				whileSwitching.queue,
+				connecting("initializing"),
+			),
+		).toBeNull();
+
+		const flushed = takeFlushableComposerSend(
+			whileSwitching.queue,
+			gates(),
+		);
+		expect(flushed?.item.text).toBe("for antigravity");
+	});
+
+	it("during turn completion, queue a follow-up then cancel one chip", () => {
+		const a = createQueuedComposerSend("keep", undefined, "q-keep");
+		const b = createQueuedComposerSend("drop", undefined, "q-drop");
+		let queue = enqueueComposerSend(enqueueComposerSend([], a), b);
+		queue = cancelComposerSend(queue, "q-drop");
+
+		expect(
+			takeFlushableComposerSend(queue, gates({ isSending: true })),
+		).toBeNull();
+		expect(takeFlushableComposerSend(queue, gates())?.item.text).toBe(
+			"keep",
+		);
+	});
+});
