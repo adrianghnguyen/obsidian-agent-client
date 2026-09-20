@@ -198,6 +198,8 @@ export interface InputAreaProps {
 	isSessionReady: boolean;
 	/** Whether a session is being restored (load/resume/fork) */
 	isRestoringSession: boolean;
+	/** Permission request is waiting — keep follow-ups queued */
+	hasActivePermission: boolean;
 	/** Display name of the active agent */
 	agentLabel: string;
 	/** Available slash commands */
@@ -278,6 +280,7 @@ export function InputArea({
 	isSending,
 	isSessionReady,
 	isRestoringSession,
+	hasActivePermission,
 	agentLabel,
 	availableCommands,
 	autoMentionEnabled,
@@ -1302,7 +1305,10 @@ export function InputArea({
 						inputValue.trim() !== "" || attachedFiles.length > 0
 					}
 					queuesOnSend={
-						!isSessionReady || isSending || isRestoringSession
+						!isSessionReady ||
+						isSending ||
+						isRestoringSession ||
+						hasActivePermission
 					}
 					onSend={() => void handleSend()}
 					onStop={() => void handleStop()}

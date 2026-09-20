@@ -6,9 +6,12 @@ import {
 	cancelComposerSend,
 	createQueuedComposerSend,
 	enqueueComposerSend,
+	forgetCancelledComposerSend,
+	rememberCancelledComposerSend,
 	resolveComposerSubmit,
 	summarizeQueuedSend,
 	takeFlushableComposerSend,
+	wasComposerSendCancelled,
 	type ComposerSendFlushGates,
 	type QueuedComposerSend,
 } from "../src/services/composer-send-queue";
@@ -21,6 +24,7 @@ function gates(
 		isSending: false,
 		isRestoringSession: false,
 		sessionState: "ready",
+		hasActivePermission: false,
 		...overrides,
 	};
 }
@@ -62,6 +66,12 @@ describe("canFlushComposerSend", () => {
 
 	it("is false during an in-flight turn", () => {
 		expect(canFlushComposerSend(gates({ isSending: true }))).toBe(false);
+	});
+
+	it("is false while a permission request is waiting", () => {
+		expect(canFlushComposerSend(gates({ hasActivePermission: true }))).toBe(
+			false,
+		);
 	});
 
 	it("is false while restoring a session", () => {
@@ -214,6 +224,35 @@ describe("resolveComposerSubmit", () => {
 });
 
 describe("FIFO cancel and drain", () => {
+	it("aborts a taken item when X is clicked before send commits", () => {
+		const drop = createQueuedComposerSend(
+			"CANCEL_ME_DO_NOT_SEND",
+			undefined,
+			"q-cancel",
+		);
+		const keep = createQueuedComposerSend(
+			"KEEP_ME_SHOULD_SEND",
+			undefined,
+			"q-keep",
+		);
+		let queue = enqueueComposerSend(enqueueComposerSend([], drop), keep);
+		const cancelledIds = new Set<string>();
+
+		const taken = takeFlushableComposerSend(queue, gates());
+		expect(taken?.item.text).toBe("CANCEL_ME_DO_NOT_SEND");
+		queue = taken?.rest ?? [];
+
+		rememberCancelledComposerSend(cancelledIds, "q-cancel");
+		expect(wasComposerSendCancelled(cancelledIds, "q-cancel")).toBe(true);
+		expect(wasComposerSendCancelled(cancelledIds, "q-keep")).toBe(false);
+
+		forgetCancelledComposerSend(cancelledIds, "q-cancel");
+		expect(wasComposerSendCancelled(cancelledIds, "q-cancel")).toBe(false);
+
+		const flushed = takeFlushableComposerSend(queue, gates());
+		expect(flushed?.item.text).toBe("KEEP_ME_SHOULD_SEND");
+	});
+
 	it("cancels one id and flushes the remaining item", () => {
 		const a = createQueuedComposerSend("one", undefined, "q-a");
 		const b = createQueuedComposerSend("two", undefined, "q-b");
