@@ -1,10 +1,10 @@
 import type { PresetAgentDefinition } from "../shared/preset-types";
-import { getDefaultAntigravityBridgePath } from "./paths";
+import { ANTIGRAVITY_BRIDGE_PAR } from "./paths";
 
 export const antigravityPreset: PresetAgentDefinition = {
 	presetId: "antigravity",
 	defaultDisplayName: "Antigravity",
-	defaultCommand: getDefaultAntigravityBridgePath(),
+	defaultCommand: ANTIGRAVITY_BRIDGE_PAR,
 	defaultArgs: [],
 	absorbsCustomAgentId: "antigravity",
 	installHint: {
@@ -15,7 +15,7 @@ export const antigravityPreset: PresetAgentDefinition = {
 	},
 	settingsCopy: {
 		pathDesc:
-			"Absolute path to the Antigravity ACP bridge (agy_acp_server.par on macOS/Linux, agy_acp_server.exe on Windows). The agy CLI has no acp subcommand — Agent Client spawns this binary directly. Use Auto-detect or the health check below.",
+			"Path to the Antigravity ACP bridge on this computer (not synced). Leave as agy_acp_server.par to auto-detect when you connect. Auto-detect saves this device only.",
 	},
 	docsPage: "antigravity",
 };

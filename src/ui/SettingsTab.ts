@@ -34,6 +34,7 @@ import {
 	ANTIGRAVITY_PRESET_ID,
 	checkAntigravityHealth,
 	getAntigravityMcpConfigNote,
+	getDefaultAntigravityBridgePath,
 	resolveAntigravityBridgePath,
 	type AntigravityHealthReport,
 } from "../harnesses/antigravity";
@@ -2086,11 +2087,15 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				);
 		}
 
+		const pathPlaceholder =
+			def.presetId === ANTIGRAVITY_PRESET_ID
+				? getDefaultAntigravityBridgePath()
+				: def.defaultCommand;
 		const pathSetting = new Setting(bodyEl)
 			.setName("Path")
 			.setDesc(def.settingsCopy.pathDesc)
 			.addText((text) => {
-				text.setPlaceholder(def.defaultCommand)
+				text.setPlaceholder(pathPlaceholder)
 					.setValue(preset.command)
 					.onChange(async (value) => {
 						await this.updatePresetAgent(def.presetId, {

@@ -112,19 +112,11 @@ export async function resolveAntigravityBridgeForSpawn(
 	return resolveAntigravityBridgePath();
 }
 
-/**
- * Bridge path the settings command will actually spawn.
- * Does not fall back when a configured path is set but missing — spawn
- * uses `preset.command` as-is, so health must not report a different binary.
- */
+/** Same as resolveAntigravityBridgeForSpawn (chat and health share this). */
 export async function resolveAntigravitySpawnBridge(
 	configuredPath: string,
 ): Promise<string | null> {
-	const trimmed = configuredPath.trim();
-	if (trimmed.length > 0) {
-		return (await isExecutableBridge(trimmed)) ? trimmed : null;
-	}
-	return resolveAntigravityBridgePath();
+	return resolveAntigravityBridgeForSpawn(configuredPath);
 }
 
 /** Companion binary candidates: env override, sibling of the .par, ~/.local/bin. */

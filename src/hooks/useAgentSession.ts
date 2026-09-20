@@ -39,6 +39,7 @@ import {
 	buildAgentConfigWithApiKey,
 	createInitialSession,
 } from "../services/session-helpers";
+import { resolveHarnessSpawnCommand } from "../services/harness-spawn-command";
 import {
 	applyLegacyValue,
 	tryRestoreConfigOption,
@@ -247,8 +248,12 @@ export function useAgentSession(
 					return;
 				}
 
+				const resolvedCommand = await resolveHarnessSpawnCommand(
+					agentId,
+					agentSettings.command,
+				);
 				const agentConfig = buildAgentConfigWithApiKey(
-					agentSettings,
+					{ ...agentSettings, command: resolvedCommand },
 					agentId,
 					effectiveCwd,
 				);

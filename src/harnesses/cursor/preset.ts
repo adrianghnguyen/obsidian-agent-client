@@ -15,7 +15,7 @@ export const cursorPreset: PresetAgentDefinition = {
 	},
 	settingsCopy: {
 		pathDesc:
-			'Command name or path to the Cursor CLI (`agent`). Use just "agent" to let the login shell resolve it, or enter an absolute path (commonly ~/.local/bin/agent on macOS/Linux).',
+			"Cursor CLI on this computer (not synced). Leave as agent to use your login-shell PATH. Auto-detect saves an absolute path here only — other devices keep their own.",
 		argsDescSuffix:
 			" (Cursor speaks ACP through the hidden `acp` subcommand — keep `acp` here.)",
 	},
