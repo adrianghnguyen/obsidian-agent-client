@@ -198,6 +198,8 @@ export interface InputToolbarProps {
 	isSending: boolean;
 	isSendDisabled: boolean;
 	hasContent: boolean;
+	/** Send will enqueue until the harness is ready / idle */
+	queuesOnSend: boolean;
 	onSend: () => void;
 	onStop: () => void;
 	modes?: SessionModeState;
@@ -207,13 +209,13 @@ export interface InputToolbarProps {
 	traceVerbosity: TraceVerbosity;
 	onTraceVerbosityChange: (value: TraceVerbosity) => void;
 	usage?: SessionUsage;
-	isSessionReady: boolean;
 }
 
 export function InputToolbar({
 	isSending,
 	isSendDisabled,
 	hasContent,
+	queuesOnSend,
 	onSend,
 	onStop,
 	modes,
@@ -223,7 +225,6 @@ export function InputToolbar({
 	traceVerbosity,
 	onTraceVerbosityChange,
 	usage,
-	isSessionReady,
 }: InputToolbarProps) {
 	const sendButtonRef = useRef<HTMLButtonElement>(null);
 	const stopButtonRef = useRef<HTMLButtonElement>(null);
@@ -234,25 +235,33 @@ export function InputToolbar({
 				"agent-client-icon-sending",
 				"agent-client-icon-active",
 				"agent-client-icon-inactive",
+				"agent-client-icon-queue",
 			);
-			svg.classList.add(
-				hasContent
-					? "agent-client-icon-active"
-					: "agent-client-icon-inactive",
-			);
+			if (hasContent && queuesOnSend) {
+				svg.classList.add("agent-client-icon-queue");
+			} else {
+				svg.classList.add(
+					hasContent
+						? "agent-client-icon-active"
+						: "agent-client-icon-inactive",
+				);
+			}
 		},
-		[hasContent],
+		[hasContent, queuesOnSend],
 	);
 
 	useEffect(() => {
 		if (sendButtonRef.current) {
-			setIcon(sendButtonRef.current, "send-horizontal");
+			setIcon(
+				sendButtonRef.current,
+				queuesOnSend ? "list-plus" : "send-horizontal",
+			);
 			const svg = sendButtonRef.current.querySelector("svg");
 			if (svg) {
 				updateSendIconColor(svg);
 			}
 		}
-	}, [updateSendIconColor, isSendDisabled, isSending, hasContent]);
+	}, [updateSendIconColor, isSendDisabled, queuesOnSend, hasContent]);
 
 	useEffect(() => {
 		if (stopButtonRef.current) {
@@ -413,20 +422,20 @@ export function InputToolbar({
 						type="button"
 						onClick={onSend}
 						disabled={isSendDisabled}
-						className={`agent-client-chat-send-button ${isSendDisabled ? "agent-client-disabled" : ""}`}
+						className={`agent-client-chat-send-button ${isSendDisabled ? "agent-client-disabled" : ""} ${queuesOnSend && hasContent ? "agent-client-queue-send" : ""}`}
 						title={
-							!isSessionReady
-								? "Send when ready"
-								: isSending
+							queuesOnSend
+								? isSending
 									? "Queue message"
-									: "Send message"
+									: "Queue until connected"
+								: "Send message"
 						}
 						aria-label={
-							!isSessionReady
-								? "Send when ready"
-								: isSending
+							queuesOnSend
+								? isSending
 									? "Queue message"
-									: "Send message"
+									: "Queue until connected"
+								: "Send message"
 						}
 					></button>
 				)}

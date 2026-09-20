@@ -1194,6 +1194,11 @@ export function InputArea({
 				/>
 			)}
 
+			<QueuedSendStrip
+				items={queuedSends}
+				onCancel={onCancelQueuedSend}
+			/>
+
 			{/* Input Box - flexbox container with border */}
 			<div
 				className={`agent-client-chat-input-box ${isDraggingOver ? "agent-client-dragging-over" : ""}`}
@@ -1289,17 +1294,15 @@ export function InputArea({
 				{/* Attachment Preview Strip (images + file references) */}
 				<AttachmentStrip files={attachedFiles} onRemove={removeFile} />
 
-				<QueuedSendStrip
-					items={queuedSends}
-					onCancel={onCancelQueuedSend}
-				/>
-
 				{/* Input Actions (Config Options / Mode Selector / Model Selector + Send Button) */}
 				<InputToolbar
 					isSending={isSending}
 					isSendDisabled={isSendDisabled}
 					hasContent={
 						inputValue.trim() !== "" || attachedFiles.length > 0
+					}
+					queuesOnSend={
+						!isSessionReady || isSending || isRestoringSession
 					}
 					onSend={() => void handleSend()}
 					onStop={() => void handleStop()}
@@ -1310,7 +1313,6 @@ export function InputArea({
 					traceVerbosity={traceVerbosity}
 					onTraceVerbosityChange={onTraceVerbosityChange}
 					usage={usage}
-					isSessionReady={isSessionReady}
 				/>
 			</div>
 		</div>
