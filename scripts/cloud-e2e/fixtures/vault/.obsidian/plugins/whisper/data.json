@@ -1,0 +1,4 @@
+{
+  "whisperApiKeySecretId": "openai-api-key",
+  "transcriptionProvider": "openai"
+}

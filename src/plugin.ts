@@ -25,6 +25,7 @@ import {
 	absorbCustomAgents,
 	normalizeCustomAgent,
 	ensureUniqueCustomAgentIds,
+	hasOrphanPresetAgentKeys,
 	normalizePresetAgents,
 	resolveDefaultAgentId,
 	type ApiKeyMigrator,
@@ -54,7 +55,7 @@ import {
 	type FloatingWindowLocalLayout,
 	type FloatingWindowLocalStorageAccess,
 } from "./services/floating-window-local-storage";
-import { PRESET_AGENTS } from "./services/preset-agents";
+import { PRESET_AGENTS, DEFAULT_PRESET_AGENT_ID } from "./services/preset-agents";
 import { VoiceInputModule } from "./voice-input/VoiceInputModule";
 import type { VoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import { normalizeVoiceInputSettings } from "./voice-input/VoiceInputSettings";
@@ -673,8 +674,21 @@ export default class AgentClientPlugin extends Plugin {
 			...customAgents.map((a) => a.id),
 		];
 		const defaultAgentId =
-			resolveDefaultAgentId(raw, availableAgentIds) ||
-			PRESET_AGENTS[0].presetId;
+			resolveDefaultAgentId(
+				raw,
+				availableAgentIds,
+				DEFAULT_PRESET_AGENT_ID,
+			) || DEFAULT_PRESET_AGENT_ID;
+		const orphanPresetsRemoved = hasOrphanPresetAgentKeys(
+			raw,
+			PRESET_AGENTS,
+		);
+		const rawStoredDefault =
+			str(raw.defaultAgentId, "") || str(raw.activeAgentId, "");
+		const defaultAgentIdMigrated =
+			rawStoredDefault !== defaultAgentId &&
+			(!rawStoredDefault ||
+				!availableAgentIds.includes(rawStoredDefault));
 
 		// Secret-storage side effects (writes + Notices) are injected into the
 		// pure normalizer; called only for presets with apiKey.legacy wiring.
@@ -870,6 +884,8 @@ export default class AgentClientPlugin extends Plugin {
 		if (
 			migratedSecrets ||
 			absorption.absorbed.length > 0 ||
+			orphanPresetsRemoved ||
+			defaultAgentIdMigrated ||
 			needsFloatingChatEntryMigration(raw) ||
 			needsFloatingWindowLayoutMigration(raw) ||
 			needsFloatingIdleOpacityMigration(raw)

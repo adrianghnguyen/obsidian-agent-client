@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
 	absorbCustomAgents,
+	hasOrphanPresetAgentKeys,
 	normalizePresetAgents,
 	defaultPresetAgentSettings,
 	normalizeCustomAgent,
@@ -35,8 +36,6 @@ describe("normalizePresetAgents", () => {
 				env: [{ key: "FOO", value: "bar" }],
 			},
 			codex: { command: "/opt/codex-acp" },
-			gemini: { displayName: "Gemini" },
-			mistralVibe: { args: ["--x"] },
 		};
 		const result = normalizePresetAgents(raw, PRESET_AGENTS, noMigration);
 
@@ -50,21 +49,17 @@ describe("normalizePresetAgents", () => {
 			enabled: true,
 		});
 		expect(result["codex-acp"].command).toBe("/opt/codex-acp");
-		expect(result["gemini-cli"].displayName).toBe("Gemini");
-		expect(result["mistral-vibe"].args).toEqual(["--x"]);
 	});
 
 	it("respects the legacy top-level command-path keys", () => {
 		const raw = {
 			claudeCodeAcpCommandPath: "/legacy/claude-agent-acp",
-			geminiCommandPath: "/legacy/gemini",
 		};
 		const result = normalizePresetAgents(raw, PRESET_AGENTS, noMigration);
 
 		expect(result["claude-code-acp"].command).toBe(
 			"/legacy/claude-agent-acp",
 		);
-		expect(result["gemini-cli"].command).toBe("/legacy/gemini");
 		// A stored command wins over the legacy top-level key.
 		const withStored = normalizePresetAgents(
 			{ ...raw, claude: { command: "/stored/claude" } },
@@ -72,32 +67,6 @@ describe("normalizePresetAgents", () => {
 			noMigration,
 		);
 		expect(withStored["claude-code-acp"].command).toBe("/stored/claude");
-	});
-
-	it("backfills empty gemini args to the registry default", () => {
-		const empty = normalizePresetAgents(
-			{ gemini: { args: [] } },
-			PRESET_AGENTS,
-			noMigration,
-		);
-		expect(empty["gemini-cli"].args).toEqual(["--experimental-acp"]);
-
-		const whitespace = normalizePresetAgents(
-			{ gemini: { args: ["  ", ""] } },
-			PRESET_AGENTS,
-			noMigration,
-		);
-		expect(whitespace["gemini-cli"].args).toEqual(["--experimental-acp"]);
-
-		const explicit = normalizePresetAgents(
-			{ gemini: { args: ["--experimental-acp", "--foo"] } },
-			PRESET_AGENTS,
-			noMigration,
-		);
-		expect(explicit["gemini-cli"].args).toEqual([
-			"--experimental-acp",
-			"--foo",
-		]);
 	});
 
 	it("force-syncs the entry id to the record key, never from raw", () => {
@@ -135,36 +104,24 @@ describe("normalizePresetAgents", () => {
 		}
 	});
 
-	it("preserves unknown presetIds (version skew) across a save round-trip, including fields this version doesn't know", () => {
+	it("drops orphan presetIds (removed harnesses or stale sync)", () => {
 		const raw = {
 			presetAgents: {
+				"gemini-cli": { apiKeySecretId: "gemini-api-key" },
 				opencode: {
-					id: "opencode",
 					displayName: "OpenCode",
-					apiKeySecretId: "",
 					command: "opencode",
 					args: ["acp"],
-					env: [],
 					enabled: false,
 				},
+				"codex-acp": { apiKeySecretId: "openai-api-key" },
 			},
 		};
-		const first = normalizePresetAgents(raw, PRESET_AGENTS, noMigration);
-		expect(first.opencode).toMatchObject({
-			id: "opencode",
-			displayName: "OpenCode",
-			command: "opencode",
-			args: ["acp"],
-			enabled: false,
-		});
-
-		// Round-trip: what got saved is normalized again on next load.
-		const second = normalizePresetAgents(
-			{ presetAgents: first },
-			PRESET_AGENTS,
-			noMigration,
-		);
-		expect(second.opencode).toEqual(first.opencode);
+		const result = normalizePresetAgents(raw, PRESET_AGENTS, noMigration);
+		expect(Object.keys(result).sort()).toEqual([...PRESET_IDS].sort());
+		expect(result["codex-acp"].apiKeySecretId).toBe("openai-api-key");
+		expect(result).not.toHaveProperty("gemini-cli");
+		expect(result).not.toHaveProperty("opencode");
 	});
 
 	it("defaults enabled to true and preserves an explicit false", () => {
@@ -193,8 +150,8 @@ describe("normalizePresetAgents", () => {
 			migrate,
 		);
 
-		// Called once per preset with legacy wiring (all four originals).
-		expect(migrate).toHaveBeenCalledTimes(4);
+		// Called once per active preset with legacy wiring (claude + codex).
+		expect(migrate).toHaveBeenCalledTimes(2);
 		const claudeCall = migrate.mock.calls.find(
 			([args]) => args.def.presetId === "claude-code-acp",
 		);
@@ -243,62 +200,57 @@ describe("ensureUniqueCustomAgentIds with reserved ids", () => {
 });
 
 describe("absorbCustomAgents", () => {
-	const docsAdvisedCustom = {
-		id: "opencode",
-		displayName: "My OpenCode",
-		command: "/opt/opencode",
-		args: ["acp", "--verbose"],
+	const docsAdvisedCursor = {
+		id: "cursor",
+		displayName: "My Cursor",
+		command: "/opt/agent",
+		args: ["acp"],
 		env: [{ key: "FOO", value: "bar" }],
 		enabled: false,
 	};
 
 	it("adopts the docs-advised custom as the preset's raw source", () => {
 		const raw = {
-			customAgents: [docsAdvisedCustom, { id: "my-agent" }],
+			customAgents: [docsAdvisedCursor, { id: "my-agent" }],
 		};
 		const result = absorbCustomAgents(raw, PRESET_AGENTS);
 
 		expect(result.absorbed).toEqual([
-			{ presetId: "opencode", displayName: "OpenCode" },
+			{ presetId: "cursor", displayName: "Cursor" },
 		]);
 		expect(result.customAgents).toEqual([{ id: "my-agent" }]);
-		expect(result.presetAgents.opencode).toBe(docsAdvisedCustom);
+		expect(result.presetAgents.cursor).toBe(docsAdvisedCursor);
 
-		// The adopted entry goes through the usual preset normalization:
-		// id force-synced, apiKeySecretId defaulted, values preserved.
 		const normalized = normalizePresetAgents(
 			{ presetAgents: result.presetAgents },
 			PRESET_AGENTS,
 			noMigration,
 		);
-		expect(normalized.opencode).toEqual({
-			id: "opencode",
-			displayName: "My OpenCode",
+		expect(normalized.cursor).toEqual({
+			id: "cursor",
+			displayName: "My Cursor",
 			apiKeySecretId: "",
-			command: "/opt/opencode",
-			args: ["acp", "--verbose"],
+			command: "/opt/agent",
+			args: ["acp"],
 			env: [{ key: "FOO", value: "bar" }],
 			enabled: false,
 		});
 	});
 
-	it("absorbs the docs-advised kiro-cli custom the same way", () => {
-		const kiroCustom = {
-			id: "kiro-cli",
-			displayName: "My Kiro",
-			command: "/opt/kiro-cli",
+	it("does not absorb customs for removed preset ids", () => {
+		const opencodeCustom = {
+			id: "opencode",
+			displayName: "My OpenCode",
+			command: "/opt/opencode",
 			args: ["acp"],
-			env: [{ key: "KIRO_LOG_LEVEL", value: "debug" }],
+			env: [],
 		};
 		const result = absorbCustomAgents(
-			{ customAgents: [kiroCustom] },
+			{ customAgents: [opencodeCustom] },
 			PRESET_AGENTS,
 		);
-		expect(result.absorbed).toEqual([
-			{ presetId: "kiro-cli", displayName: "Kiro" },
-		]);
-		expect(result.customAgents).toEqual([]);
-		expect(result.presetAgents["kiro-cli"]).toBe(kiroCustom);
+		expect(result.absorbed).toEqual([]);
+		expect(result.customAgents).toEqual([opencodeCustom]);
 	});
 
 	it("absorbs the docs-advised antigravity custom the same way", () => {
@@ -322,14 +274,13 @@ describe("absorbCustomAgents", () => {
 
 	it("skips when the preset already has a stored entry", () => {
 		const raw = {
-			presetAgents: { opencode: { command: "opencode" } },
-			customAgents: [docsAdvisedCustom],
+			presetAgents: { cursor: { command: "agent" } },
+			customAgents: [docsAdvisedCursor],
 		};
 		const result = absorbCustomAgents(raw, PRESET_AGENTS);
-		// The colliding custom is left for the "{id}-2" rename instead.
 		expect(result.absorbed).toEqual([]);
-		expect(result.customAgents).toEqual([docsAdvisedCustom]);
-		expect(result.presetAgents.opencode).toEqual({ command: "opencode" });
+		expect(result.customAgents).toEqual([docsAdvisedCursor]);
+		expect(result.presetAgents.cursor).toEqual({ command: "agent" });
 	});
 
 	it("is a no-op without a matching custom", () => {
@@ -350,7 +301,7 @@ describe("absorbCustomAgents", () => {
 
 	it("is idempotent across a save round-trip", () => {
 		const first = absorbCustomAgents(
-			{ customAgents: [docsAdvisedCustom] },
+			{ customAgents: [docsAdvisedCursor] },
 			PRESET_AGENTS,
 		);
 		expect(first.absorbed).toHaveLength(1);
@@ -363,12 +314,12 @@ describe("absorbCustomAgents", () => {
 			PRESET_AGENTS,
 		);
 		expect(second.absorbed).toEqual([]);
-		expect(second.presetAgents.opencode).toBe(docsAdvisedCustom);
+		expect(second.presetAgents.cursor).toBe(docsAdvisedCursor);
 	});
 
 	it("backfills empty absorbed args to the registry default", () => {
 		const result = absorbCustomAgents(
-			{ customAgents: [{ id: "opencode", command: "opencode", args: [] }] },
+			{ customAgents: [{ id: "cursor", command: "agent", args: [] }] },
 			PRESET_AGENTS,
 		);
 		const normalized = normalizePresetAgents(
@@ -376,7 +327,7 @@ describe("absorbCustomAgents", () => {
 			PRESET_AGENTS,
 			noMigration,
 		);
-		expect(normalized.opencode.args).toEqual(["acp"]);
+		expect(normalized.cursor.args).toEqual(["acp"]);
 	});
 });
 
@@ -386,6 +337,23 @@ describe("normalizeCustomAgent", () => {
 		expect(normalizeCustomAgent({ id: "a", enabled: false }).enabled).toBe(
 			false,
 		);
+	});
+});
+
+describe("hasOrphanPresetAgentKeys", () => {
+	it("detects removed preset keys in raw data.json", () => {
+		expect(
+			hasOrphanPresetAgentKeys(
+				{ presetAgents: { "gemini-cli": {}, "codex-acp": {} } },
+				PRESET_AGENTS,
+			),
+		).toBe(true);
+		expect(
+			hasOrphanPresetAgentKeys(
+				{ presetAgents: { "codex-acp": {} } },
+				PRESET_AGENTS,
+			),
+		).toBe(false);
 	});
 });
 
@@ -413,11 +381,17 @@ describe("resolveDefaultAgentId", () => {
 		).toBe("codex-acp");
 	});
 
-	it("falls back to the first available id when unset or unknown", () => {
-		expect(resolveDefaultAgentId({}, available)).toBe("claude-code-acp");
+	it("falls back to preferredFallbackId when unset or unknown", () => {
 		expect(
-			resolveDefaultAgentId({ defaultAgentId: "ghost" }, available),
-		).toBe("claude-code-acp");
+			resolveDefaultAgentId({}, available, "codex-acp"),
+		).toBe("codex-acp");
+		expect(
+			resolveDefaultAgentId({ defaultAgentId: "ghost" }, available, "codex-acp"),
+		).toBe("codex-acp");
+	});
+
+	it("falls back to the first available id when unset and no preferred fallback", () => {
+		expect(resolveDefaultAgentId({}, available)).toBe("claude-code-acp");
 	});
 });
 

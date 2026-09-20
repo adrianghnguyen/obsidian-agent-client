@@ -25,6 +25,7 @@ main.js
 
 # obsidian
 data.json
+!scripts/cloud-e2e/fixtures/**/data.json
 sessions/
 
 # Exclude macOS Finder (System Explorer) View States

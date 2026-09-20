@@ -6,7 +6,7 @@ Frequently asked questions about Agent Client.
 
 ### What is Agent Client?
 
-Agent Client is an Obsidian plugin that lets you chat with AI agents directly within Obsidian. It supports Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, Antigravity, and any ACP-compatible agent. The plugin uses the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) to communicate with agents.
+Agent Client is an Obsidian plugin that lets you chat with AI agents directly within Obsidian. It supports Claude Code, Codex, Cursor, Antigravity, and any ACP-compatible custom agent. The plugin uses the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) to communicate with agents.
 
 ### Is this an official Anthropic/OpenAI/Google plugin?
 
@@ -81,7 +81,7 @@ Disabling only hides the agent from lists: already-open chats, restored sessions
 
 ### What is a custom agent?
 
-Any ACP-compatible agent beyond the preset ones (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, Antigravity). You can add custom agents in **Settings → Agent Client → Custom agents**. See [Custom Agents](/agent-setup/custom-agents).
+Any ACP-compatible agent beyond the built-in presets (Claude Code, Codex, Cursor, Antigravity). You can add custom agents in **Settings → Agent Client → Custom agents**. See [Custom Agents](/agent-setup/custom-agents).
 
 ### Do all agents support the same features?
 
@@ -95,7 +95,7 @@ Slash commands are provided by the agent, not the plugin. If the input placehold
 
 ### Why are the commands different from what I expected?
 
-Each agent provides its own commands. Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, and Antigravity all have different command sets. Refer to your agent's documentation for available commands.
+Each agent provides its own commands. Claude Code, Codex, Cursor, and Antigravity all have different command sets. Refer to your agent's documentation for available commands.
 
 ## Permissions
 

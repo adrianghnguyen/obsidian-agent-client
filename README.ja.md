@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/RAIT-09/obsidian-agent-client/blob/master/README.md">English is here</a>
+  <a href="README.md">English is here</a>
 </p>
 
 <p align="center">
@@ -26,13 +26,13 @@ MCP サーバー、Agent Skills、スラッシュコマンド、権限プロン�
 
 Zed の [Agent Client Protocol (ACP)](https://github.com/agentclientprotocol/agent-client-protocol) の上に構築されています。
 
-![ノートの隣のサイドバーでエージェントとチャット](https://raw.githubusercontent.com/RAIT-09/obsidian-agent-client/master/docs/public/images/readme-hero-sidebar.webp)
+![ノートの隣のサイドバーでエージェントとチャット](docs/public/images/readme-hero-sidebar.webp)
 
 ## Vault をエージェントのフロントエンドに
 
 **並べて使う。** 複数のエージェントを同時に実行できます — サイドバータブ、エディタタブ、フローティングウィンドウで、それぞれが独立したセッションとモデルを持ちます。全ビューへのプロンプト一斉送信や、ホットキーでのフォーカス巡回も。
 
-![エディタタブで3つのエージェントを並列実行](https://raw.githubusercontent.com/RAIT-09/obsidian-agent-client/master/docs/public/images/readme-multi-session.webp)
+![エディタタブで3つのエージェントを並列実行](docs/public/images/readme-multi-session.webp)
 
 **どのフォルダでも。** 「New chat in directory」でチャットを任意のディレクトリに向けられます — コードプロジェクトでも、執筆プロジェクトでも、エージェントが普段働いている場所ならどこでも。エージェントはそのフォルダの context file やプロジェクト設定を読み込み、Vault のノートは `@` メンションで渡せます。
 
@@ -69,12 +69,12 @@ Zed の [Agent Client Protocol (ACP)](https://github.com/agentclientprotocol/age
 
 1. 使いたいエージェントをセットアップガイドに従ってインストール・認証します:
 
-   [Claude Code](https://rait-09.github.io/obsidian-agent-client/agent-setup/claude-code.html) · [Codex](https://rait-09.github.io/obsidian-agent-client/agent-setup/codex.html) · [Gemini CLI](https://rait-09.github.io/obsidian-agent-client/agent-setup/gemini-cli.html) · [Mistral Vibe](https://rait-09.github.io/obsidian-agent-client/agent-setup/mistral-vibe.html) · [OpenCode](https://rait-09.github.io/obsidian-agent-client/agent-setup/opencode.html) · [Kiro](https://rait-09.github.io/obsidian-agent-client/agent-setup/kiro.html) · [Hermes Agent](https://rait-09.github.io/obsidian-agent-client/agent-setup/hermes.html) · [Cursor](https://rait-09.github.io/obsidian-agent-client/agent-setup/cursor.html) · [Antigravity](https://rait-09.github.io/obsidian-agent-client/agent-setup/antigravity.html) · [カスタムエージェント](https://rait-09.github.io/obsidian-agent-client/agent-setup/custom-agents.html)
+   [Claude Code](docs/agent-setup/claude-code.md) · [Codex](docs/agent-setup/codex.md) · [Cursor](docs/agent-setup/cursor.md) · [Antigravity](docs/agent-setup/antigravity.md) · [カスタムエージェント](docs/agent-setup/custom-agents.md)
 
 2. **設定 → Agent Client** でエージェントのパスを確認します — **Auto-detect** でほとんどの場合見つかります
 3. リボンのロボットアイコンをクリックしてチャット開始
 
-**[ドキュメント全文](https://rait-09.github.io/obsidian-agent-client/)**
+**ドキュメント:** [索引](docs/README.md) · [はじめに](docs/getting-started/index.md) · [エージェント設定](docs/agent-setup/index.md) · [使い方](docs/usage/index.md) · [FAQ](docs/help/faq.md) · [トラブルシューティング](docs/help/troubleshooting.md)
 
 ## セキュリティと権限
 
@@ -92,12 +92,12 @@ API キーは Obsidian の Keychain に保存され、平文では保存され�
 
 1. [BRAT](https://github.com/TfTHacker/obsidian42-brat) プラグインをインストール
 2. **設定 → BRAT → Add Beta Plugin** に移動
-3. 貼り付け: `https://github.com/RAIT-09/obsidian-agent-client`
+3. 貼り付け: `https://github.com/adrianghnguyen/obsidian-agent-client`
 4. プラグインリストから **Agent Client** を有効化
 
 ### 手動インストール
 
-1. [リリース](https://github.com/RAIT-09/obsidian-agent-client/releases)から `main.js`、`manifest.json`、`styles.css` をダウンロード
+1. [リリース](https://github.com/adrianghnguyen/obsidian-agent-client/releases)から `main.js`、`manifest.json`、`styles.css` をダウンロード
 2. `VaultFolder/.obsidian/plugins/agent-client/` に配置
 3. **設定 → コミュニティプラグイン** でプラグインを有効化
 
@@ -115,7 +115,7 @@ npm run build
 
 ## ライセンス
 
-Apache License 2.0 - 詳細は [LICENSE](https://github.com/RAIT-09/obsidian-agent-client/blob/master/LICENSE) を参照。
+Apache License 2.0 - 詳細は [LICENSE](LICENSE) を参照。
 
 ## コントリビューター
 

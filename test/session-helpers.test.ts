@@ -54,19 +54,6 @@ function makeSettings(
 				"claude-agent-acp",
 			),
 			"codex-acp": preset("codex-acp", "Codex", "codex-acp"),
-			"gemini-cli": preset("gemini-cli", "Gemini CLI", "gemini", {
-				args: ["--experimental-acp"],
-			}),
-			"mistral-vibe": preset("mistral-vibe", "Mistral Vibe", "vibe-acp"),
-			opencode: preset("opencode", "OpenCode", "opencode", {
-				args: ["acp"],
-			}),
-			"kiro-cli": preset("kiro-cli", "Kiro", "kiro-cli", {
-				args: ["acp"],
-			}),
-			"hermes-agent": preset("hermes-agent", "Hermes Agent", "hermes", {
-				args: ["acp"],
-			}),
 			cursor: preset("cursor", "Cursor", "agent", { args: ["acp"] }),
 			antigravity: preset(
 				"antigravity",
@@ -75,7 +62,7 @@ function makeSettings(
 			),
 		},
 		customAgents: [],
-		defaultAgentId: "",
+		defaultAgentId: "cursor",
 		...overrides,
 	} as AgentClientPluginSettings;
 }
@@ -88,11 +75,6 @@ describe("getAvailableAgentsFromSettings", () => {
 		expect(getAvailableAgentsFromSettings(settings)).toEqual([
 			{ id: "claude-code-acp", displayName: "Claude Code" },
 			{ id: "codex-acp", displayName: "Codex" },
-			{ id: "gemini-cli", displayName: "Gemini CLI" },
-			{ id: "mistral-vibe", displayName: "Mistral Vibe" },
-			{ id: "opencode", displayName: "OpenCode" },
-			{ id: "kiro-cli", displayName: "Kiro" },
-			{ id: "hermes-agent", displayName: "Hermes Agent" },
 			{ id: "cursor", displayName: "Cursor" },
 			{ id: "antigravity", displayName: "Antigravity" },
 			{ id: "my-custom", displayName: "My Custom" },
@@ -122,11 +104,6 @@ describe("getAvailableAgentsFromSettings", () => {
 			getAvailableAgentsFromSettings(settings).map((a) => a.id),
 		).toEqual([
 			"claude-code-acp",
-			"gemini-cli",
-			"mistral-vibe",
-			"opencode",
-			"kiro-cli",
-			"hermes-agent",
 			"cursor",
 			"antigravity",
 			"my-custom",
@@ -145,11 +122,6 @@ describe("getAllAgentsFromSettings", () => {
 		expect(getAllAgentsFromSettings(settings)).toEqual([
 			{ id: "claude-code-acp", displayName: "Claude Code" },
 			{ id: "codex-acp", displayName: "Codex" },
-			{ id: "gemini-cli", displayName: "Gemini CLI" },
-			{ id: "mistral-vibe", displayName: "Mistral Vibe" },
-			{ id: "opencode", displayName: "OpenCode" },
-			{ id: "kiro-cli", displayName: "Kiro" },
-			{ id: "hermes-agent", displayName: "Hermes Agent" },
 			{ id: "cursor", displayName: "Cursor" },
 			{ id: "antigravity", displayName: "Antigravity" },
 			{ id: "off-custom", displayName: "Off Custom" },
@@ -180,10 +152,10 @@ describe("enabled helpers", () => {
 
 		settings.customAgents[0].enabled = false;
 		// Backstop when everything is disabled (repair prevents persisting).
-		expect(firstEnabledAgentId(settings)).toBe("claude-code-acp");
+		expect(firstEnabledAgentId(settings)).toBe("cursor");
 	});
 
-	it("repairNoEnabledAgents re-enables the first preset only when everything is disabled", () => {
+	it("repairNoEnabledAgents re-enables the default preset when everything is disabled", () => {
 		const healthy = makeSettings();
 		expect(repairNoEnabledAgents(healthy)).toBeNull();
 
@@ -192,18 +164,18 @@ describe("enabled helpers", () => {
 			entry.enabled = false;
 		}
 		const repaired = repairNoEnabledAgents(broken);
-		expect(repaired?.["claude-code-acp"].enabled).toBe(true);
-		expect(repaired?.["codex-acp"].enabled).toBe(false);
+		expect(repaired?.["claude-code-acp"].enabled).toBe(false);
+		expect(repaired?.cursor.enabled).toBe(true);
 	});
 });
 
 describe("findAgentSettings", () => {
 	it("resolves a preset before a custom agent with the same id", () => {
 		const settings = makeSettings({
-			customAgents: [custom("gemini-cli", "Shadowed Custom")],
+			customAgents: [custom("codex-acp", "Shadowed Custom")],
 		});
-		const found = findAgentSettings(settings, "gemini-cli");
-		expect(found?.displayName).toBe("Gemini CLI");
+		const found = findAgentSettings(settings, "codex-acp");
+		expect(found?.displayName).toBe("Codex");
 	});
 
 	it("resolves custom agents and returns null for unknown ids", () => {
@@ -232,9 +204,9 @@ describe("findAgentSettings", () => {
 
 	it("resolves disabled agents (disabling filters enumeration, not resolution)", () => {
 		const settings = makeSettings();
-		settings.presetAgents["gemini-cli"].enabled = false;
-		expect(findAgentSettings(settings, "gemini-cli")?.displayName).toBe(
-			"Gemini CLI",
+		settings.presetAgents["codex-acp"].enabled = false;
+		expect(findAgentSettings(settings, "codex-acp")?.displayName).toBe(
+			"Codex",
 		);
 	});
 });
@@ -242,10 +214,10 @@ describe("findAgentSettings", () => {
 describe("getCurrentAgent", () => {
 	it("keeps the display name of a disabled agent", () => {
 		const settings = makeSettings();
-		settings.presetAgents["gemini-cli"].enabled = false;
-		expect(getCurrentAgent(settings, "gemini-cli")).toEqual({
-			id: "gemini-cli",
-			displayName: "Gemini CLI",
+		settings.presetAgents["codex-acp"].enabled = false;
+		expect(getCurrentAgent(settings, "codex-acp")).toEqual({
+			id: "codex-acp",
+			displayName: "Codex",
 		});
 	});
 
@@ -261,9 +233,6 @@ describe("buildAgentConfigWithApiKey", () => {
 	it.each([
 		["claude-code-acp", "ANTHROPIC_API_KEY"],
 		["codex-acp", "OPENAI_API_KEY"],
-		["gemini-cli", "GEMINI_API_KEY"],
-		["mistral-vibe", "MISTRAL_API_KEY"],
-		["kiro-cli", "KIRO_API_KEY"],
 	])("attaches the %s secret as %s", (agentId, envVarName) => {
 		const agentSettings = preset(agentId, "Name", "cmd", {
 			apiKeySecretId: "my-secret",
@@ -307,8 +276,8 @@ describe("getDefaultAgentId", () => {
 		).toBe("codex-acp");
 	});
 
-	it("falls back to the first preset when unset", () => {
-		expect(getDefaultAgentId(makeSettings())).toBe("claude-code-acp");
+	it("falls back to the default preset when unset", () => {
+		expect(getDefaultAgentId(makeSettings())).toBe("cursor");
 	});
 
 	it("falls back to the first enabled agent when the stored default is disabled", () => {

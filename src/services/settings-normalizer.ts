@@ -181,12 +181,20 @@ export const ensureUniqueCustomAgentIds = (
 export const resolveDefaultAgentId = (
 	raw: Record<string, unknown>,
 	availableAgentIds: readonly string[],
+	preferredFallbackId = "",
 ): string => {
 	const rawDefaultId =
 		str(raw.defaultAgentId, "") || str(raw.activeAgentId, "");
-	return rawDefaultId && availableAgentIds.includes(rawDefaultId)
-		? rawDefaultId
-		: availableAgentIds[0] || "";
+	if (rawDefaultId && availableAgentIds.includes(rawDefaultId)) {
+		return rawDefaultId;
+	}
+	if (
+		preferredFallbackId &&
+		availableAgentIds.includes(preferredFallbackId)
+	) {
+		return preferredFallbackId;
+	}
+	return availableAgentIds[0] || "";
 };
 
 // ============================================================================
@@ -286,10 +294,8 @@ export const defaultPresetAgentSettings = (
  *    defaults are empty).
  * 5. `apiKeySecretId` goes through `migrateApiKey` only for presets with
  *    legacy plaintext-key wiring.
- * 6. Unknown presetIds (entries written by a newer plugin version, e.g. via
- *    Obsidian Sync or a BRAT rollback) are preserved with field-level
- *    sanitizing only, so a save round-trip doesn't destroy them. They are
- *    not enumerated anywhere (enumeration is registry-driven).
+ * 6. Orphan presetIds (removed harnesses or stale sync) are dropped — only
+ *    registry presets are kept in settings and data.json.
  *
  * Takes the whole raw data.json object because legacy command-path keys
  * live at the top level.
@@ -334,25 +340,17 @@ export const normalizePresetAgents = (
 		};
 	}
 
-	// Preserve unknown presetIds (version skew): sanitize known fields,
-	// spread-through the rest so fields this version doesn't know survive.
-	const knownIds = new Set(registry.map((def) => def.presetId));
-	for (const [presetId, value] of Object.entries(rawRecord)) {
-		if (knownIds.has(presetId)) continue;
-		const entry = obj(value);
-		if (!entry) continue;
-		result[presetId] = {
-			...entry,
-			id: presetId,
-			displayName: str(entry.displayName, presetId),
-			apiKeySecretId: str(entry.apiKeySecretId, ""),
-			command: str(entry.command, ""),
-			args: sanitizeArgs(entry.args),
-			env: normalizeEnvVars(entry.env),
-		};
-	}
-
 	return result;
+};
+
+/** True when raw data.json still lists preset ids that are not in the registry. */
+export const hasOrphanPresetAgentKeys = (
+	raw: Record<string, unknown>,
+	registry: readonly PresetAgentDefinition[],
+): boolean => {
+	const rawRecord = obj(raw.presetAgents) ?? {};
+	const knownIds = new Set(registry.map((def) => def.presetId));
+	return Object.keys(rawRecord).some((presetId) => !knownIds.has(presetId));
 };
 
 /**

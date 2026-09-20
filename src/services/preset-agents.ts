@@ -17,6 +17,11 @@ export type {
 	PresetAgentDefinition,
 } from "../harnesses/shared/preset-types";
 
-export { PRESET_AGENTS, GEMINI_PRESET_ID } from "../harnesses";
-export { CURSOR_PRESET_ID } from "../harnesses/cursor";
+import { CURSOR_PRESET_ID } from "../harnesses/cursor";
+
+export { PRESET_AGENTS } from "../harnesses";
+export { CURSOR_PRESET_ID };
 export { ANTIGRAVITY_PRESET_ID } from "../harnesses/antigravity";
+
+/** Default agent for new installs and fallbacks when no valid default is stored. */
+export const DEFAULT_PRESET_AGENT_ID = CURSOR_PRESET_ID;

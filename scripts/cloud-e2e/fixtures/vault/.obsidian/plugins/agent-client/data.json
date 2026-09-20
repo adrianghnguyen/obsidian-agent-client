@@ -1,0 +1,13 @@
+{
+  "defaultAgentId": "cursor",
+  "presetAgents": {
+    "claude-code-acp": { "apiKeySecretId": "anthropic-api-key" },
+    "codex-acp": { "apiKeySecretId": "openai-api-key" },
+    "cursor": {},
+    "antigravity": {}
+  },
+  "voiceInput": {
+    "enabled": false,
+    "geminiApiKeySecretId": ""
+  }
+}

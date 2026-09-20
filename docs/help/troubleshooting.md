@@ -60,22 +60,10 @@ The agent requires authentication before processing requests.
 **For Codex:**
 - Open **Settings → Agent Client → Preset agents → Codex → API key**, click **Link...**, and link or create a secret. See [Codex Setup](/agent-setup/codex#authentication).
 
-**For Gemini CLI:**
-- Open **Settings → Agent Client → Preset agents → Gemini CLI → API key**, click **Link...**, and link or create a secret. See [Gemini CLI Setup](/agent-setup/gemini-cli#authentication).
-- Or run `gemini` in Terminal first to authenticate with your Google account
-
-**For Mistral Vibe:**
-- Open **Settings → Agent Client → Preset agents → Mistral Vibe → API key**, click **Link...**, and link or create a secret. See [Mistral Vibe Setup](/agent-setup/mistral-vibe#authentication).
-- Or run `vibe` in Terminal first to authenticate with your Mistral account
-
-**For OpenCode:**
-- Run `opencode` in Terminal and use the `/connect` command to configure a provider (there is no API key field in the plugin). See [OpenCode Setup](/agent-setup/opencode#authentication).
-
-**For Kiro:**
-- Run `kiro-cli login` in Terminal first to sign in, or link an API key (Kiro Pro and higher tiers) in **Settings → Agent Client → Preset agents → Kiro → API key**. See [Kiro Setup](/agent-setup/kiro#authentication).
-
-**For Hermes Agent:**
-- Run `hermes model` in Terminal to configure a provider (there is no API key field in the plugin). See [Hermes Agent Setup](/agent-setup/hermes#authentication).
+**For custom agents (OpenCode, Kiro, Gemini CLI, Mistral Vibe, Hermes Agent, etc.):**
+- Add API keys to **Environment variables** on the custom agent (e.g., `GEMINI_API_KEY=...`, `MISTRAL_API_KEY=...`)
+- Or run the agent's CLI in Terminal first to sign in (OpenCode `/connect`, Kiro `kiro-cli login`, Hermes `hermes model`, etc.)
+- See [Custom Agents](/agent-setup/custom-agents)
 
 **For Cursor:**
 - Run `agent login` in Terminal first, or set `CURSOR_API_KEY` in Environment variables. Use **Check setup** under **Settings → Agent Client → Cursor**. See [Cursor Setup](/agent-setup/cursor#authentication).
