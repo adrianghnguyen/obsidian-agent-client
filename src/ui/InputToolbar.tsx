@@ -196,9 +196,10 @@ function getUsageColorClass(percentage: number): string {
 
 export interface InputToolbarProps {
 	isSending: boolean;
-	isButtonDisabled: boolean;
+	isSendDisabled: boolean;
 	hasContent: boolean;
-	onSendOrStop: () => void;
+	onSend: () => void;
+	onStop: () => void;
 	modes?: SessionModeState;
 	onModeChange?: (modeId: string) => void;
 	configOptions?: SessionConfigOption[];
@@ -211,9 +212,10 @@ export interface InputToolbarProps {
 
 export function InputToolbar({
 	isSending,
-	isButtonDisabled,
+	isSendDisabled,
 	hasContent,
-	onSendOrStop,
+	onSend,
+	onStop,
 	modes,
 	onModeChange,
 	configOptions,
@@ -224,47 +226,43 @@ export function InputToolbar({
 	isSessionReady,
 }: InputToolbarProps) {
 	const sendButtonRef = useRef<HTMLButtonElement>(null);
+	const stopButtonRef = useRef<HTMLButtonElement>(null);
 
-	const updateIconColor = useCallback(
+	const updateSendIconColor = useCallback(
 		(svg: SVGElement) => {
 			svg.classList.remove(
 				"agent-client-icon-sending",
 				"agent-client-icon-active",
 				"agent-client-icon-inactive",
 			);
-
-			if (isSending) {
-				svg.classList.add("agent-client-icon-sending");
-			} else {
-				svg.classList.add(
-					hasContent
-						? "agent-client-icon-active"
-						: "agent-client-icon-inactive",
-				);
-			}
+			svg.classList.add(
+				hasContent
+					? "agent-client-icon-active"
+					: "agent-client-icon-inactive",
+			);
 		},
-		[isSending, hasContent],
+		[hasContent],
 	);
 
 	useEffect(() => {
 		if (sendButtonRef.current) {
-			const iconName = isSending ? "square" : "send-horizontal";
-			setIcon(sendButtonRef.current, iconName);
+			setIcon(sendButtonRef.current, "send-horizontal");
 			const svg = sendButtonRef.current.querySelector("svg");
 			if (svg) {
-				updateIconColor(svg);
+				updateSendIconColor(svg);
 			}
 		}
-	}, [isSending, updateIconColor]);
+	}, [updateSendIconColor, isSendDisabled, isSending, hasContent]);
 
 	useEffect(() => {
-		if (sendButtonRef.current) {
-			const svg = sendButtonRef.current.querySelector("svg");
+		if (stopButtonRef.current) {
+			setIcon(stopButtonRef.current, "square");
+			const svg = stopButtonRef.current.querySelector("svg");
 			if (svg) {
-				updateIconColor(svg);
+				svg.classList.add("agent-client-icon-sending");
 			}
 		}
-	}, [updateIconColor]);
+	}, [isSending]);
 
 	// ----- Build dropdown item lists (memoized) -----
 
@@ -398,20 +396,41 @@ export function InputToolbar({
 				/>
 			)}
 
-			{/* Send/Stop Button */}
-			<button
-				ref={sendButtonRef}
-				onClick={onSendOrStop}
-				disabled={isButtonDisabled}
-				className={`agent-client-chat-send-button ${isSending ? "sending" : ""} ${isButtonDisabled ? "agent-client-disabled" : ""}`}
-				title={
-					!isSessionReady
-						? "Connecting..."
-						: isSending
-							? "Stop generation"
-							: "Send message"
-				}
-			></button>
+			<div className="agent-client-chat-send-controls">
+				{isSending && (
+					<button
+						ref={stopButtonRef}
+						type="button"
+						onClick={onStop}
+						className="agent-client-chat-send-button sending"
+						title="Stop generation"
+						aria-label="Stop generation"
+					></button>
+				)}
+				{(hasContent || !isSending) && (
+					<button
+						ref={sendButtonRef}
+						type="button"
+						onClick={onSend}
+						disabled={isSendDisabled}
+						className={`agent-client-chat-send-button ${isSendDisabled ? "agent-client-disabled" : ""}`}
+						title={
+							!isSessionReady
+								? "Send when ready"
+								: isSending
+									? "Queue message"
+									: "Send message"
+						}
+						aria-label={
+							!isSessionReady
+								? "Send when ready"
+								: isSending
+									? "Queue message"
+									: "Send message"
+						}
+					></button>
+				)}
+			</div>
 		</div>
 	);
 }

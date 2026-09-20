@@ -5,7 +5,7 @@
  * config changes, and related UI state (restoredMessage, agentUpdateNotification).
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Notice, Platform } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
@@ -80,6 +80,8 @@ export function useChatActions(
 	settings: Pick<AgentClientPluginSettings, "windowsWslMode">,
 	vaultPath: string,
 	persistentEmbedId?: string,
+	/** Skip putting the cancelled prompt back in the composer (queued follow-up). */
+	shouldSkipCancelledDraftRestore?: () => boolean,
 ): UseChatActionsReturn {
 	const logger = getLogger();
 
@@ -90,6 +92,10 @@ export function useChatActions(
 	const [restoredMessage, setRestoredMessage] = useState<string | null>(null);
 	const [agentUpdateNotification, setAgentUpdateNotification] =
 		useState<AgentUpdateNotification | null>(null);
+	const skipCancelledDraftRestoreRef = useRef(
+		shouldSkipCancelledDraftRestore,
+	);
+	skipCancelledDraftRestoreRef.current = shouldSkipCancelledDraftRestore;
 
 	// ============================================================
 	// Auto-export
@@ -221,7 +227,7 @@ export function useChatActions(
 		logger.log("Cancelling current operation...");
 		const lastMessage = agent.lastUserMessage;
 		await agent.cancelOperation();
-		if (lastMessage) {
+		if (lastMessage && !skipCancelledDraftRestoreRef.current?.()) {
 			setRestoredMessage(lastMessage);
 		}
 	}, [logger, agent.cancelOperation, agent.lastUserMessage]);
