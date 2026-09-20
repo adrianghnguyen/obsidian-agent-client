@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
 	absorbCustomAgents,
+	hasOrphanPresetAgentKeys,
 	normalizePresetAgents,
 	defaultPresetAgentSettings,
 	normalizeCustomAgent,
@@ -103,36 +104,24 @@ describe("normalizePresetAgents", () => {
 		}
 	});
 
-	it("preserves unknown presetIds (version skew) across a save round-trip, including fields this version doesn't know", () => {
+	it("drops orphan presetIds (removed harnesses or stale sync)", () => {
 		const raw = {
 			presetAgents: {
+				"gemini-cli": { apiKeySecretId: "gemini-api-key" },
 				opencode: {
-					id: "opencode",
 					displayName: "OpenCode",
-					apiKeySecretId: "",
 					command: "opencode",
 					args: ["acp"],
-					env: [],
 					enabled: false,
 				},
+				"codex-acp": { apiKeySecretId: "openai-api-key" },
 			},
 		};
-		const first = normalizePresetAgents(raw, PRESET_AGENTS, noMigration);
-		expect(first.opencode).toMatchObject({
-			id: "opencode",
-			displayName: "OpenCode",
-			command: "opencode",
-			args: ["acp"],
-			enabled: false,
-		});
-
-		// Round-trip: what got saved is normalized again on next load.
-		const second = normalizePresetAgents(
-			{ presetAgents: first },
-			PRESET_AGENTS,
-			noMigration,
-		);
-		expect(second.opencode).toEqual(first.opencode);
+		const result = normalizePresetAgents(raw, PRESET_AGENTS, noMigration);
+		expect(Object.keys(result).sort()).toEqual([...PRESET_IDS].sort());
+		expect(result["codex-acp"].apiKeySecretId).toBe("openai-api-key");
+		expect(result).not.toHaveProperty("gemini-cli");
+		expect(result).not.toHaveProperty("opencode");
 	});
 
 	it("defaults enabled to true and preserves an explicit false", () => {
@@ -351,6 +340,23 @@ describe("normalizeCustomAgent", () => {
 	});
 });
 
+describe("hasOrphanPresetAgentKeys", () => {
+	it("detects removed preset keys in raw data.json", () => {
+		expect(
+			hasOrphanPresetAgentKeys(
+				{ presetAgents: { "gemini-cli": {}, "codex-acp": {} } },
+				PRESET_AGENTS,
+			),
+		).toBe(true);
+		expect(
+			hasOrphanPresetAgentKeys(
+				{ presetAgents: { "codex-acp": {} } },
+				PRESET_AGENTS,
+			),
+		).toBe(false);
+	});
+});
+
 describe("resolveDefaultAgentId", () => {
 	const available = ["claude-code-acp", "codex-acp", "my-custom"];
 
@@ -375,11 +381,17 @@ describe("resolveDefaultAgentId", () => {
 		).toBe("codex-acp");
 	});
 
-	it("falls back to the first available id when unset or unknown", () => {
-		expect(resolveDefaultAgentId({}, available)).toBe("claude-code-acp");
+	it("falls back to preferredFallbackId when unset or unknown", () => {
 		expect(
-			resolveDefaultAgentId({ defaultAgentId: "ghost" }, available),
-		).toBe("claude-code-acp");
+			resolveDefaultAgentId({}, available, "codex-acp"),
+		).toBe("codex-acp");
+		expect(
+			resolveDefaultAgentId({ defaultAgentId: "ghost" }, available, "codex-acp"),
+		).toBe("codex-acp");
+	});
+
+	it("falls back to the first available id when unset and no preferred fallback", () => {
+		expect(resolveDefaultAgentId({}, available)).toBe("claude-code-acp");
 	});
 });
 

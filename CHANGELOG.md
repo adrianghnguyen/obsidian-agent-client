@@ -20,6 +20,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Hidden and Compact** keep ACP plans and Cursor Create Plan outside the working buffer/groups (same as permission prompts).
 
 ### Fixed
+- **Settings load** drops orphan `presetAgents` keys from removed harnesses and rewrites `data.json` on the next save; invalid or missing default agent resolves to **Cursor** instead of the first preset in registry order.
+- **Cloud E2E vault fixture** — `scripts/cloud-e2e/apply-vault-fixtures.sh` overlays synced defaults (Cursor default, four presets, Whisper on OpenAI) after materialize.
 - **Cursor Check setup** treats `agent status` "Not logged in" (exit 0) as missing auth unless `CURSOR_API_KEY` is set, so a green card no longer appears before `agent login`.
 - **Antigravity health** now requires `localharness_external` or `ANTIGRAVITY_HARNESS_PATH`, accepts `GEMINI_API_KEY` without a `settings.json`, and no longer reports a fallback binary when the configured Path is wrong.
 - **Antigravity** health check treats `~/.gemini/antigravity-acp/` (Google OAuth / `acp_token.json`) as the primary auth store. The CLI folder is optional and no longer the only green path.
