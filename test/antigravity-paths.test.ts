@@ -14,6 +14,7 @@ import {
 	getDefaultAntigravityBridgePath,
 	hasGeminiApiKey,
 } from "../src/harnesses/antigravity/paths";
+import { antigravityPreset } from "../src/harnesses/antigravity/preset";
 
 describe("antigravity-paths", () => {
 	const originalEnv = { ...process.env };
@@ -89,13 +90,18 @@ describe("antigravity-paths", () => {
 		expect(candidates.some((p) => p.includes(".local/bin"))).toBe(true);
 	});
 
-	it("default path matches first candidate", () => {
+	it("placeholder default path matches first candidate", () => {
 		vi.spyOn(Platform, "isMacOS", "get").mockReturnValue(true);
 		vi.spyOn(Platform, "isWin", "get").mockReturnValue(false);
 		process.env.HOME = "/Users/test";
 		expect(getDefaultAntigravityBridgePath()).toBe(
 			getAntigravityBridgeCandidates()[0],
 		);
+	});
+
+	it("preset defaultCommand is the portable filename, not a host-absolute path", () => {
+		expect(antigravityPreset.defaultCommand).toBe(ANTIGRAVITY_BRIDGE_PAR);
+		expect(antigravityPreset.defaultCommand.startsWith("/")).toBe(false);
 	});
 
 	it("lists companion next to the bridge, then ~/.local/bin", () => {

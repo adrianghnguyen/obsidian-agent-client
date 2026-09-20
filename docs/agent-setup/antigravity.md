@@ -27,12 +27,12 @@ Pointing Agent Client at the `agy` binary will not work for ACP. The Path must b
 ## Configure Agent Client
 
 1. Open **Settings → Agent Client → Antigravity**
-2. Click **Auto-detect** on the Path row (or paste the absolute path to the bridge binary)
+2. Leave **Path** empty / `agy_acp_server.par`, or click **Auto-detect**. The path stays on **this computer** (not synced). Other devices probe their own install.
 3. Click **Run** under **Health check** — it verifies:
-   - the bridge binary exists and is executable
+   - the bridge binary exists and is executable (or the platform default if Path is empty)
    - the companion `localharness_external` binary (or `ANTIGRAVITY_HARNESS_PATH`)
    - Antigravity ACP auth under `~/.gemini/antigravity-acp/` (or `GEMINI_API_KEY`)
-   - which ACP endpoint Agent Client will spawn (the Path you configured — it does not silently fall back)
+   - which ACP endpoint this computer will spawn
 
 ## Authentication
 

@@ -33,7 +33,7 @@ where.exe agent
 
 :::
 
-2. Open **Settings → Agent Client → Cursor**. The defaults (`agent` + `acp`) work when `~/.local/bin` is on your PATH. If not, set **Path** to the value from `which agent`, or click **Auto-detect**.
+2. Open **Settings → Agent Client → Cursor**. Leave **Path** as `agent` (resolved on this computer via your login shell). **Auto-detect** saves an absolute path on **this device only** — it is not synced, so Windows, another Mac, and this Mac can each have a different `agent` binary. You do not need separate “Cursor Windows” / “Cursor Mac” agents.
 
 3. Click **Check setup** in the Cursor preset section. It verifies PATH, `agent acp`, and sign-in status.
 

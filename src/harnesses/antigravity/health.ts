@@ -16,9 +16,11 @@ import {
 	getAntigravityBridgeFilename,
 	getAntigravityCompanionCandidates,
 	getAntigravityMcpConfigPath,
+	getDefaultAntigravityBridgePath,
+	resolveAntigravityBridgeForSpawn,
 	resolveAntigravityCompanionPath,
-	resolveAntigravitySpawnBridge,
 } from "./paths";
+import { isPortableHarnessCommand } from "../../services/harness-command-local-storage";
 
 export type AntigravityHealthLevel = "ok" | "warning" | "error";
 
@@ -40,6 +42,12 @@ export interface AntigravityHealthOptions {
 	env?: Record<string, string>;
 }
 
+function spawnProbePath(configuredPath: string): string {
+	return isPortableHarnessCommand("antigravity", configuredPath)
+		? ""
+		: configuredPath.trim();
+}
+
 async function fileExists(path: string): Promise<boolean> {
 	try {
 		await access(path, constants.F_OK);
@@ -53,7 +61,9 @@ async function checkBridge(
 	configuredPath: string,
 ): Promise<AntigravityHealthCheck> {
 	const filename = getAntigravityBridgeFilename();
-	const resolved = await resolveAntigravitySpawnBridge(configuredPath);
+	const resolved = await resolveAntigravityBridgeForSpawn(
+		spawnProbePath(configuredPath),
+	);
 	if (resolved) {
 		return {
 			id: "bridge",
@@ -63,14 +73,14 @@ async function checkBridge(
 		};
 	}
 
-	if (configuredPath.trim()) {
+	if (spawnProbePath(configuredPath)) {
 		return {
 			id: "bridge",
 			label: "ACP bridge",
 			status: "error",
 			detail: `Configured path ${configuredPath.trim()} is missing or not executable.`,
 			suggestion:
-				"Fix the Path or click Auto-detect. Chat spawns this path as-is and will not fall back to another install.",
+				"Fix the Path or click Auto-detect. Chat probes this computer's default install if Path is empty.",
 		};
 	}
 
@@ -106,7 +116,9 @@ async function checkAuth(
 async function checkEndpoint(
 	configuredPath: string,
 ): Promise<AntigravityHealthCheck> {
-	const resolved = await resolveAntigravitySpawnBridge(configuredPath);
+	const resolved = await resolveAntigravityBridgeForSpawn(
+		spawnProbePath(configuredPath),
+	);
 
 	if (resolved) {
 		return {
@@ -117,7 +129,7 @@ async function checkEndpoint(
 		};
 	}
 
-	if (configuredPath.trim()) {
+	if (spawnProbePath(configuredPath)) {
 		let detail = `Configured endpoint ${configuredPath.trim()} is missing or not executable.`;
 		try {
 			await stat(configuredPath.trim());
@@ -139,8 +151,9 @@ async function checkEndpoint(
 		id: "endpoint",
 		label: "ACP endpoint",
 		status: "warning",
-		detail: "No path configured; chat will spawn an empty command until you set Path or click Auto-detect.",
-		suggestion: "Click Auto-detect to fill the bridge path before starting a chat.",
+		detail: `No path configured; will probe ${getDefaultAntigravityBridgePath()} on connect.`,
+		suggestion:
+			"Leave Path empty to auto-detect on this computer, or click Auto-detect to save it here.",
 	};
 }
 
@@ -148,7 +161,9 @@ async function checkHarness(
 	configuredPath: string,
 	env?: Record<string, string>,
 ): Promise<AntigravityHealthCheck> {
-	const bridge = await resolveAntigravitySpawnBridge(configuredPath);
+	const bridge = await resolveAntigravityBridgeForSpawn(
+		spawnProbePath(configuredPath),
+	);
 	const resolved = await resolveAntigravityCompanionPath(bridge, env ?? {});
 	if (resolved) {
 		return {
@@ -193,7 +208,9 @@ export async function checkAntigravityHealth(
 		checkHarness(configuredPath, env),
 	]);
 	const checks = [bridge, auth, endpoint, harness];
-	const resolved = await resolveAntigravitySpawnBridge(configuredPath);
+	const resolved = await resolveAntigravityBridgeForSpawn(
+		spawnProbePath(configuredPath),
+	);
 	return {
 		overall: overallStatus(checks),
 		checks,

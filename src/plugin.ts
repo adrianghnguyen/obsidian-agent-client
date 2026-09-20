@@ -72,6 +72,14 @@ import {
 	writeDefaultAgentLocalId,
 } from "./services/default-agent-local-storage";
 import {
+	applyHarnessCommandsToSettings,
+	pathIsExistingFile,
+	persistHarnessCommandLocals,
+	readHarnessCommandLocalMap,
+	settingsForSyncedHarnessCommands,
+	writeHarnessCommandLocalMap,
+} from "./services/harness-command-local-storage";
+import {
 	AgentEnvVar,
 	PresetAgentUserSettings,
 	CustomAgentSettings,
@@ -878,6 +886,7 @@ export default class AgentClientPlugin extends Plugin {
 
 		this.ensureAtLeastOneEnabled();
 		this.applyDefaultAgentOverlay();
+		const stripHarnessPaths = this.applyHarnessCommandOverlay();
 		this.ensureDefaultAgentId();
 		this.persistDefaultAgentLocalIfNeeded();
 
@@ -888,7 +897,8 @@ export default class AgentClientPlugin extends Plugin {
 			defaultAgentIdMigrated ||
 			needsFloatingChatEntryMigration(raw) ||
 			needsFloatingWindowLayoutMigration(raw) ||
-			needsFloatingIdleOpacityMigration(raw)
+			needsFloatingIdleOpacityMigration(raw) ||
+			stripHarnessPaths
 		) {
 			await this.saveSettings();
 		}
@@ -903,8 +913,17 @@ export default class AgentClientPlugin extends Plugin {
 				this.settings.defaultAgentId,
 			);
 		}
+		persistHarnessCommandLocals(
+			this.floatingWindowLocalStorage,
+			this.settings,
+		);
 		await this.saveData(
-			settingsForSyncedSave(this.settings, this.syncedDefaultAgentId),
+			settingsForSyncedHarnessCommands(
+				settingsForSyncedSave(
+					this.settings,
+					this.syncedDefaultAgentId,
+				),
+			),
 		);
 	}
 
@@ -1060,6 +1079,24 @@ export default class AgentClientPlugin extends Plugin {
 			this.floatingWindowLocalStorage,
 			this.settings.defaultAgentId,
 		);
+	}
+
+	/**
+	 * Overlay this device's Cursor/Antigravity Path. Returns true when
+	 * data.json still holds an absolute path that should be stripped.
+	 */
+	private applyHarnessCommandOverlay(): boolean {
+		const applied = applyHarnessCommandsToSettings(
+			this.settings,
+			readHarnessCommandLocalMap(this.floatingWindowLocalStorage),
+			pathIsExistingFile,
+		);
+		this.settings = applied.settings;
+		writeHarnessCommandLocalMap(
+			this.floatingWindowLocalStorage,
+			applied.localMap,
+		);
+		return applied.stripSyncedAbsolutes;
 	}
 
 	/**

@@ -6,6 +6,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Added
 - **Settings version banner** — Settings shows the installed plugin version, a short list of recent changelog items, and a link to GitHub Releases and tags.
+- **Cursor / Antigravity Path** is per device. Enable the harness once; Auto-detect and typed absolute paths stay on this computer and are not written to synced `data.json`. Empty / `agent` / `agy_acp_server.par` probe this machine, so you do not need separate Windows vs Mac agents.
 - **Cursor preset** — first-class ACP via `agent acp` (not a custom-agent JSON recipe), setup docs, settings **Check setup** health probe, and distinct connection-failure copy in chat when auth, PATH, endpoint, or process exit fails.
 - **Antigravity preset** — first-class support for Google's Antigravity ACP bridge (`agy_acp_server.par` / `.exe` on Windows), with platform path auto-detect, settings health check (bridge, ACP auth, endpoint), and chat error banners that name failure modes and next steps.
 - **Default agent scope** — Settings → Getting started: keep the default agent on **All devices (sync)** or **This device only** (local overlay, does not overwrite other computers via Sync).
@@ -23,7 +24,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Settings load** drops orphan `presetAgents` keys from removed harnesses and rewrites `data.json` on the next save; invalid or missing default agent resolves to **Cursor** instead of the first preset in registry order.
 - **Cloud E2E vault fixture** — `scripts/cloud-e2e/apply-vault-fixtures.sh` overlays synced defaults (Cursor default, four presets, Whisper on OpenAI) after materialize.
 - **Cursor Check setup** treats `agent status` "Not logged in" (exit 0) as missing auth unless `CURSOR_API_KEY` is set, so a green card no longer appears before `agent login`.
-- **Antigravity health** now requires `localharness_external` or `ANTIGRAVITY_HARNESS_PATH`, accepts `GEMINI_API_KEY` without a `settings.json`, and no longer reports a fallback binary when the configured Path is wrong.
+- **Antigravity health** now requires `localharness_external` or `ANTIGRAVITY_HARNESS_PATH`, accepts `GEMINI_API_KEY` without a `settings.json`, and probes this computer when Path is empty or a foreign-machine path is missing.
 - **Antigravity** health check treats `~/.gemini/antigravity-acp/` (Google OAuth / `acp_token.json`) as the primary auth store. The CLI folder is optional and no longer the only green path.
 - **Antigravity** no longer calls `authenticate("gemini-api-key")` when ACP OAuth is already on disk (AI Pro / Google login). API-key mode still authenticates when that is the selected method or `GEMINI_API_KEY` is set without ACP creds.
 - **Antigravity** Auto-detect probes `agy_acp_server.exe` on Windows (`.par` remains the macOS/Linux basename).
