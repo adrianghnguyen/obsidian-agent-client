@@ -5,6 +5,19 @@ import { fileURLToPath } from "node:url";
 // stub for unit tests. Only the pieces the tested pure functions need (Platform)
 // are provided.
 export default defineConfig({
+	plugins: [
+		{
+			name: "md-as-text",
+			transform(src, id) {
+				if (id.endsWith(".md")) {
+					return {
+						code: `export default ${JSON.stringify(src)};`,
+						map: null,
+					};
+				}
+			},
+		},
+	],
 	test: {
 		environment: "node",
 		include: ["test/**/*.test.ts"],

@@ -253,6 +253,56 @@ If your plugin does not need CSS, delete this file.
 	display: none;
 }
 
+.agent-client-settings-manifest-banner {
+	padding: 12px 16px;
+	margin-bottom: 12px;
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-left: 4px solid var(--interactive-accent);
+	border-radius: 8px;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.agent-client-settings-manifest-banner-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+	color: var(--text-normal);
+}
+
+.agent-client-settings-manifest-banner-header a {
+	color: var(--text-accent);
+	text-decoration: none;
+	font-size: var(--font-ui-smaller);
+}
+
+.agent-client-settings-manifest-banner-header a:hover {
+	text-decoration: underline;
+}
+
+.agent-client-settings-manifest-banner-heading {
+	margin-bottom: 4px;
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+.agent-client-settings-manifest-banner-list {
+	margin: 0;
+	padding-left: 1.2em;
+}
+
+.agent-client-settings-manifest-banner-list li {
+	margin: 2px 0;
+}
+
+.agent-client-settings-manifest-banner-more {
+	margin-top: 6px;
+	font-size: var(--font-ui-smaller);
+}
+
 .agent-client-settings-info-callout {
 	padding: 12px 16px;
 	margin-bottom: 16px;

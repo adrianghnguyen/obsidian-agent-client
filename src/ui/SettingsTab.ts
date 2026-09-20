@@ -57,6 +57,8 @@ import {
 	clampFloatingIdleOpacityPercent,
 } from "../services/settings-normalizer";
 import { VOICE_INPUT_SECRET_ID } from "../voice-input/VoiceInputSettings";
+import changelogMarkdown from "../../CHANGELOG.md";
+import { buildManifestBanner } from "../services/changelog-banner";
 
 /** Nested (L2) settings sections are foldable only when they have 4+ items. */
 function nestedFoldable(itemCount: number): boolean {
@@ -117,6 +119,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		this.seedSettingsCalloutDefaults();
 
+		this.renderManifestBanner(containerEl);
 		this.renderDocumentationCallout(containerEl);
 		this.renderGettingStartedSection(containerEl);
 		this.renderAgentsSection(containerEl);
@@ -162,6 +165,54 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			}
 		}
 		this.settingsCalloutDefaultsApplied = true;
+	}
+
+	/**
+	 * Installed plugin version plus recent CHANGELOG bullets, with a
+	 * link to the repo's GitHub Releases and tags page.
+	 */
+	private renderManifestBanner(containerEl: HTMLElement): void {
+		const banner = buildManifestBanner(
+			this.plugin.manifest.version,
+			changelogMarkdown,
+			{ repoUrl: this.plugin.manifest.authorUrl },
+		);
+		const el = containerEl.createDiv({
+			cls: "agent-client-settings-manifest-banner",
+		});
+
+		const header = el.createDiv({
+			cls: "agent-client-settings-manifest-banner-header",
+		});
+		header.createEl("strong", {
+			text: `${this.plugin.manifest.name} ${banner.label}`.trim(),
+		});
+		header.createEl("a", {
+			text: "Releases and tags",
+			href: banner.releasesUrl,
+			attr: { target: "_blank" },
+		});
+
+		if (banner.items.length === 0) {
+			return;
+		}
+
+		el.createDiv({
+			cls: "agent-client-settings-manifest-banner-heading",
+			text: banner.heading,
+		});
+		const list = el.createEl("ul", {
+			cls: "agent-client-settings-manifest-banner-list",
+		});
+		for (const item of banner.items) {
+			list.createEl("li", { text: item });
+		}
+		if (banner.moreCount > 0) {
+			el.createDiv({
+				cls: "agent-client-settings-manifest-banner-more",
+				text: `${banner.moreCount} more on GitHub`,
+			});
+		}
 	}
 
 	private renderDocumentationCallout(containerEl: HTMLElement): void {
