@@ -307,7 +307,6 @@ export const normalizePresetAgents = (
 ): Record<string, PresetAgentUserSettings> => {
 	const rawRecord = obj(raw.presetAgents) ?? {};
 	const result: Record<string, PresetAgentUserSettings> = {};
-	const knownIds = new Set(registry.map((def) => def.presetId));
 
 	for (const def of registry) {
 		const entry =
