@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.22.0
+
 ### Added
 - **Settings version banner** — Settings shows the installed plugin version, a short list of recent changelog items, and a link to GitHub Releases and tags.
 - **Cursor preset** — first-class ACP via `agent acp` (not a custom-agent JSON recipe), setup docs, settings **Check setup** health probe, and distinct connection-failure copy in chat when auth, PATH, endpoint, or process exit fails.
