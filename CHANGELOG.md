@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.22.0
+
 ### Added
 - **Composer send buffer** — Send/Enter while a harness is connecting, switching, or finishing a turn queues the message. Cancellable chips sit above the text box; the toolbar uses a queue icon (`list-plus`) instead of send until the session is ready and idle. The next item flushes then (Cursor and Antigravity).
 - **Settings version banner** — Settings shows the installed plugin version, a short list of recent changelog items, and a link to GitHub Releases and tags.
