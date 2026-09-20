@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	),
 	customAgents: [],
 	defaultAgentId: PRESET_AGENTS[0].presetId,
+	defaultAgentPerDevice: false,
 	autoAllowPermissions: false,
 	autoMentionActiveNote: true,
 	expandWikilinkContext: true,

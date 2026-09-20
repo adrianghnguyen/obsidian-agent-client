@@ -301,6 +301,25 @@ describe("absorbCustomAgents", () => {
 		expect(result.presetAgents["kiro-cli"]).toBe(kiroCustom);
 	});
 
+	it("absorbs the docs-advised antigravity custom the same way", () => {
+		const antigravityCustom = {
+			id: "antigravity",
+			displayName: "My Antigravity",
+			command: "/opt/agy_acp_server.par",
+			args: [],
+			env: [],
+		};
+		const result = absorbCustomAgents(
+			{ customAgents: [antigravityCustom] },
+			PRESET_AGENTS,
+		);
+		expect(result.absorbed).toEqual([
+			{ presetId: "antigravity", displayName: "Antigravity" },
+		]);
+		expect(result.customAgents).toEqual([]);
+		expect(result.presetAgents.antigravity).toBe(antigravityCustom);
+	});
+
 	it("skips when the preset already has a stored entry", () => {
 		const raw = {
 			presetAgents: { opencode: { command: "opencode" } },

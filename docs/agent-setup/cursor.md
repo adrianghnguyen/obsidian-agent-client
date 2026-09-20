@@ -1,0 +1,81 @@
+# Cursor Setup
+
+Cursor ships a native [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) server through the Cursor CLI. Agent Client starts it with `agent acp` — no custom-agent JSON recipe required.
+
+## Install and Configure
+
+Open a terminal (Terminal on macOS/Linux, PowerShell on Windows) and run:
+
+::: code-group
+
+```bash [macOS/Linux]
+curl https://cursor.com/install -fsS | bash
+```
+
+```powershell [Windows]
+irm 'https://cursor.com/install?win32=true' | iex
+```
+
+:::
+
+1. Find the CLI path:
+
+::: code-group
+
+```bash [macOS/Linux]
+which agent
+# Example: /Users/you/.local/bin/agent
+```
+
+```cmd [Windows]
+where.exe agent
+```
+
+:::
+
+2. Open **Settings → Agent Client → Cursor**. The defaults (`agent` + `acp`) work when `~/.local/bin` is on your PATH. If not, set **Path** to the value from `which agent`, or click **Auto-detect**.
+
+3. Click **Check setup** in the Cursor preset section. It verifies PATH, `agent acp`, and sign-in status.
+
+## Authentication
+
+Cursor manages its own credentials — there is no API key field in Agent Client.
+
+1. Sign in from a terminal:
+
+```bash
+agent login
+```
+
+2. Confirm status:
+
+```bash
+agent status
+```
+
+Alternatively, set `CURSOR_API_KEY` in **Environment variables** (or in your shell profile) for non-interactive use.
+
+Credentials are stored by the Cursor CLI and picked up by the `agent acp` process Agent Client starts.
+
+::: tip Migrating from a custom agent
+If you previously configured Cursor as a custom agent with id `cursor`, your path, args, and saved sessions migrate to this preset automatically.
+:::
+
+## Custom API endpoint
+
+By default the CLI talks to `https://api2.cursor.sh`. Override with:
+
+- An **Arguments** line such as `-e https://your-endpoint.example` (before `acp`), or
+- `CURSOR_API_URL` in **Environment variables**
+
+If the endpoint is wrong or unreachable, chat and **Check setup** show which URL was used.
+
+## Verify Setup
+
+1. Click the robot icon or run **Open chat view** from the command palette
+2. Switch to **Cursor** in the chat header
+3. Send a short message — Agent, Plan, and Ask modes come from the connected Cursor session
+
+If connection fails, read the red card in the chat transcript (not a generic “agent error”) and follow the suggested next step.
+
+Having issues? See [Troubleshooting](/help/troubleshooting).

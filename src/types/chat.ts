@@ -258,6 +258,13 @@ export type MessageContent =
 	| {
 			type: "terminal";
 			terminalId: string;
+	  }
+	| {
+			type: "connection_error";
+			title: string;
+			message: string;
+			suggestion?: string;
+			link?: { text: string; url: string };
 	  };
 /**
  * Attached file for ChatInput.
