@@ -35,6 +35,17 @@ Setup is owned by `obsidian-plugin-development`. This repo ships the shared poin
 
 Project doc: `/cursor/stores/bc-a8a2e9ee-3f2b-4d31-ae8c-85b3734c071e/docs/cursor-environment-docs.md`
 
+#### Cloud Agent UI demos (Obsidian)
+
+Use this playbook when a task changes chat UI (composer, floating chat, queue strip, toolbar) and you need walkthrough evidence in Cursor Cloud—not for configuring the built-in `computerUse` subagent (that model is fixed; the parent agent follows this doc instead).
+
+1. **Boot** — From repo root: `bash scripts/cloud-e2e/bootstrap-and-install.sh` (once per pod if needed), then `bash scripts/cloud-e2e/bootstrap-and-start.sh` (Obsidian + vault). Default vault: `plugin-sandbox-Obsidian` (`~/plugin-sandbox-Obsidian` on Linux cloud).
+2. **Build and deploy** — `npm test` (relevant suites), `npm run build`, copy `main.js`, `manifest.json`, and `styles.css` into the vault’s `.obsidian/plugins/agent-client/`, then `obsidian plugin:reload id=agent-client vault=plugin-sandbox-Obsidian`. Do not overwrite vault `data.json` or `sessions/`.
+3. **Exercise the UI** — Prefer the **floating chat** entry (`floatingChatEntry` / ribbon) when the feature is view-agnostic. Use **`computerUse`** for GUI steps; use **RecordScreen** (or the walkthrough-artifacts skill) for MP4/WebP under `/opt/cursor/artifacts/`.
+4. **Verify** — Enable **Debug Mode** only while checking spawn/logs, then turn it off before finishing. Tell the user to close and reopen affected chat views if CSS/layout looks stale (`app:reload` before a full restart).
+5. **PRs** — Embed artifacts with `<video>` / `<img>` tags (absolute paths under `/opt/cursor/artifacts/`). Under each clip, add a **short bullet list of expected on-screen behavior** so reviewers know what to look for.
+6. **Optional** — Run the **`videoReview`** subagent on demo MP4s for subtle UI regressions. Invoke the repo custom subagent **`ui-demo-verifier`** (`.cursor/agents/ui-demo-verifier.md`) to score a recording against the composer-buffer checklist.
+
 ---
 
 # Agent Client Plugin - LLM Developer Guide
