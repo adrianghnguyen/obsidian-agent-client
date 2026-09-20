@@ -1,7 +1,7 @@
 {
   "name": "Obsidian plugins E2E",
   "install": "bash scripts/cloud-e2e/bootstrap-and-install.sh",
-  "start": "bash /agent/repos/obsidian-plugin-development/scripts/cloud-e2e/env-start.sh",
+  "start": "bash scripts/cloud-e2e/bootstrap-and-start.sh",
   "repositoryDependencies": [
     "github.com/adrianghnguyen/obsidian-plugin-development",
     "github.com/adrianghnguyen/obsidian-agent-client",

@@ -4,8 +4,9 @@
 # before calling obsidian-plugin-development env-install.sh.
 set -euo pipefail
 
-ROOT=/agent/repos
+ROOT="${CLOUD_E2E_REPOS:-$HOME/repos}"
 mkdir -p "$ROOT"
+export CLOUD_E2E_REPOS="$ROOT"
 
 clone_if_missing() {
   local name=$1
@@ -16,7 +17,7 @@ clone_if_missing() {
   git clone --depth 1 "https://github.com/adrianghnguyen/${name}.git" "$ROOT/$name"
 }
 
-for repo in obsidian-plugin-development obsidian-seek whisper-obsidian-plugin obsidian-agent-client; do
+for repo in obsidian-plugin-development obsidian-seek whisper-obsidian-plugin; do
   clone_if_missing "$repo"
 done
 
@@ -24,6 +25,10 @@ done
 if [ -d /workspace/.git ]; then
   primary="$(basename "$(git -C /workspace rev-parse --show-toplevel)")"
   ln -sfn /workspace "$ROOT/$primary"
+else
+  clone_if_missing obsidian-agent-client
 fi
 
-exec bash "$ROOT/obsidian-plugin-development/scripts/cloud-e2e/env-install.sh"
+# env-install resolves siblings via ../ when cwd is the orchestrator repo.
+cd "$ROOT/obsidian-plugin-development"
+exec bash scripts/cloud-e2e/env-install.sh
