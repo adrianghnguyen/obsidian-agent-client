@@ -23,7 +23,12 @@ done
 
 # Prefer the revision Cursor checked out for this environment build.
 if [ -d /workspace/.git ]; then
-  primary="$(basename "$(git -C /workspace rev-parse --show-toplevel)")"
+  origin="$(git -C /workspace config --get remote.origin.url || true)"
+  primary="${origin##*/}"
+  primary="${primary%.git}"
+  if [ -z "$primary" ]; then
+    primary=obsidian-agent-client
+  fi
   ln -sfn /workspace "$ROOT/$primary"
 else
   clone_if_missing obsidian-agent-client
