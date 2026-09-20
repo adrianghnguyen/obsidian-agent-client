@@ -12,6 +12,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Floating chat transparency lock** — when idle fade delay is greater than 0, an icon in the floating header (next to More / close) locks every floating window fully opaque or restores idle fade. Persists across restarts; delay 0 hides the button.
 
 ### Changed
+- **README and in-repo docs** — badges, install links, and setup guides point at this fork (`adrianghnguyen/obsidian-agent-client`) and `docs/` in the repository instead of upstream GitHub Pages.
+- **Built-in presets trimmed** — Gemini CLI, Mistral Vibe, OpenCode, Kiro, and Hermes Agent are no longer first-class harnesses. Add them as [custom agents](/agent-setup/custom-agents) if you still use those CLIs.
 - **Verbosity menu** uses a short header summary with per-option descriptions (Hidden, Compact, Full) in the chat toolbar dropdown.
 - **Compact verbosity** groups tools across the whole assistant turn (not per bubble), including singles (`Read · 1`), in-progress tools, edits, and `other` tools (TODOs). The final thought is peeled onto the timeline and expanded; other bodies stay folded until you expand a card.
 - **Hidden verbosity** shows one folded turn-level working buffer (tools, intermediate thoughts, and the last thought). Expanding the buffer reveals Compact-style groups, not full tool cards.

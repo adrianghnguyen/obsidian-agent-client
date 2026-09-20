@@ -54,7 +54,7 @@ import {
 	type FloatingWindowLocalLayout,
 	type FloatingWindowLocalStorageAccess,
 } from "./services/floating-window-local-storage";
-import { PRESET_AGENTS } from "./services/preset-agents";
+import { PRESET_AGENTS, DEFAULT_PRESET_AGENT_ID } from "./services/preset-agents";
 import { VoiceInputModule } from "./voice-input/VoiceInputModule";
 import type { VoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import { normalizeVoiceInputSettings } from "./voice-input/VoiceInputSettings";
@@ -674,7 +674,7 @@ export default class AgentClientPlugin extends Plugin {
 		];
 		const defaultAgentId =
 			resolveDefaultAgentId(raw, availableAgentIds) ||
-			PRESET_AGENTS[0].presetId;
+			DEFAULT_PRESET_AGENT_ID;
 
 		// Secret-storage side effects (writes + Notices) are injected into the
 		// pure normalizer; called only for presets with apiKey.legacy wiring.

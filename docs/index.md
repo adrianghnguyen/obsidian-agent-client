@@ -4,14 +4,14 @@ layout: home
 hero:
   name: "Agent Client"
   text: "AI Agents in Obsidian"
-  tagline: Chat with Claude Code, Codex, Gemini CLI, and more — right from your vault
+  tagline: Chat with Claude Code, Codex, Cursor, Antigravity, and custom agents — right from your vault
   actions:
     - theme: brand
       text: Get Started
       link: /getting-started/
     - theme: alt
       text: View on GitHub
-      link: https://github.com/RAIT-09/obsidian-agent-client
+      link: https://github.com/adrianghnguyen/obsidian-agent-client
 
 features:
   - icon: 🤖
@@ -25,7 +25,7 @@ features:
     details: Use / commands to quickly trigger agent actions
   - icon: 🔄
     title: Multi-Agent Support
-    details: Switch between Claude Code, Codex, Gemini CLI, and custom agents
+    details: Switch between Claude Code, Codex, Cursor, Antigravity, and custom agents
   - icon: 🎛️
     title: Mode & Model Selection
     details: Change AI models and agent modes directly from the chat
@@ -50,14 +50,9 @@ Agent Client is an Obsidian plugin that brings AI coding agents directly into yo
 |-------|----------|-------------|
 | **[Claude Code](https://github.com/anthropics/claude-code)** | Anthropic | via [ACP adapter](https://github.com/agentclientprotocol/claude-agent-acp) |
 | **[Codex](https://github.com/openai/codex)** | OpenAI | via [ACP adapter](https://github.com/agentclientprotocol/codex-acp) |
-| **[Gemini CLI](https://github.com/google-gemini/gemini-cli)** | Google | with `--experimental-acp` option |
-| **[Mistral Vibe](https://github.com/mistralai/mistral-vibe)** | Mistral AI | with built-in ACP support (`vibe-acp`) |
-| **[OpenCode](https://github.com/anomalyco/opencode)** | Multi-provider | with built-in ACP support (`opencode acp`) |
-| **[Kiro](https://kiro.dev/)** | AWS | with built-in ACP support (`kiro-cli acp`) |
-| **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** | Multi-provider | with built-in ACP support (`hermes acp`) |
 | **[Cursor](https://cursor.com/docs/cli/overview)** | Cursor | with built-in ACP support (`agent acp`) |
 | **[Antigravity](https://antigravity.google/)** | Google | via ACP bridge (`agy_acp_server.par`) |
-| **Custom** | Various | [Any ACP-compatible agent](https://agentclientprotocol.com/overview/agents) (e.g., Qwen Code) |
+| **Custom** | Various | [Any ACP-compatible agent](https://agentclientprotocol.com/overview/agents) (e.g., OpenCode, Gemini CLI, Qwen Code) |
 
 ### Key Features
 

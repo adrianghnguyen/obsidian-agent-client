@@ -4,7 +4,7 @@
  */
 
 import type { AgentClientPluginSettings } from "../types/settings";
-import { PRESET_AGENTS } from "./preset-agents";
+import { PRESET_AGENTS, DEFAULT_PRESET_AGENT_ID } from "./preset-agents";
 import { defaultPresetAgentSettings } from "./settings-normalizer";
 import { DEFAULT_VOICE_INPUT } from "../voice-input/VoiceInputSettings";
 
@@ -16,7 +16,7 @@ export const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 		]),
 	),
 	customAgents: [],
-	defaultAgentId: PRESET_AGENTS[0].presetId,
+	defaultAgentId: DEFAULT_PRESET_AGENT_ID,
 	defaultAgentPerDevice: false,
 	autoAllowPermissions: false,
 	autoMentionActiveNote: true,

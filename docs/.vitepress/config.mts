@@ -37,7 +37,7 @@ export default defineConfig({
       { text: "Getting Started", link: "/getting-started/" },
       { text: "Agent Setup", link: "/agent-setup/" },
       { text: "Usage", link: "/usage/" },
-      { text: "GitHub", link: "https://github.com/RAIT-09/obsidian-agent-client" },
+      { text: "GitHub", link: "https://github.com/adrianghnguyen/obsidian-agent-client" },
     ],
 
     sidebar: [
@@ -58,11 +58,6 @@ export default defineConfig({
           { text: "Overview", link: "/agent-setup/" },
           { text: "Claude Code", link: "/agent-setup/claude-code" },
           { text: "Codex", link: "/agent-setup/codex" },
-          { text: "Gemini CLI", link: "/agent-setup/gemini-cli" },
-          { text: "Mistral Vibe", link: "/agent-setup/mistral-vibe" },
-          { text: "OpenCode", link: "/agent-setup/opencode" },
-          { text: "Kiro", link: "/agent-setup/kiro" },
-          { text: "Hermes Agent", link: "/agent-setup/hermes" },
           { text: "Cursor", link: "/agent-setup/cursor" },
           { text: "Antigravity", link: "/agent-setup/antigravity" },
           { text: "Custom Agents", link: "/agent-setup/custom-agents" },
@@ -103,21 +98,12 @@ export default defineConfig({
           { text: "ACP Protocol Support", link: "/reference/acp-support" },
         ],
       },
-      {
-        text: "Announcements",
-        items: [
-          {
-            text: "Gemini CLI Discontinuation",
-            link: "/announcements/gemini-cli-deprecation",
-          },
-        ],
-      },
     ],
 
     socialLinks: [
       {
         icon: "github",
-        link: "https://github.com/RAIT-09/obsidian-agent-client",
+        link: "https://github.com/adrianghnguyen/obsidian-agent-client",
       },
     ],
 

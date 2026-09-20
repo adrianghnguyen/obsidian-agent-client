@@ -2,20 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
 	HARNESS_DEFINITIONS,
 	PRESET_AGENTS,
-	GEMINI_PRESET_ID,
 	getHarnessById,
 	listHarnessIds,
 } from "../../src/harnesses";
 
-const MIGRATED_PRESET_IDS = [
-	"claude-code-acp",
-	"codex-acp",
-	"gemini-cli",
-	"mistral-vibe",
-	"opencode",
-	"kiro-cli",
-	"hermes-agent",
-] as const;
+const MIGRATED_PRESET_IDS = ["claude-code-acp", "codex-acp"] as const;
 
 const EXPECTED_PRESET_IDS = [
 	...MIGRATED_PRESET_IDS,
@@ -43,13 +34,6 @@ describe("harness registry", () => {
 			expect(getHarnessById(id)?.preset.presetId).toBe(id);
 		}
 		expect(getHarnessById("unknown-harness")).toBeUndefined();
-	});
-
-	it("keeps GEMINI_PRESET_ID on the gemini-cli harness", () => {
-		expect(GEMINI_PRESET_ID).toBe("gemini-cli");
-		expect(getHarnessById(GEMINI_PRESET_ID)?.preset.defaultCommand).toBe(
-			"gemini",
-		);
 	});
 
 	it("leaves optional harness slots empty for migrated presets", () => {

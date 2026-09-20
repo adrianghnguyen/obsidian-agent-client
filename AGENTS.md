@@ -379,14 +379,9 @@ Secret **ids** for Keychain inject: see [Cursor Cloud environment](#cursor-cloud
 **Agents**:
 - Claude Code: `@agentclientprotocol/claude-agent-acp` (ANTHROPIC_API_KEY)
 - Codex: `@agentclientprotocol/codex-acp` (OPENAI_API_KEY)
-- Gemini CLI: `@google/gemini-cli` (GEMINI_API_KEY)
-- Mistral Vibe: `mistral-vibe` (MISTRAL_API_KEY)
-- OpenCode: `opencode-ai` (CLI-managed auth, no API key env)
-- Kiro: `kiro-cli` install script (KIRO_API_KEY, optional)
-- Hermes Agent: install script (CLI-managed auth, no API key env)
 - Cursor: `agent acp` via Cursor CLI (`curl https://cursor.com/install -fsS | bash`; auth via `agent login` or `CURSOR_API_KEY`)
 - Antigravity: ACP bridge (`agy_acp_server.par` / `.exe` on Windows); OAuth via `~/.gemini/antigravity-acp/` or Gemini API key mode
-- Custom: Any ACP-compatible agent
+- Custom: Any ACP-compatible agent (including former presets such as Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent)
 
 ---
 

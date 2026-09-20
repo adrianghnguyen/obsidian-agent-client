@@ -1,38 +1,34 @@
 <h1 align="center">Agent Client Plugin for Obsidian</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/github/downloads/RAIT-09/obsidian-agent-client/total" alt="GitHub Downloads">
-  <img src="https://img.shields.io/github/license/RAIT-09/obsidian-agent-client" alt="License">
-  <img src="https://img.shields.io/github/v/release/RAIT-09/obsidian-agent-client" alt="GitHub release">
-  <img src="https://img.shields.io/github/last-commit/RAIT-09/obsidian-agent-client" alt="GitHub last commit">
-  <a href="https://github.com/RAIT-09/obsidian-agent-client/discussions"><img src="https://img.shields.io/github/discussions/RAIT-09/obsidian-agent-client" alt="GitHub Discussions"></a>
+  <img src="https://img.shields.io/github/downloads/adrianghnguyen/obsidian-agent-client/total" alt="GitHub Downloads">
+  <img src="https://img.shields.io/github/license/adrianghnguyen/obsidian-agent-client" alt="License">
+  <img src="https://img.shields.io/github/v/release/adrianghnguyen/obsidian-agent-client" alt="GitHub release">
+  <img src="https://img.shields.io/github/last-commit/adrianghnguyen/obsidian-agent-client" alt="GitHub last commit">
+  <a href="https://github.com/adrianghnguyen/obsidian-agent-client/discussions"><img src="https://img.shields.io/github/discussions/adrianghnguyen/obsidian-agent-client" alt="GitHub Discussions"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/RAIT-09/obsidian-agent-client/blob/master/README.ja.md">日本語はこちら</a>
+  <a href="README.ja.md">日本語はこちら</a>
 </p>
 
 <p align="center">
   <a href="https://community.obsidian.md/plugins/agent-client" target="_blank"><img src="https://img.shields.io/badge/Add%20to%20Obsidian-7c3aed?logo=obsidian&logoColor=white&style=for-the-badge" alt="Add to Obsidian"></a>
 </p>
 
-<p align="center">
-  <a href="https://www.buymeacoffee.com/rait09" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="180" height="50" ></a>
-</p>
-
-Chat with Claude Code, Codex, Gemini CLI, and any ACP agent right in Obsidian — mention your notes with `@` and let the agent read and edit them in your vault. No copy-paste.
+Chat with Claude Code, Codex, Cursor, Antigravity, and any ACP agent right in Obsidian — mention your notes with `@` and let the agent read and edit them in your vault. No copy-paste.
 
 MCP servers, Agent Skills, slash commands, permission prompts — whatever your agent can do, it works here out of the box.
 
 Built on the [Agent Client Protocol (ACP)](https://github.com/agentclientprotocol/agent-client-protocol) by Zed.
 
-![Chat with an agent in the sidebar, right next to your notes](https://raw.githubusercontent.com/RAIT-09/obsidian-agent-client/master/docs/public/images/readme-hero-sidebar.webp)
+![Chat with an agent in the sidebar, right next to your notes](docs/public/images/readme-hero-sidebar.webp)
 
 ## Turn Your Vault into a Front End for Your Agents
 
 **Side by side.** Run several agents at once — in sidebar tabs, editor tabs, or floating windows — each with its own session and model. Broadcast a prompt to all of them, or cycle focus with a hotkey.
 
-![Three agents running side by side in editor tabs](https://raw.githubusercontent.com/RAIT-09/obsidian-agent-client/master/docs/public/images/readme-multi-session.webp)
+![Three agents running side by side in editor tabs](docs/public/images/readme-multi-session.webp)
 
 **Any folder.** Point a chat at any directory with *New chat in directory* — a code project, a writing project, wherever your agent normally works. The agent picks up that folder's context files and project configuration, and you can still hand it vault notes with `@` mentions.
 
@@ -40,7 +36,7 @@ Built on the [Agent Client Protocol (ACP)](https://github.com/agentclientprotoco
 
 **Mission control.** The Session Manager lists every open conversation across sidebar, tabs, floating windows, and notes, with live status icons — including "waiting for permission". Click any entry to jump straight there.
 
-**Any ACP agent.** Nine presets — Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, Antigravity — plus any ACP-compatible agent as a custom entry. New agent ships ACP support tomorrow? Add it as a custom entry — no plugin update needed.
+**Any ACP agent.** Built-in presets for Claude Code, Codex, Cursor, and Antigravity, plus any ACP-compatible agent as a custom entry. New agent ships ACP support tomorrow? Add it as a custom agent — no plugin update needed.
 
 ## Features
 
@@ -65,16 +61,18 @@ Built on the [Agent Client Protocol (ACP)](https://github.com/agentclientprotoco
 2. Search for **"Agent Client"**
 3. Click **Install**, then **Enable**
 
+See [docs/getting-started/index.md](docs/getting-started/index.md) for BRAT, manual install, and agent prerequisites.
+
 ## Get Started
 
-1. Install and authenticate an agent, following its setup guide:
+1. Install and authenticate an agent, following its setup guide in this repo:
 
-   [Claude Code](https://rait-09.github.io/obsidian-agent-client/agent-setup/claude-code.html) · [Codex](https://rait-09.github.io/obsidian-agent-client/agent-setup/codex.html) · [Gemini CLI](https://rait-09.github.io/obsidian-agent-client/agent-setup/gemini-cli.html) · [Mistral Vibe](https://rait-09.github.io/obsidian-agent-client/agent-setup/mistral-vibe.html) · [OpenCode](https://rait-09.github.io/obsidian-agent-client/agent-setup/opencode.html) · [Kiro](https://rait-09.github.io/obsidian-agent-client/agent-setup/kiro.html) · [Hermes Agent](https://rait-09.github.io/obsidian-agent-client/agent-setup/hermes.html) · [Cursor](https://rait-09.github.io/obsidian-agent-client/agent-setup/cursor.html) · [Antigravity](https://rait-09.github.io/obsidian-agent-client/agent-setup/antigravity.html) · [Custom Agents](https://rait-09.github.io/obsidian-agent-client/agent-setup/custom-agents.html)
+   [Claude Code](docs/agent-setup/claude-code.md) · [Codex](docs/agent-setup/codex.md) · [Cursor](docs/agent-setup/cursor.md) · [Antigravity](docs/agent-setup/antigravity.md) · [Custom agents](docs/agent-setup/custom-agents.md)
 
 2. Open **Settings → Agent Client** and check the agent's path — **Auto-detect** usually finds it
 3. Click the robot icon in the ribbon and start chatting
 
-**[Full Documentation](https://rait-09.github.io/obsidian-agent-client/)**
+**Documentation:** [Docs index](docs/README.md) · [Getting started](docs/getting-started/index.md) · [Agent setup](docs/agent-setup/index.md) · [Usage](docs/usage/index.md) · [FAQ](docs/help/faq.md) · [Troubleshooting](docs/help/troubleshooting.md)
 
 ## Security & Permissions
 
@@ -86,18 +84,16 @@ API keys are stored in Obsidian's Keychain, never as plain text. What leaves you
 
 ## Other Ways to Install
 
-### Via BRAT (Pre-release Versions)
-
-To try pre-release versions before they are published to Community Plugins:
+### Via BRAT (pre-release builds from this repo)
 
 1. Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin
 2. Go to **Settings → BRAT → Add Beta Plugin**
-3. Paste: `https://github.com/RAIT-09/obsidian-agent-client`
+3. Paste: `https://github.com/adrianghnguyen/obsidian-agent-client`
 4. Enable **Agent Client** from the plugin list
 
-### Manual Installation
+### Manual installation
 
-1. Download `main.js`, `manifest.json`, `styles.css` from [Releases](https://github.com/RAIT-09/obsidian-agent-client/releases)
+1. Download `main.js`, `manifest.json`, and `styles.css` from [Releases](https://github.com/adrianghnguyen/obsidian-agent-client/releases)
 2. Place them in `VaultFolder/.obsidian/plugins/agent-client/`
 3. Enable the plugin in **Settings → Community Plugins**
 
@@ -108,19 +104,24 @@ npm install
 npm run dev
 ```
 
-For production builds:
+Production build:
+
 ```bash
 npm run build
 ```
 
+Docs site (optional, local preview):
+
+```bash
+npm run docs:dev
+```
+
 ## License
 
-Apache License 2.0 — see [LICENSE](https://github.com/RAIT-09/obsidian-agent-client/blob/master/LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE).
 
 ## Contributors
 
-Thanks to everyone who has contributed!
-
-<a href="https://github.com/RAIT-09/obsidian-agent-client/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=RAIT-09/obsidian-agent-client" alt="Contributors" />
+<a href="https://github.com/adrianghnguyen/obsidian-agent-client/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=adrianghnguyen/obsidian-agent-client" alt="Contributors" />
 </a>

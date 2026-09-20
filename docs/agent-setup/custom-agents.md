@@ -19,8 +19,20 @@ You can use any agent that implements the [Agent Client Protocol (ACP)](https://
 
 ## Configuration Examples
 
-::: tip OpenCode, Kiro, Cursor, and Antigravity
-OpenCode, Kiro, Cursor, and Antigravity are built-in presets — see [OpenCode Setup](./opencode), [Kiro Setup](./kiro), [Cursor Setup](./cursor), and [Antigravity Setup](./antigravity). If you previously configured them as custom agents (ids `opencode` / `kiro-cli` / `cursor` / `antigravity`), your settings migrate to the presets automatically where noted on each page.
+::: tip Cursor and Antigravity presets
+Cursor and Antigravity are built-in presets — see [Cursor Setup](./cursor) and [Antigravity Setup](./antigravity). If you previously configured them as custom agents (ids `cursor` / `antigravity`), your settings migrate to the presets automatically.
+
+Former built-in agents (OpenCode, Kiro, Gemini CLI, Mistral Vibe, Hermes Agent) are configured here as custom agents.
+
+**OpenCode** — id `opencode`, path `opencode`, args `acp`
+
+**Kiro** — id `kiro-cli`, path `kiro-cli`, args `acp`
+
+**Gemini CLI** — id `gemini-cli`, path `gemini`, args `--experimental-acp`, env `GEMINI_API_KEY=...` when not using Google login
+
+**Mistral Vibe** — id `mistral-vibe`, path `vibe-acp`, env `MISTRAL_API_KEY=...` when not using Mistral login
+
+**Hermes Agent** — id `hermes-agent`, path `hermes`, args `acp`
 :::
 
 ### Qwen Code

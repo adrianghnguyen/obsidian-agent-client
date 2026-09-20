@@ -86,7 +86,6 @@ describe("openHarnessSession", () => {
 		expect(
 			getAuthenticateBeforeNewSession("claude-code-acp"),
 		).toBeUndefined();
-		expect(getAuthenticateBeforeNewSession("gemini-cli")).toBeUndefined();
 	});
 
 	it("skips authenticate when no ACP store and no API key", async () => {

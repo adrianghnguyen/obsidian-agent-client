@@ -57,8 +57,7 @@ import {
 import { SessionModeSuggestModal } from "./SessionModeModal";
 import { checkAgentUpdate } from "../services/update-checker";
 import type { SessionStatus } from "../services/view-registry";
-import { buildGeminiDeprecationNotice } from "../services/session-helpers";
-import { PRESET_AGENTS, GEMINI_PRESET_ID } from "../services/preset-agents";
+import { PRESET_AGENTS } from "../services/preset-agents";
 
 /** Stable empty array for useSuggestions when no commands available */
 const EMPTY_COMMANDS: SlashCommand[] = [];
@@ -498,46 +497,6 @@ export const ChatPanel = React.memo(function ChatPanel({
 			});
 		},
 		[plugin.settingsService],
-	);
-
-	// ============================================================
-	// Gemini CLI deprecation notice (static, agent-id driven)
-	// ============================================================
-	// Independent channel from the npm-backed agentUpdateNotification:
-	// derived synchronously from the active agent id (no network).
-	const geminiNotice = useMemo(
-		() =>
-			session.agentId === GEMINI_PRESET_ID
-				? buildGeminiDeprecationNotice()
-				: null,
-		[session.agentId],
-	);
-
-	// Dismiss state lives locally in ChatPanel so it never races with the
-	// async setAgentUpdateNotification owned by useChatActions.
-	const [geminiNoticeDismissed, setGeminiNoticeDismissed] = useState(false);
-
-	// Re-show the notice when switching agents (e.g. away and back to Gemini).
-	useEffect(() => {
-		setGeminiNoticeDismissed(false);
-	}, [session.agentId]);
-
-	const effectiveGeminiNotice =
-		geminiNotice && !geminiNoticeDismissed ? geminiNotice : null;
-
-	const handleClearGeminiNotice = useCallback(
-		() => setGeminiNoticeDismissed(true),
-		[],
-	);
-
-	// Wrap send so the Gemini notice also dismisses on send, mirroring how
-	// useChatActions clears agentUpdateNotification inside handleSendMessage.
-	const handleSendMessageWithGeminiDismiss = useCallback(
-		(content: string, attachments?: AttachedFile[]) => {
-			setGeminiNoticeDismissed(true);
-			return handleSendMessage(content, attachments);
-		},
-		[handleSendMessage],
 	);
 
 	const { handleOpenHistory } = useHistoryModal(
@@ -1622,7 +1581,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			suggestions={suggestions}
 			plugin={plugin}
 			view={viewHost}
-			onSendMessage={handleSendMessageWithGeminiDismiss}
+			onSendMessage={handleSendMessage}
 			onStopGeneration={handleStopGeneration}
 			onRestoredMessageConsumed={handleRestoredMessageConsumed}
 			modes={session.modes}
@@ -1647,9 +1606,6 @@ export const ChatPanel = React.memo(function ChatPanel({
 			// Agent update notification props
 			agentUpdateNotification={agentUpdateNotification}
 			onClearAgentUpdate={handleClearAgentUpdate}
-			// Gemini CLI deprecation notice props
-			geminiNotice={effectiveGeminiNotice}
-			onClearGeminiNotice={handleClearGeminiNotice}
 			messages={messages}
 		/>
 	);

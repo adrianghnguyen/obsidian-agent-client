@@ -84,4 +84,4 @@ Having issues? See [Troubleshooting](/help/troubleshooting#antigravity).
 
 ## Gemini CLI deprecation
 
-Antigravity is Google's successor to Gemini CLI account login. See [Gemini CLI discontinuation](/announcements/gemini-cli-deprecation) for migration context. The community `agy-acp` npm adapter remains available as a [custom agent](/agent-setup/custom-agents) if you need a different bridge.
+Antigravity is Google's agent stack with an ACP bridge. The community `agy-acp` npm adapter remains available as a [custom agent](/agent-setup/custom-agents) if you need a different bridge.
