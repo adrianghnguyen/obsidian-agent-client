@@ -41,10 +41,10 @@ Use this playbook when a task changes chat UI (composer, floating chat, queue st
 
 1. **Boot** — From repo root: `bash scripts/cloud-e2e/bootstrap-and-install.sh` (once per pod if needed), then `bash scripts/cloud-e2e/bootstrap-and-start.sh` (Obsidian + vault). Default vault: `plugin-sandbox-Obsidian` (`~/plugin-sandbox-Obsidian` on Linux cloud).
 2. **Build and deploy** — `npm test` (relevant suites), `npm run build`, copy `main.js`, `manifest.json`, and `styles.css` into the vault’s `.obsidian/plugins/agent-client/`, then `obsidian plugin:reload id=agent-client vault=plugin-sandbox-Obsidian`. Do not overwrite vault `data.json` or `sessions/`.
-3. **Exercise the UI** — Prefer the **floating chat** entry (`floatingChatEntry` / ribbon) when the feature is view-agnostic. Use **`computerUse`** for GUI steps; use **RecordScreen** (or the walkthrough-artifacts skill) for MP4/WebP under `/opt/cursor/artifacts/`.
+3. **Exercise the UI** — Prefer the **floating chat** entry (`floatingChatEntry` / ribbon) when the feature is view-agnostic. Keep the **entire** chat window in frame (composer, chip strip, send/queue icon). Move a corner floating window to the center if needed; start/stop the clip around the interaction (not minutes of idle). Unique chip text and X must be readable. Use **`computerUse`** for GUI steps; use **RecordScreen** (or the walkthrough-artifacts skill) for MP4/WebP under `/opt/cursor/artifacts/`.
 4. **Verify** — Enable **Debug Mode** only while checking spawn/logs, then turn it off before finishing. Tell the user to close and reopen affected chat views if CSS/layout looks stale (`app:reload` before a full restart).
 5. **PRs** — Embed artifacts with `<video>` / `<img>` tags (absolute paths under `/opt/cursor/artifacts/`). Under each clip, add a **short bullet list of expected on-screen behavior** so reviewers know what to look for.
-6. **Optional** — Run the **`videoReview`** subagent on demo MP4s for subtle UI regressions. Invoke the repo custom subagent **`ui-demo-verifier`** (`.cursor/agents/ui-demo-verifier.md`) to score a recording against the composer-buffer checklist.
+6. **Optional** — Run the **`videoReview`** subagent on demo MP4s for subtle UI regressions. Invoke the repo custom subagent **`ui-demo-verifier`** (`.cursor/agents/ui-demo-verifier.md`) to score a recording against the composer-buffer checklist. Treat cropped or unreadable controls as a fail, especially on short clips.
 
 ---
 
