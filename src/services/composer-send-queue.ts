@@ -19,6 +19,8 @@ export interface ComposerSendFlushGates {
 	isSending: boolean;
 	isRestoringSession: boolean;
 	sessionState: SessionState;
+	/** Permission banner is showing — do not auto-flush the next queued prompt. */
+	hasActivePermission: boolean;
 }
 
 let queuedSendSeq = 0;
@@ -48,8 +50,31 @@ export function canFlushComposerSend(gates: ComposerSendFlushGates): boolean {
 		gates.isSessionReady &&
 		!gates.isSending &&
 		!gates.isRestoringSession &&
+		!gates.hasActivePermission &&
 		gates.sessionState !== "error"
 	);
+}
+
+/** Chip X clicked — remember so a drain that already took this id still aborts. */
+export function rememberCancelledComposerSend(
+	cancelledIds: Set<string>,
+	id: string,
+): void {
+	cancelledIds.add(id);
+}
+
+export function wasComposerSendCancelled(
+	cancelledIds: ReadonlySet<string>,
+	id: string,
+): boolean {
+	return cancelledIds.has(id);
+}
+
+export function forgetCancelledComposerSend(
+	cancelledIds: Set<string>,
+	id: string,
+): void {
+	cancelledIds.delete(id);
 }
 
 export function enqueueComposerSend(

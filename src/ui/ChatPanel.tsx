@@ -61,9 +61,12 @@ import { PRESET_AGENTS } from "../services/preset-agents";
 import {
 	cancelComposerSend,
 	enqueueComposerSend,
+	forgetCancelledComposerSend,
 	hasComposerSendPayload,
+	rememberCancelledComposerSend,
 	resolveComposerSubmit,
 	takeFlushableComposerSend,
+	wasComposerSendCancelled,
 	type QueuedComposerSend,
 } from "../services/composer-send-queue";
 
@@ -419,6 +422,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 	const queuedSendsRef = useRef<QueuedComposerSend[]>([]);
 	queuedSendsRef.current = queuedSends;
 	const flushingQueuedSendRef = useRef(false);
+	const cancelledQueuedSendIdsRef = useRef(new Set<string>());
 	const persistRestoreAttemptedRef = useRef(false);
 	// Tracks whether we've already re-spawned the agent to match a saved
 	// conversation before restoring it (prevents a restart loop).
@@ -541,8 +545,15 @@ export const ChatPanel = React.memo(function ChatPanel({
 			isSending,
 			isRestoringSession: sessionHistory.loading,
 			sessionState: session.state,
+			hasActivePermission: agent.hasActivePermission,
 		}),
-		[isSessionReady, isSending, sessionHistory.loading, session.state],
+		[
+			isSessionReady,
+			isSending,
+			sessionHistory.loading,
+			session.state,
+			agent.hasActivePermission,
+		],
 	);
 
 	const enqueueOrSendComposerPayload = useCallback(
@@ -580,6 +591,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 	enqueueOrSendComposerPayloadRef.current = enqueueOrSendComposerPayload;
 
 	const handleCancelQueuedSend = useCallback((id: string) => {
+		rememberCancelledComposerSend(cancelledQueuedSendIdsRef.current, id);
 		setQueuedSends((queue) => {
 			const next = cancelComposerSend(queue, id);
 			queuedSendsRef.current = next;
@@ -1417,18 +1429,64 @@ export const ChatPanel = React.memo(function ChatPanel({
 		);
 		if (!taken) return;
 
+		const itemId = taken.item.id;
+		if (
+			wasComposerSendCancelled(cancelledQueuedSendIdsRef.current, itemId)
+		) {
+			forgetCancelledComposerSend(
+				cancelledQueuedSendIdsRef.current,
+				itemId,
+			);
+			setQueuedSends((queue) => {
+				const next = cancelComposerSend(queue, itemId);
+				queuedSendsRef.current = next;
+				return next;
+			});
+			return;
+		}
+
+		// Keep the chip until send is committed so X still wins a same-tick
+		// drain (cancel after take used to be a no-op).
 		flushingQueuedSendRef.current = true;
-		setQueuedSends((queue) => {
-			const next = cancelComposerSend(queue, taken.item.id);
-			queuedSendsRef.current = next;
-			return next;
-		});
-		void handleSendMessage(
-			taken.item.text,
-			taken.item.files.length > 0 ? taken.item.files : undefined,
-		).finally(() => {
-			flushingQueuedSendRef.current = false;
-		});
+		let cancelled = false;
+		void (async () => {
+			await Promise.resolve();
+			if (
+				wasComposerSendCancelled(
+					cancelledQueuedSendIdsRef.current,
+					itemId,
+				)
+			) {
+				cancelled = true;
+				forgetCancelledComposerSend(
+					cancelledQueuedSendIdsRef.current,
+					itemId,
+				);
+				setQueuedSends((queue) => {
+					const next = cancelComposerSend(queue, itemId);
+					queuedSendsRef.current = next;
+					return next;
+				});
+				flushingQueuedSendRef.current = false;
+				return;
+			}
+
+			setQueuedSends((queue) => {
+				const next = cancelComposerSend(queue, itemId);
+				queuedSendsRef.current = next;
+				return next;
+			});
+			try {
+				await handleSendMessage(
+					taken.item.text,
+					taken.item.files.length > 0 ? taken.item.files : undefined,
+				);
+			} finally {
+				if (!cancelled) {
+					flushingQueuedSendRef.current = false;
+				}
+			}
+		})();
 	}, [queuedSends, composerFlushGates, handleSendMessage]);
 
 	// ============================================================
@@ -1628,6 +1686,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			isSending={isSending}
 			isSessionReady={isSessionReady}
 			isRestoringSession={sessionHistory.loading}
+			hasActivePermission={agent.hasActivePermission}
 			agentLabel={activeAgentLabel}
 			availableCommands={session.availableCommands || []}
 			autoMentionEnabled={settings.autoMentionActiveNote}
