@@ -120,8 +120,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		this.seedSettingsCalloutDefaults();
 
-		this.renderManifestBanner(containerEl);
-		this.renderDocumentationCallout(containerEl);
+		containerEl.addClass("agent-client-settings");
+		this.renderPageHeader(containerEl);
 		this.renderGettingStartedSection(containerEl);
 		this.renderAgentsSection(containerEl);
 		this.renderChatInputSection(containerEl);
@@ -169,27 +169,36 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	/**
-	 * Installed plugin version plus recent CHANGELOG bullets, with a
-	 * link to the repo's GitHub Releases and tags page.
+	 * One quiet line for version and help links. Recent changelog bullets
+	 * stay folded so the page does not open on a second card of release notes.
 	 */
-	private renderManifestBanner(containerEl: HTMLElement): void {
+	private renderPageHeader(containerEl: HTMLElement): void {
 		const banner = buildManifestBanner(
 			this.plugin.manifest.version,
 			changelogMarkdown,
 			{ repoUrl: this.plugin.manifest.authorUrl },
 		);
-		const el = containerEl.createDiv({
-			cls: "agent-client-settings-manifest-banner",
+		const header = containerEl.createDiv({
+			cls: "agent-client-settings-page-header",
 		});
-
-		const header = el.createDiv({
-			cls: "agent-client-settings-manifest-banner-header",
-		});
-		header.createEl("strong", {
+		header.createDiv({
+			cls: "agent-client-settings-page-title",
 			text: `${this.plugin.manifest.name} ${banner.label}`.trim(),
 		});
-		header.createEl("a", {
-			text: "Releases and tags",
+		const links = header.createDiv({
+			cls: "agent-client-settings-page-links",
+		});
+		links.createEl("a", {
+			text: "Documentation",
+			href: "https://rait-09.github.io/obsidian-agent-client/",
+			attr: { target: "_blank" },
+		});
+		links.createSpan({
+			cls: "agent-client-settings-page-sep",
+			text: "·",
+		});
+		links.createEl("a", {
+			text: "Releases",
 			href: banner.releasesUrl,
 			attr: { target: "_blank" },
 		});
@@ -198,38 +207,29 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		el.createDiv({
-			cls: "agent-client-settings-manifest-banner-heading",
-			text: banner.heading,
-		});
-		const list = el.createEl("ul", {
-			cls: "agent-client-settings-manifest-banner-list",
-		});
-		for (const item of banner.items) {
-			list.createEl("li", { text: item });
-		}
-		if (banner.moreCount > 0) {
-			el.createDiv({
-				cls: "agent-client-settings-manifest-banner-more",
-				text: `${banner.moreCount} more on GitHub`,
-			});
-		}
-	}
-
-	private renderDocumentationCallout(containerEl: HTMLElement): void {
-		const docContainer = containerEl.createDiv({
-			cls: "agent-client-settings-info-callout",
-		});
-		docContainer.createEl("strong", { text: "Need help? " });
-		docContainer.createSpan({ text: "Check out the " });
-		docContainer.createEl("a", {
-			text: "documentation",
-			href: "https://rait-09.github.io/obsidian-agent-client/",
-			attr: { target: "_blank" },
-		});
-		docContainer.createSpan({
-			text: " for agent setup, troubleshooting, and ACP compatibility.",
-		});
+		this.renderSettingsCallout(
+			containerEl,
+			"whats-new",
+			banner.heading,
+			(bodyEl) => {
+				const list = bodyEl.createEl("ul", {
+					cls: "agent-client-settings-whats-new-list",
+				});
+				for (const item of banner.items) {
+					list.createEl("li", { text: item });
+				}
+				if (banner.moreCount > 0) {
+					const more = bodyEl.createDiv({
+						cls: "agent-client-settings-whats-new-more",
+					});
+					more.createEl("a", {
+						text: `${banner.moreCount} more on GitHub`,
+						href: banner.releasesUrl,
+						attr: { target: "_blank" },
+					});
+				}
+			},
+		);
 	}
 
 	/**

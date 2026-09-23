@@ -149,6 +149,63 @@ If your plugin does not need CSS, delete this file.
 	text-decoration: underline;
 }
 
+/* ===== Settings page header ===== */
+.agent-client-settings-page-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 0 4px;
+	padding: 2px 4px 8px;
+}
+
+.agent-client-settings-page-title {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+.agent-client-settings-page-links {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.agent-client-settings-page-links a {
+	color: var(--text-accent);
+	text-decoration: none;
+}
+
+.agent-client-settings-page-links a:hover {
+	text-decoration: underline;
+}
+
+.agent-client-settings-whats-new-list {
+	margin: 0 0 8px;
+	padding-left: 1.2em;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.agent-client-settings-whats-new-list li {
+	margin: 2px 0;
+}
+
+.agent-client-settings-whats-new-more {
+	font-size: var(--font-ui-smaller);
+}
+
+.agent-client-settings-whats-new-more a {
+	color: var(--text-accent);
+	text-decoration: none;
+}
+
+.agent-client-settings-whats-new-more a:hover {
+	text-decoration: underline;
+}
+
 /* ===== Settings Tab Expandable Callouts ===== */
 .agent-client-settings-callout {
 	margin: 0 0 12px;
