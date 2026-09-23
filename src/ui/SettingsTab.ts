@@ -410,37 +410,21 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					}
 				}
 
-				this.renderSettingsCallout(
-					bodyEl,
-					"hide-unused",
-					"More",
-					(nestedEl) => {
-						new Setting(nestedEl)
-							.setName("Hide unused agents")
-							.setDesc("Hide disabled agents in the lists below.")
-							.addToggle((toggle) =>
-								toggle
-									.setValue(
-										this.plugin.settings.hideUnusedAgents,
-									)
-									.onChange(async (value) => {
-										await this.plugin.settingsService.updateSettings(
-											{
-												hideUnusedAgents: value,
-											},
-										);
-										this.renderContent();
-									}),
-							);
-					},
-					{
-						nested: true,
-						foldable: true,
-						trailing: this.plugin.settings.hideUnusedAgents
-							? "Hiding disabled"
-							: "Showing all",
-					},
-				);
+				new Setting(bodyEl)
+					.setName("Hide unused agents")
+					.setDesc("Hide disabled agents in the lists below.")
+					.addToggle((toggle) =>
+						toggle
+							.setValue(this.plugin.settings.hideUnusedAgents)
+							.onChange(async (value) => {
+								await this.plugin.settingsService.updateSettings(
+									{
+										hideUnusedAgents: value,
+									},
+								);
+								this.renderContent();
+							}),
+					);
 
 				bodyEl.createDiv({
 					cls: "agent-client-settings-subhead",
@@ -1401,63 +1385,48 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						}),
 				);
 
-			this.renderSettingsCallout(
-				bodyEl,
-				"export-note-format",
-				"Note format",
-				(nestedEl) => {
-					new Setting(nestedEl)
-						.setName("Filename")
-						.setDesc(
-							"Template for exported filenames. Use {date} for date and {time} for time.",
+			new Setting(bodyEl)
+				.setName("Filename")
+				.setDesc(
+					"Template for exported filenames. Use {date} for date and {time} for time.",
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("agent_client_{date}_{time}")
+						.setValue(
+							this.plugin.settings.exportSettings
+								.filenameTemplate,
 						)
-						.addText((text) =>
-							text
-								.setPlaceholder("agent_client_{date}_{time}")
-								.setValue(
-									this.plugin.settings.exportSettings
-										.filenameTemplate,
-								)
-								.onChange(async (value) => {
-									await this.plugin.settingsService.updateSettings(
-										{
-											exportSettings: {
-												...this.plugin.settings
-													.exportSettings,
-												filenameTemplate: value,
-											},
-										},
-									);
-								}),
-						);
+						.onChange(async (value) => {
+							await this.plugin.settingsService.updateSettings({
+								exportSettings: {
+									...this.plugin.settings.exportSettings,
+									filenameTemplate: value,
+								},
+							});
+						}),
+				);
 
-					new Setting(nestedEl)
-						.setName("Frontmatter tag")
-						.setDesc(
-							"Tag added to exported notes. Leave empty to skip the tag.",
+			new Setting(bodyEl)
+				.setName("Frontmatter tag")
+				.setDesc(
+					"Tag added to exported notes. Leave empty to skip the tag.",
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("agent-client")
+						.setValue(
+							this.plugin.settings.exportSettings.frontmatterTag,
 						)
-						.addText((text) =>
-							text
-								.setPlaceholder("agent-client")
-								.setValue(
-									this.plugin.settings.exportSettings
-										.frontmatterTag,
-								)
-								.onChange(async (value) => {
-									await this.plugin.settingsService.updateSettings(
-										{
-											exportSettings: {
-												...this.plugin.settings
-													.exportSettings,
-												frontmatterTag: value,
-											},
-										},
-									);
-								}),
-						);
-				},
-				{ nested: true, foldable: true },
-			);
+						.onChange(async (value) => {
+							await this.plugin.settingsService.updateSettings({
+								exportSettings: {
+									...this.plugin.settings.exportSettings,
+									frontmatterTag: value,
+								},
+							});
+						}),
+				);
 
 			this.renderSettingsCallout(
 				bodyEl,

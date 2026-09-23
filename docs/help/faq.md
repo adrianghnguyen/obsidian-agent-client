@@ -127,7 +127,7 @@ Yes. Enable **Auto-export on new chat** or **Auto-export on close chat** in expo
 
 ### Can I customize the frontmatter tag?
 
-Yes. In **Settings → Agent Client → Export → Note format → Frontmatter tag**, you can set a custom tag. Nested tags like `projects/agent-client` are supported.
+Yes. In **Settings → Agent Client → Export → Frontmatter tag**, you can set a custom tag. Nested tags like `projects/agent-client` are supported.
 
 ## Session History
 

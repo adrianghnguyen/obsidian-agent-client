@@ -235,14 +235,37 @@ If your plugin does not need CSS, delete this file.
 	gap: var(--size-4-2);
 	width: 100%;
 	padding: 12px 2px;
-	background: none;
-	border: none;
-	box-shadow: none;
 	color: var(--text-normal);
 	font-size: var(--font-ui-medium);
 	font-weight: var(--font-semibold);
 	text-align: left;
 	cursor: pointer;
+}
+
+/* Obsidian paints bare buttons with a fill and input shadow, and each
+   .setting-item as a rounded card. Keep this tab a flat list. */
+.agent-client-settings button.agent-client-settings-callout-header,
+.agent-client-settings button.agent-client-agent-summary-button {
+	background: transparent;
+	background-color: transparent;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+.agent-client-settings button.agent-client-settings-callout-header:hover,
+.agent-client-settings button.agent-client-agent-summary-button:hover {
+	background-color: transparent;
+	box-shadow: none;
+}
+
+.agent-client-settings .setting-item {
+	background-color: transparent;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+	margin: 0;
+	padding: 8px 0;
 }
 
 .agent-client-settings-callout-header.is-static-header {

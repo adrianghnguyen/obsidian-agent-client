@@ -148,7 +148,7 @@ The conversation couldn't be saved.
 
 1. Check that the export folder exists (**Settings → Agent Client → Export → Export folder**)
 2. Verify the folder name is valid (no special characters that aren't allowed in folder names)
-3. Check the filename template for invalid characters (**Settings → Agent Client → Export → Note format → Filename**)
+3. Check the filename template for invalid characters (**Settings → Agent Client → Export → Filename**)
 
 ## Multi-Device Vault Sync
 
