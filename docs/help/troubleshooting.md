@@ -31,7 +31,7 @@ The plugin is trying to start the agent process but isn't receiving a response.
    - On macOS/Linux, find the path with: `which claude-agent-acp`
    - On Windows, find the path with: `where claude-agent-acp`
 
-2. **Verify Node.js path** in **Settings → Agent Client → Node.js path**
+2. **Verify Node.js path** in **Settings → Agent Client → Advanced → Node.js path**
    - Many agents require Node.js
    - Find it with: `which node` (macOS/Linux) or `where node` (Windows)
 
@@ -148,7 +148,7 @@ The conversation couldn't be saved.
 
 1. Check that the export folder exists (**Settings → Agent Client → Export → Export folder**)
 2. Verify the folder name is valid (no special characters that aren't allowed in folder names)
-3. Check the filename template for invalid characters (**Settings → Agent Client → Export → Filename**)
+3. Check the filename template for invalid characters (**Settings → Agent Client → Export → Note format → Filename**)
 
 ## Multi-Device Vault Sync
 
@@ -214,7 +214,7 @@ Desktop applications on Linux may not inherit PATH settings from `.bashrc`.
 
 If you need more detailed information about an issue, enable Debug mode:
 
-1. Go to **Settings → Agent Client → Developer → Debug mode**
+1. Go to **Settings → Agent Client → Advanced → Debug mode**
 2. Enable the toggle
 3. Open DevTools:
    - macOS: `Cmd + Option + I`

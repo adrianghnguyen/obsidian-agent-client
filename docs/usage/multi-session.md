@@ -32,7 +32,7 @@ This is useful when you want to work with different agents side-by-side, or run 
 
 ## Chat View Location
 
-Configure where new chat views open in **Settings → Agent Client → Display → Chat view location**:
+Configure where new chat views open in **Settings → Agent Client → Appearance → Chat view location**:
 
 | Location | Description |
 |----------|-------------|

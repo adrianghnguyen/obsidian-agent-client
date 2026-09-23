@@ -123,14 +123,15 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		containerEl.addClass("agent-client-settings");
 		this.renderPageHeader(containerEl);
-		this.renderGettingStartedSection(containerEl);
 		this.renderAgentsSection(containerEl);
-		this.renderChatInputSection(containerEl);
-		this.renderFloatingChatSection(containerEl);
+		this.renderComposerSection(containerEl);
+		this.renderAppearanceSection(containerEl);
+		this.renderReplyFormattingSection(containerEl);
 		this.renderBehaviorSection(containerEl);
+		this.renderFloatingChatSection(containerEl);
 		this.renderExportSection(containerEl);
 		this.renderVoiceInputSection(containerEl);
-		this.renderDeveloperSection(containerEl);
+		this.renderAdvancedSection(containerEl);
 
 		this.unsubscribe = this.plugin.settingsService.subscribe(() => {
 			this.updateAgentDropdown();
@@ -309,15 +310,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		renderBody(bodyEl);
 	}
 
-	private renderGettingStartedSection(containerEl: HTMLElement): void {
-		this.renderSettingsCallout(containerEl, "getting-started", "Getting started", (bodyEl) => {
-			this.renderAgentSelector(bodyEl);
-			this.renderNodePathSetting(bodyEl);
-		}, {
-			trailing: getCurrentAgent(this.plugin.settings).displayName,
-		});
-	}
-
 	private renderNodePathSetting(containerEl: HTMLElement): void {
 		const nodePathSetting = new Setting(containerEl)
 			.setName("Node.js path")
@@ -353,6 +345,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				isAgentEnabled(agent),
 			).length;
 		const trailingParts = [
+			getCurrentAgent(this.plugin.settings).displayName,
 			enabledCount === 1 ? "1 enabled" : `${enabledCount} enabled`,
 		];
 		if (Platform.isWin && this.plugin.settings.windowsWslMode) {
@@ -364,6 +357,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			"agents",
 			"Agents",
 			(bodyEl) => {
+				this.renderAgentSelector(bodyEl);
+
 				if (Platform.isWin && this.plugin.settings.windowsWslMode) {
 					bodyEl.createDiv({
 						cls: "agent-client-settings-warning-callout",
@@ -415,23 +410,37 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					}
 				}
 
-				new Setting(bodyEl)
-					.setName("Hide unused agents")
-					.setDesc(
-						"Hide disabled agents in the lists below.",
-					)
-					.addToggle((toggle) =>
-						toggle
-							.setValue(this.plugin.settings.hideUnusedAgents)
-							.onChange(async (value) => {
-								await this.plugin.settingsService.updateSettings(
-									{
-										hideUnusedAgents: value,
-									},
-								);
-								this.renderContent();
-							}),
-					);
+				this.renderSettingsCallout(
+					bodyEl,
+					"hide-unused",
+					"More",
+					(nestedEl) => {
+						new Setting(nestedEl)
+							.setName("Hide unused agents")
+							.setDesc("Hide disabled agents in the lists below.")
+							.addToggle((toggle) =>
+								toggle
+									.setValue(
+										this.plugin.settings.hideUnusedAgents,
+									)
+									.onChange(async (value) => {
+										await this.plugin.settingsService.updateSettings(
+											{
+												hideUnusedAgents: value,
+											},
+										);
+										this.renderContent();
+									}),
+							);
+					},
+					{
+						nested: true,
+						foldable: true,
+						trailing: this.plugin.settings.hideUnusedAgents
+							? "Hiding disabled"
+							: "Showing all",
+					},
+				);
 
 				bodyEl.createDiv({
 					cls: "agent-client-settings-subhead",
@@ -485,12 +494,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		);
 	}
 
-	private renderChatInputSection(containerEl: HTMLElement): void {
+	private renderComposerSection(containerEl: HTMLElement): void {
 		const sendLabel =
 			this.plugin.settings.sendMessageShortcut === "cmd-enter"
 				? "Ctrl+Enter sends"
 				: "Enter sends";
-		this.renderSettingsCallout(containerEl, "chat-input", "Chat & input", (bodyEl) => {
+		this.renderSettingsCallout(containerEl, "composer", "Composer", (bodyEl) => {
 			new Setting(bodyEl)
 				.setName("Send message shortcut")
 				.setDesc(
@@ -621,12 +630,21 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				},
 				{ nested: true, foldable: nestedFoldable(4) },
 			);
+		}, { trailing: sendLabel });
+	}
 
-			this.renderSettingsCallout(
-				bodyEl,
-				"display",
-				"Display",
-				(nestedEl) => {
+	private renderAppearanceSection(containerEl: HTMLElement): void {
+		const locationLabels: Record<string, string> = {
+			"right-tab": "Right pane",
+			"right-split": "Right split",
+			"editor-tab": "Editor",
+			"editor-split": "Editor split",
+		};
+		this.renderSettingsCallout(
+			containerEl,
+			"appearance",
+			"Appearance",
+			(nestedEl) => {
 					new Setting(nestedEl)
 						.setName("Chat view location")
 						.setDesc("Where to open new chat views")
@@ -869,10 +887,11 @@ export class AgentClientSettingTab extends PluginSettingTab {
 									}),
 							);
 					}
-				},
-				{ nested: true, foldable: nestedFoldable(5) },
-			);
-		}, { trailing: sendLabel });
+			}, {
+				trailing:
+					locationLabels[this.plugin.settings.chatViewLocation] ??
+					"Right pane",
+			});
 	}
 
 	private renderFloatingChatSection(containerEl: HTMLElement): void {
@@ -1257,11 +1276,27 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						}),
 				);
 
-			this.renderSettingsCallout(
-				bodyEl,
-				"prompt-injection",
-				"Prompt injection",
-				(nestedEl) => {
+		}, {
+			trailing:
+				[
+					this.plugin.settings.autoAllowPermissions
+						? "Auto-allow"
+						: "",
+					this.plugin.settings.enableSystemNotifications
+						? "Notifications"
+						: "",
+				]
+					.filter(Boolean)
+					.join(" · ") || undefined,
+		});
+	}
+
+	private renderReplyFormattingSection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(
+			containerEl,
+			"reply-formatting",
+			"Reply formatting",
+			(nestedEl) => {
 					new Setting(nestedEl)
 						.setName("Inject Obsidian Markdown instructions")
 						.setDesc(
@@ -1337,26 +1372,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							);
 					}
 				},
-				{
-					nested: true,
-					foldable: nestedFoldable(
-						this.plugin.settings.promptInjection.enabled ? 4 : 1,
-					),
-				},
-			);
-		}, {
-			trailing:
-				[
-					this.plugin.settings.autoAllowPermissions
-						? "Auto-allow"
-						: "",
-					this.plugin.settings.enableSystemNotifications
-						? "Notifications"
-						: "",
-				]
-					.filter(Boolean)
-					.join(" · ") || undefined,
-		});
+			{
+				trailing: this.plugin.settings.promptInjection.enabled
+					? "On"
+					: "Off",
+			},
+		);
 	}
 
 	private renderExportSection(containerEl: HTMLElement): void {
@@ -1380,48 +1401,63 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						}),
 				);
 
-			new Setting(bodyEl)
-				.setName("Filename")
-				.setDesc(
-					"Template for exported filenames. Use {date} for date and {time} for time",
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder("agent_client_{date}_{time}")
-						.setValue(
-							this.plugin.settings.exportSettings
-								.filenameTemplate,
+			this.renderSettingsCallout(
+				bodyEl,
+				"export-note-format",
+				"Note format",
+				(nestedEl) => {
+					new Setting(nestedEl)
+						.setName("Filename")
+						.setDesc(
+							"Template for exported filenames. Use {date} for date and {time} for time.",
 						)
-						.onChange(async (value) => {
-							await this.plugin.settingsService.updateSettings({
-								exportSettings: {
-									...this.plugin.settings.exportSettings,
-									filenameTemplate: value,
-								},
-							});
-						}),
-				);
+						.addText((text) =>
+							text
+								.setPlaceholder("agent_client_{date}_{time}")
+								.setValue(
+									this.plugin.settings.exportSettings
+										.filenameTemplate,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											exportSettings: {
+												...this.plugin.settings
+													.exportSettings,
+												filenameTemplate: value,
+											},
+										},
+									);
+								}),
+						);
 
-			new Setting(bodyEl)
-				.setName("Frontmatter tag")
-				.setDesc(
-					"Tag to add to exported notes. Supports nested tags (e.g., projects/agent-client). Leave empty to disable.",
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder("agent-client")
-						.setValue(
-							this.plugin.settings.exportSettings.frontmatterTag,
+					new Setting(nestedEl)
+						.setName("Frontmatter tag")
+						.setDesc(
+							"Tag added to exported notes. Leave empty to skip the tag.",
 						)
-						.onChange(async (value) => {
-							await this.plugin.settingsService.updateSettings({
-								exportSettings: {
-									...this.plugin.settings.exportSettings,
-									frontmatterTag: value,
-								},
-							});
-						}),
-				);
+						.addText((text) =>
+							text
+								.setPlaceholder("agent-client")
+								.setValue(
+									this.plugin.settings.exportSettings
+										.frontmatterTag,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											exportSettings: {
+												...this.plugin.settings
+													.exportSettings,
+												frontmatterTag: value,
+											},
+										},
+									);
+								}),
+						);
+				},
+				{ nested: true, foldable: true },
+			);
 
 			this.renderSettingsCallout(
 				bodyEl,
@@ -1794,96 +1830,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								}),
 						);
 
-					this.renderSettingsCallout(
-						bodyEl,
-						"speech-detection",
-						"Speech detection",
-						(nestedEl) => {
-							new Setting(nestedEl)
-								.setName("Prefix padding (ms)")
-								.setDesc(
-									"Audio included before detected speech starts.",
-								)
-								.addText((text) =>
-									text
-										.setPlaceholder("300")
-										.setValue(
-											String(
-												this.plugin.settings.voiceInput
-													.prefixPaddingMs,
-											),
-										)
-										.onChange(async (value) => {
-											const parsed = Number.parseInt(
-												value.trim(),
-												10,
-											);
-											this.plugin.settings.voiceInput.prefixPaddingMs =
-												Number.isFinite(parsed)
-													? parsed
-													: 300;
-											await this.plugin.saveSettings();
-										}),
-								);
-
-							new Setting(nestedEl)
-								.setName("Start-of-speech sensitivity")
-								.setDesc(
-									"High reacts quickly when you begin speaking. Low waits for clearer speech.",
-								)
-								.addDropdown((dropdown) =>
-									dropdown
-										.addOption(
-											"START_SENSITIVITY_HIGH",
-											"High (default)",
-										)
-										.addOption(
-											"START_SENSITIVITY_LOW",
-											"Low",
-										)
-										.setValue(
-											this.plugin.settings.voiceInput
-												.startOfSpeechSensitivity,
-										)
-										.onChange(async (value) => {
-											this.plugin.settings.voiceInput.startOfSpeechSensitivity =
-												value as
-													| "START_SENSITIVITY_HIGH"
-													| "START_SENSITIVITY_LOW";
-											await this.plugin.saveSettings();
-										}),
-								);
-
-							new Setting(nestedEl)
-								.setName("End-of-speech sensitivity")
-								.setDesc(
-									"Low tolerates longer pauses. High ends a phrase sooner.",
-								)
-								.addDropdown((dropdown) =>
-									dropdown
-										.addOption(
-											"END_SENSITIVITY_LOW",
-											"Low (default, pause tolerant)",
-										)
-										.addOption(
-											"END_SENSITIVITY_HIGH",
-											"High",
-										)
-										.setValue(
-											this.plugin.settings.voiceInput
-												.endOfSpeechSensitivity,
-										)
-										.onChange(async (value) => {
-											this.plugin.settings.voiceInput.endOfSpeechSensitivity =
-												value as
-													| "END_SENSITIVITY_LOW"
-													| "END_SENSITIVITY_HIGH";
-											await this.plugin.saveSettings();
-										}),
-								);
-						},
-						{ nested: true },
-					);
 				}
 			},
 			{
@@ -1894,12 +1840,17 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		);
 	}
 
-	private renderDeveloperSection(containerEl: HTMLElement): void {
+	private renderAdvancedSection(containerEl: HTMLElement): void {
+		const trailing = this.plugin.settings.debugMode
+			? "Debug on"
+			: undefined;
 		this.renderSettingsCallout(
 			containerEl,
-			"developer",
-			"Developer",
+			"advanced",
+			"Advanced",
 			(bodyEl) => {
+				this.renderNodePathSetting(bodyEl);
+				this.renderSpeechDetection(bodyEl);
 				new Setting(bodyEl)
 					.setName("Debug mode")
 					.setDesc(
@@ -1917,11 +1868,84 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							}),
 					);
 			},
-			{
-				trailing: this.plugin.settings.debugMode
-					? "Debug on"
-					: undefined,
+			{ trailing },
+		);
+	}
+
+	private renderSpeechDetection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(
+			containerEl,
+			"speech-detection",
+			"Speech detection",
+			(nestedEl) => {
+				new Setting(nestedEl)
+					.setName("Prefix padding (ms)")
+					.setDesc("Audio included before detected speech starts.")
+					.addText((text) =>
+						text
+							.setPlaceholder("300")
+							.setValue(
+								String(
+									this.plugin.settings.voiceInput
+										.prefixPaddingMs,
+								),
+							)
+							.onChange(async (value) => {
+								const parsed = Number.parseInt(value.trim(), 10);
+								this.plugin.settings.voiceInput.prefixPaddingMs =
+									Number.isFinite(parsed) ? parsed : 300;
+								await this.plugin.saveSettings();
+							}),
+					);
+
+				new Setting(nestedEl)
+					.setName("Start-of-speech sensitivity")
+					.setDesc(
+						"High reacts quickly when you begin speaking. Low waits for clearer speech.",
+					)
+					.addDropdown((dropdown) =>
+						dropdown
+							.addOption("START_SENSITIVITY_HIGH", "High (default)")
+							.addOption("START_SENSITIVITY_LOW", "Low")
+							.setValue(
+								this.plugin.settings.voiceInput
+									.startOfSpeechSensitivity,
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.voiceInput.startOfSpeechSensitivity =
+									value as
+										| "START_SENSITIVITY_HIGH"
+										| "START_SENSITIVITY_LOW";
+								await this.plugin.saveSettings();
+							}),
+					);
+
+				new Setting(nestedEl)
+					.setName("End-of-speech sensitivity")
+					.setDesc(
+						"Low tolerates longer pauses. High ends a phrase sooner.",
+					)
+					.addDropdown((dropdown) =>
+						dropdown
+							.addOption(
+								"END_SENSITIVITY_LOW",
+								"Low (default, pause tolerant)",
+							)
+							.addOption("END_SENSITIVITY_HIGH", "High")
+							.setValue(
+								this.plugin.settings.voiceInput
+									.endOfSpeechSensitivity,
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.voiceInput.endOfSpeechSensitivity =
+									value as
+										| "END_SENSITIVITY_LOW"
+										| "END_SENSITIVITY_HIGH";
+								await this.plugin.saveSettings();
+							}),
+					);
 			},
+			{ nested: true, foldable: true },
 		);
 	}
 

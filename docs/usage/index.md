@@ -57,7 +57,7 @@ This is a one-time change for that view only.
 </p>
 
 ::: tip
-To change the default agent for new chat views, go to **Settings → Agent Client → Default agent**. Use **Default agent scope** to share that default across devices or keep it on this computer only.
+To change the default agent for new chat views, go to **Settings → Agent Client → Agents → Default agent**. Use **Default agent scope** to share that default across devices or keep it on this computer only.
 
 <img src="/images/switch-default-agent.webp" alt="Default agent setting" />
 :::
