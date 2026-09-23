@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(bash "/workspace/scripts/cloud-e2e/cloud-e2e-root.sh")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(bash "$SCRIPT_DIR/cloud-e2e-root.sh")"
 START="$ROOT/obsidian-plugin-development/scripts/cloud-e2e/env-start.sh"
 if [ ! -x "$START" ]; then
   echo "cloud-e2e start script missing at $START" >&2
