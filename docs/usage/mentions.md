@@ -6,7 +6,7 @@ Reference your Obsidian notes directly in conversations with AI agents.
 
 When enabled, the plugin automatically includes the currently active note in your message. This is useful when you want to discuss or work on the note you're viewing.
 
-Enable this in **Settings → Agent Client → Mentions → Auto-mention active note**.
+Enable this in **Settings → Agent Client → Composer → Mentions & context → Auto-mention active note**.
 
 ### How Auto-Mention Works
 
@@ -57,10 +57,10 @@ When you mention (or auto-mention) a note, any `[[wikilinks]]` inside its conten
 
 Each link resolves to the single file Obsidian itself would open (same-folder priority), so the agent sees where the link actually points. Only pointers are sent—never the linked notes' content. The agent decides what to open with its Read tool. Links inside code blocks, `![[embeds]]`, and in-note `[[#anchors]]` are skipped, and each note is capped at 50 links.
 
-Toggle it in **Settings → Agent Client → Mentions → Expand wikilink context**.
+Toggle it in **Settings → Agent Client → Composer → Mentions & context → Expand wikilink context**.
 
 ::: info Not the same as "Wikilink formatting"
-This setting resolves `[[links]]` **inside your notes** into paths for the agent to read. The separate **Prompt injection → Wikilink formatting** setting instead asks the agent to **write** `[[Note Name]]` links in its replies. See [Prompt Injection](/usage/prompt-injection).
+This setting resolves `[[links]]` **inside your notes** into paths for the agent to read. The separate **Reply formatting → Wikilink formatting** setting instead asks the agent to **write** `[[Note Name]]` links in its replies. See [Prompt Injection](/usage/prompt-injection).
 :::
 
 ## Length Limits
@@ -72,7 +72,7 @@ To prevent excessively large messages, the plugin limits the amount of content i
 | **Max note length** | 10,000 characters | Maximum characters per mentioned note |
 | **Max selection length** | 10,000 characters | Maximum characters for text selection in auto-mention |
 
-Configure these in **Settings → Agent Client → Mentions**.
+Configure these in **Settings → Agent Client → Composer → Mentions & context**.
 
 ::: tip
 Content exceeding the limit is truncated with a note indicating the original length.

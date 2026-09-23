@@ -31,7 +31,7 @@ The plugin is trying to start the agent process but isn't receiving a response.
    - On macOS/Linux, find the path with: `which claude-agent-acp`
    - On Windows, find the path with: `where claude-agent-acp`
 
-2. **Verify Node.js path** in **Settings → Agent Client → Node.js path**
+2. **Verify Node.js path** in **Settings → Agent Client → Advanced → Node.js path**
    - Many agents require Node.js
    - Find it with: `which node` (macOS/Linux) or `where node` (Windows)
 
@@ -214,7 +214,7 @@ Desktop applications on Linux may not inherit PATH settings from `.bashrc`.
 
 If you need more detailed information about an issue, enable Debug mode:
 
-1. Go to **Settings → Agent Client → Developer → Debug mode**
+1. Go to **Settings → Agent Client → Advanced → Debug mode**
 2. Enable the toggle
 3. Open DevTools:
    - macOS: `Cmd + Option + I`

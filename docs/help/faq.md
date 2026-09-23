@@ -30,11 +30,11 @@ See [Note Mentions](/usage/mentions) for details.
 
 ### Can I change the character limit for mentions?
 
-Yes. Configure **Max note length** and **Max selection length** in **Settings → Agent Client → Mentions**. The default is 10,000 characters each.
+Yes. Configure **Max note length** and **Max selection length** in **Settings → Agent Client → Composer → Mentions & context**. The default is 10,000 characters each.
 
 ### What is auto-mention?
 
-When enabled (**Settings → Agent Client → Mentions → Auto-mention active note**), the currently open note is automatically included as context. Unlike manual mentions, auto-mention only sends the note's file path—not its content. The agent can use its Read tool to access the content if needed.
+When enabled (**Settings → Agent Client → Composer → Mentions & context → Auto-mention active note**), the currently open note is automatically included as context. Unlike manual mentions, auto-mention only sends the note's file path—not its content. The agent can use its Read tool to access the content if needed.
 
 ### Can I include just part of a note?
 
@@ -42,7 +42,7 @@ Yes. If you select text in your note, only that selection is sent as context. Th
 
 ### Does the agent see the notes my note links to?
 
-Not their content—but with **Expand wikilink context** (on by default, **Settings → Agent Client → Mentions**), the agent receives the resolved file path (or an unresolved marker) for each `[[wikilink]]` inside a mentioned note, so it can choose which to open with its Read tool. See [Note Mentions](/usage/mentions#expand-wikilink-context).
+Not their content—but with **Expand wikilink context** (on by default, **Settings → Agent Client → Composer → Mentions & context**), the agent receives the resolved file path (or an unresolved marker) for each `[[wikilink]]` inside a mentioned note, so it can choose which to open with its Read tool. See [Note Mentions](/usage/mentions#expand-wikilink-context).
 
 ### How do I temporarily disable auto-mention?
 
@@ -54,7 +54,7 @@ Click the **×** button next to the auto-mention badge above the input field. Cl
 
 Click the **⋮** (ellipsis) menu in the chat header. Under **"Switch agent"**, select the agent you want to use. This is a one-time change for that view only.
 
-To change the default agent for new chat views, go to **Settings → Agent Client → Default agent**. Use **Default agent scope** to share that default across devices or keep it on this computer only.
+To change the default agent for new chat views, go to **Settings → Agent Client → Agents → Default agent**. Use **Default agent scope** to share that default across devices or keep it on this computer only.
 
 ### Can I run multiple agents at the same time?
 
@@ -71,7 +71,7 @@ Use the **Broadcast** commands:
 
 ### Where do new chat views open?
 
-By default, new views open in the right pane. You can change this in **Settings → Agent Client → Display → Chat view location** to open in editor tabs or splits instead.
+By default, new views open in the right pane. You can change this in **Settings → Agent Client → Appearance → Chat view location** to open in editor tabs or splits instead.
 
 ### How do I hide agents I don't use?
 
@@ -105,7 +105,7 @@ Some agents request permission before performing certain actions (like editing f
 
 ### Can I auto-approve all permissions?
 
-Yes. Enable **Settings → Agent Client → Permissions → Auto-allow permissions**. Use with caution—this gives agents full access without confirmation prompts.
+Yes. Enable **Settings → Agent Client → Behavior → Auto-allow permissions**. Use with caution—this gives agents full access without confirmation prompts.
 
 ### Some agents don't ask for permission at all?
 
@@ -188,4 +188,4 @@ The plugin itself is free and open source. However, using AI agents may incur co
 - Your OS and Obsidian version
 - The agent you're using
 - Steps to reproduce
-- Error messages (enable **Debug Mode** in **Settings → Agent Client → Developer**)
+- Error messages (enable **Debug Mode** in **Settings → Agent Client → Advanced**)

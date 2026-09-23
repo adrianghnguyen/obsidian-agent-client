@@ -11,7 +11,7 @@ This working copy is the **fork**, not the parent. Day-to-day push/PR targets `o
 
 Plugin id: `agent-client`. Finish bar: `.cursor/rules/deploy-and-verify.mdc`. Copy `main.js`, `manifest.json`, and `styles.css`. Do not touch vault `data.json` or `sessions/`. Community Update overwrites the fork build.
 
-**Debug mode:** the plugin has a `debugMode` setting (Settings → Agent Client → Developer Settings → **Debug Mode**). Turn it on when diagnosing ACP spawn/init, floating chat, or session issues — Logger output (`[AcpClient]`, `[AcpHandler]`, etc.) only appears with DevTools open while this flag is enabled. Prefer enabling it over guessing from opaque UI errors.
+**Debug mode:** the plugin has a `debugMode` setting (Settings → Agent Client → Advanced → **Debug mode**). Turn it on when diagnosing ACP spawn/init, floating chat, or session issues — Logger output (`[AcpClient]`, `[AcpHandler]`, etc.) only appears with DevTools open while this flag is enabled. Prefer enabling it over guessing from opaque UI errors.
 
 **Deploy flow:** after copy + reload, **enable Debug Mode** for verification, then **turn it off before finishing** the task (leave the user’s vault without debug logging left on). Stale CSS/layout escalation: see `obsidian-multi-vault-cli` global skill. `manifest.json` changes take effect on `plugin:reload` or `app:reload` — no full restart needed.
 
@@ -367,7 +367,7 @@ interface ISettingsAccess {
 5. No routing needed in ChatPanel — useAgent handles dispatch internally
 
 ### Debug
-1. Settings → Agent Client → Developer Settings → **Debug Mode** ON (`debugMode` in settings / `data.json`)
+1. Settings → Agent Client → Advanced → **Debug mode** ON (`debugMode` in settings / `data.json`)
 2. Open DevTools (Cmd+Option+I / Ctrl+Shift+I)
 3. Filter logs: `[AcpClient]`, `[AcpHandler]`, `[PermissionManager]`, `[VaultService]`
 4. After deploy verification (or when diagnosis is done), turn **Debug Mode OFF** — do not leave it enabled in the vault.

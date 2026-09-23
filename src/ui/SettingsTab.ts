@@ -40,6 +40,7 @@ import {
 } from "../harnesses/antigravity";
 import {
 	getAvailableAgentsFromSettings,
+	getCurrentAgent,
 	isAgentEnabled,
 } from "../services/session-helpers";
 import { resolveCommandPath, resolveCommandPathInWsl } from "../utils/paths";
@@ -120,16 +121,17 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		this.seedSettingsCalloutDefaults();
 
-		this.renderManifestBanner(containerEl);
-		this.renderDocumentationCallout(containerEl);
-		this.renderGettingStartedSection(containerEl);
+		containerEl.addClass("agent-client-settings");
+		this.renderPageHeader(containerEl);
 		this.renderAgentsSection(containerEl);
-		this.renderChatInputSection(containerEl);
-		this.renderFloatingChatSection(containerEl);
+		this.renderComposerSection(containerEl);
+		this.renderAppearanceSection(containerEl);
+		this.renderReplyFormattingSection(containerEl);
 		this.renderBehaviorSection(containerEl);
+		this.renderFloatingChatSection(containerEl);
 		this.renderExportSection(containerEl);
 		this.renderVoiceInputSection(containerEl);
-		this.renderDeveloperSection(containerEl);
+		this.renderAdvancedSection(containerEl);
 
 		this.unsubscribe = this.plugin.settingsService.subscribe(() => {
 			this.updateAgentDropdown();
@@ -145,51 +147,43 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		if (this.settingsCalloutDefaultsApplied) {
 			return;
 		}
-		const defaults: Record<string, boolean> = {
-			"settings:getting-started": true,
-			"settings:agents": true,
-			"settings:chat-input": true,
-			"settings:floating-chat":
-				this.plugin.settings.floatingChatEntry !== "off",
-			"settings:behavior": false,
-			"settings:export": false,
-			"settings:voice-input": this.plugin.settings.voiceInput.enabled,
-			"settings:developer": false,
-			"settings:mentions": false,
-			"settings:display": false,
-			"settings:prompt-injection": false,
-			"settings:export-images": false,
-		};
-		for (const [id, open] of Object.entries(defaults)) {
-			if (open) {
-				this.openSections.add(id);
-			}
-		}
+		// Agents is why people open this tab. Other sections stay closed;
+		// their headers show the current value so the page scans as a list.
+		this.openSections.add("settings:agents");
 		this.settingsCalloutDefaultsApplied = true;
 	}
 
 	/**
-	 * Installed plugin version plus recent CHANGELOG bullets, with a
-	 * link to the repo's GitHub Releases and tags page.
+	 * One quiet line for version and help links. Recent changelog bullets
+	 * stay folded so the page does not open on a second card of release notes.
 	 */
-	private renderManifestBanner(containerEl: HTMLElement): void {
+	private renderPageHeader(containerEl: HTMLElement): void {
 		const banner = buildManifestBanner(
 			this.plugin.manifest.version,
 			changelogMarkdown,
 			{ repoUrl: this.plugin.manifest.authorUrl },
 		);
-		const el = containerEl.createDiv({
-			cls: "agent-client-settings-manifest-banner",
+		const header = containerEl.createDiv({
+			cls: "agent-client-settings-page-header",
 		});
-
-		const header = el.createDiv({
-			cls: "agent-client-settings-manifest-banner-header",
-		});
-		header.createEl("strong", {
+		header.createDiv({
+			cls: "agent-client-settings-page-title",
 			text: `${this.plugin.manifest.name} ${banner.label}`.trim(),
 		});
-		header.createEl("a", {
-			text: "Releases and tags",
+		const links = header.createDiv({
+			cls: "agent-client-settings-page-links",
+		});
+		links.createEl("a", {
+			text: "Documentation",
+			href: "https://rait-09.github.io/obsidian-agent-client/",
+			attr: { target: "_blank" },
+		});
+		links.createSpan({
+			cls: "agent-client-settings-page-sep",
+			text: "·",
+		});
+		links.createEl("a", {
+			text: "Releases",
 			href: banner.releasesUrl,
 			attr: { target: "_blank" },
 		});
@@ -198,38 +192,29 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		el.createDiv({
-			cls: "agent-client-settings-manifest-banner-heading",
-			text: banner.heading,
-		});
-		const list = el.createEl("ul", {
-			cls: "agent-client-settings-manifest-banner-list",
-		});
-		for (const item of banner.items) {
-			list.createEl("li", { text: item });
-		}
-		if (banner.moreCount > 0) {
-			el.createDiv({
-				cls: "agent-client-settings-manifest-banner-more",
-				text: `${banner.moreCount} more on GitHub`,
-			});
-		}
-	}
-
-	private renderDocumentationCallout(containerEl: HTMLElement): void {
-		const docContainer = containerEl.createDiv({
-			cls: "agent-client-settings-info-callout",
-		});
-		docContainer.createEl("strong", { text: "Need help? " });
-		docContainer.createSpan({ text: "Check out the " });
-		docContainer.createEl("a", {
-			text: "documentation",
-			href: "https://rait-09.github.io/obsidian-agent-client/",
-			attr: { target: "_blank" },
-		});
-		docContainer.createSpan({
-			text: " for agent setup, troubleshooting, and ACP compatibility.",
-		});
+		this.renderSettingsCallout(
+			containerEl,
+			"whats-new",
+			banner.heading,
+			(bodyEl) => {
+				const list = bodyEl.createEl("ul", {
+					cls: "agent-client-settings-whats-new-list",
+				});
+				for (const item of banner.items) {
+					list.createEl("li", { text: item });
+				}
+				if (banner.moreCount > 0) {
+					const more = bodyEl.createDiv({
+						cls: "agent-client-settings-whats-new-more",
+					});
+					more.createEl("a", {
+						text: `${banner.moreCount} more on GitHub`,
+						href: banner.releasesUrl,
+						attr: { target: "_blank" },
+					});
+				}
+			},
+		);
 	}
 
 	/**
@@ -325,67 +310,59 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		renderBody(bodyEl);
 	}
 
-	private renderGettingStartedSection(containerEl: HTMLElement): void {
-		this.renderSettingsCallout(containerEl, "getting-started", "Getting started", (bodyEl) => {
-			this.renderAgentSelector(bodyEl);
-
-			this.renderSettingsCallout(
-				bodyEl,
-				"advanced-runtime",
-				"Advanced runtime",
-				(nestedEl) => {
-					const nodePathSetting = new Setting(nestedEl)
-						.setName("Node.js path")
-						.setDesc(
-							"Path to Node.js. Usually leave blank. Only needed if node is in a non-standard location (enter absolute path, e.g. /usr/local/bin/node).",
-						)
-						.addText((text) => {
-							text.setPlaceholder(
-								"Leave blank (login shell auto-resolves)",
-							)
-								.setValue(this.plugin.settings.nodePath)
-								.onChange(async (value) => {
-									await this.plugin.settingsService.updateSettings(
-										{
-											nodePath: value.trim(),
-										},
-									);
-								});
+	private renderNodePathSetting(containerEl: HTMLElement): void {
+		const nodePathSetting = new Setting(containerEl)
+			.setName("Node.js path")
+			.setDesc(
+				"Absolute path to Node.js. Leave blank to use the login shell.",
+			)
+			.addText((text) => {
+				text.setPlaceholder("Leave blank (login shell auto-resolves)")
+					.setValue(this.plugin.settings.nodePath)
+					.onChange(async (value) => {
+						await this.plugin.settingsService.updateSettings({
+							nodePath: value.trim(),
 						});
-					this.addAutoDetectButton(
-						nodePathSetting,
-						"node",
-						async (path) => {
-							await this.plugin.settingsService.updateSettings({
-								nodePath: path,
-							});
-						},
-					);
-				},
-				{ nested: true, foldable: nestedFoldable(1) },
-			);
+					});
+			});
+		this.addAutoDetectButton(nodePathSetting, "node", async (path) => {
+			await this.plugin.settingsService.updateSettings({
+				nodePath: path,
+			});
 		});
 	}
 
 	private renderAgentsSection(containerEl: HTMLElement): void {
-		const trailing = Platform.isWin && this.plugin.settings.windowsWslMode
-			? "WSL on"
-			: undefined;
+		const enabledCount =
+			PRESET_AGENTS.filter((def) =>
+				isAgentEnabled(
+					this.plugin.settings.presetAgents[def.presetId] ?? {
+						enabled: true,
+					},
+				),
+			).length +
+			this.plugin.settings.customAgents.filter((agent) =>
+				isAgentEnabled(agent),
+			).length;
+		const trailingParts = [
+			getCurrentAgent(this.plugin.settings).displayName,
+			enabledCount === 1 ? "1 enabled" : `${enabledCount} enabled`,
+		];
+		if (Platform.isWin && this.plugin.settings.windowsWslMode) {
+			trailingParts.push("WSL");
+		}
+		const trailing = trailingParts.join(" · ");
 		this.renderSettingsCallout(
 			containerEl,
 			"agents",
 			"Agents",
 			(bodyEl) => {
+				this.renderAgentSelector(bodyEl);
+
 				if (Platform.isWin && this.plugin.settings.windowsWslMode) {
-					const warn = bodyEl.createDiv({
+					bodyEl.createDiv({
 						cls: "agent-client-settings-warning-callout",
-					});
-					warn.createSpan({
-						cls: "agent-client-settings-warning-callout-title",
-						text: "Windows",
-					});
-					warn.createSpan({
-						text: "WSL mode is enabled — agents run inside your Linux distribution.",
+						text: "WSL mode is on. Agents run inside your Linux distribution.",
 					});
 				}
 
@@ -393,7 +370,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					new Setting(bodyEl)
 						.setName("Enable WSL mode")
 						.setDesc(
-							"Run agents inside Windows Subsystem for Linux. Recommended for agents like Codex that don't work well in native Windows environments.",
+							"Run agents inside WSL when a CLI does not work in native Windows.",
 						)
 						.addToggle((toggle) =>
 							toggle
@@ -412,7 +389,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						new Setting(bodyEl)
 							.setName("WSL distribution")
 							.setDesc(
-								"Specify WSL distribution name (leave empty for default). Example: Ubuntu, Debian",
+								"Distribution name, such as Ubuntu. Leave empty for the default.",
 							)
 							.addText((text) =>
 								text
@@ -435,9 +412,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 				new Setting(bodyEl)
 					.setName("Hide unused agents")
-					.setDesc(
-						"Hide disabled agents from the lists below. Turn this off to see and re-enable them.",
-					)
+					.setDesc("Hide disabled agents in the lists below.")
 					.addToggle((toggle) =>
 						toggle
 							.setValue(this.plugin.settings.hideUnusedAgents)
@@ -451,7 +426,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							}),
 					);
 
-				new Setting(bodyEl).setName("Preset agents").setHeading();
+				bodyEl.createDiv({
+					cls: "agent-client-settings-subhead",
+					text: "Preset agents",
+				});
 				const sortedPresets = [...PRESET_AGENTS]
 					.filter((def) => {
 						if (!this.plugin.settings.hideUnusedAgents) {
@@ -490,19 +468,26 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					}
 				}
 
-				new Setting(bodyEl).setName("Custom agents").setHeading();
+				bodyEl.createDiv({
+					cls: "agent-client-settings-subhead",
+					text: "Custom agents",
+				});
 				this.renderCustomAgents(bodyEl);
 			},
 			{ trailing },
 		);
 	}
 
-	private renderChatInputSection(containerEl: HTMLElement): void {
-		this.renderSettingsCallout(containerEl, "chat-input", "Chat & input", (bodyEl) => {
+	private renderComposerSection(containerEl: HTMLElement): void {
+		const sendLabel =
+			this.plugin.settings.sendMessageShortcut === "cmd-enter"
+				? "Ctrl+Enter sends"
+				: "Enter sends";
+		this.renderSettingsCallout(containerEl, "composer", "Composer", (bodyEl) => {
 			new Setting(bodyEl)
 				.setName("Send message shortcut")
 				.setDesc(
-					"Choose the keyboard shortcut to send messages. Note: If using Cmd/Ctrl+Enter, you may need to remove any hotkeys assigned to Cmd/Ctrl+Enter (Settings â†’ Hotkeys).",
+					"Key that sends a message. Cmd/Ctrl+Enter must be free under Settings > Hotkeys.",
 				)
 				.addDropdown((dropdown) =>
 					dropdown
@@ -532,7 +517,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					new Setting(nestedEl)
 						.setName("Auto-mention active note")
 						.setDesc(
-							"Include the current note in your messages automatically. The agent will have access to its content without typing @notename.",
+							"Attach the current note to each message without typing @.",
 						)
 						.addToggle((toggle) =>
 							toggle
@@ -551,7 +536,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					new Setting(nestedEl)
 						.setName("Expand wikilink context")
 						.setDesc(
-							"Surface [[wikilinks]] found inside mentioned/auto-mentioned notes as resolved file paths so the agent can choose which to read. Does not embed linked content. (Distinct from Prompt injection â†’ Wikilink formatting, which asks the agent to write [[links]] in its replies.)",
+							"List [[wikilinks]] inside mentioned notes as file paths. Does not insert the linked text.",
 						)
 						.addToggle((toggle) =>
 							toggle
@@ -629,12 +614,21 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				},
 				{ nested: true, foldable: nestedFoldable(4) },
 			);
+		}, { trailing: sendLabel });
+	}
 
-			this.renderSettingsCallout(
-				bodyEl,
-				"display",
-				"Display",
-				(nestedEl) => {
+	private renderAppearanceSection(containerEl: HTMLElement): void {
+		const locationLabels: Record<string, string> = {
+			"right-tab": "Right pane",
+			"right-split": "Right split",
+			"editor-tab": "Editor",
+			"editor-split": "Editor split",
+		};
+		this.renderSettingsCallout(
+			containerEl,
+			"appearance",
+			"Appearance",
+			(nestedEl) => {
 					new Setting(nestedEl)
 						.setName("Chat view location")
 						.setDesc("Where to open new chat views")
@@ -877,10 +871,11 @@ export class AgentClientSettingTab extends PluginSettingTab {
 									}),
 							);
 					}
-				},
-				{ nested: true, foldable: nestedFoldable(5) },
-			);
-		});
+			}, {
+				trailing:
+					locationLabels[this.plugin.settings.chatViewLocation] ??
+					"Right pane",
+			});
 	}
 
 	private renderFloatingChatSection(containerEl: HTMLElement): void {
@@ -1232,67 +1227,60 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 	private renderBehaviorSection(containerEl: HTMLElement): void {
 		this.renderSettingsCallout(containerEl, "behavior", "Behavior", (bodyEl) => {
-			this.renderSettingsCallout(
-				bodyEl,
-				"permissions",
-				"Permissions",
-				(nestedEl) => {
-					new Setting(nestedEl)
-						.setName("Auto-allow permissions")
-						.setDesc(
-							"Automatically allow all permission requests from agents. âš ï¸ Use with caution - this gives agents full access to your system.",
-						)
-						.addToggle((toggle) =>
-							toggle
-								.setValue(
-									this.plugin.settings.autoAllowPermissions,
-								)
-								.onChange(async (value) => {
-									await this.plugin.settingsService.updateSettings(
-										{
-											autoAllowPermissions: value,
-										},
-									);
-									this.plugin.updateAllAutoAllow(value);
-								}),
-						);
-				},
-				{ nested: true, foldable: nestedFoldable(1) },
-			);
+			new Setting(bodyEl)
+				.setName("Auto-allow permissions")
+				.setDesc(
+					"Allow every permission request without asking. Agents can then change files and run commands.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.plugin.settings.autoAllowPermissions)
+						.onChange(async (value) => {
+							await this.plugin.settingsService.updateSettings({
+								autoAllowPermissions: value,
+							});
+							this.plugin.updateAllAutoAllow(value);
+						}),
+				);
 
-			this.renderSettingsCallout(
-				bodyEl,
-				"notifications",
-				"Notifications",
-				(nestedEl) => {
-					new Setting(nestedEl)
-						.setName("System notifications")
-						.setDesc(
-							"Show OS notifications when the agent completes a response or requests permission. Notifications are suppressed while Obsidian is focused.",
+			new Setting(bodyEl)
+				.setName("System notifications")
+				.setDesc(
+					"Notify when a reply finishes or a permission is waiting, unless Obsidian is focused.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.enableSystemNotifications,
 						)
-						.addToggle((toggle) =>
-							toggle
-								.setValue(
-									this.plugin.settings
-										.enableSystemNotifications,
-								)
-								.onChange(async (value) => {
-									await this.plugin.settingsService.updateSettings(
-										{
-											enableSystemNotifications: value,
-										},
-									);
-								}),
-						);
-				},
-				{ nested: true, foldable: nestedFoldable(1) },
-			);
+						.onChange(async (value) => {
+							await this.plugin.settingsService.updateSettings({
+								enableSystemNotifications: value,
+							});
+						}),
+				);
 
-			this.renderSettingsCallout(
-				bodyEl,
-				"prompt-injection",
-				"Prompt injection",
-				(nestedEl) => {
+		}, {
+			trailing:
+				[
+					this.plugin.settings.autoAllowPermissions
+						? "Auto-allow"
+						: "",
+					this.plugin.settings.enableSystemNotifications
+						? "Notifications"
+						: "",
+				]
+					.filter(Boolean)
+					.join(" · ") || undefined,
+		});
+	}
+
+	private renderReplyFormattingSection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(
+			containerEl,
+			"reply-formatting",
+			"Reply formatting",
+			(nestedEl) => {
 					new Setting(nestedEl)
 						.setName("Inject Obsidian Markdown instructions")
 						.setDesc(
@@ -1316,7 +1304,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						new Setting(nestedEl)
 							.setName("Wikilink formatting")
 							.setDesc(
-								"Instruct agents to use [[Note Name]] wikilink syntax when referencing notes in their replies. (Distinct from Mentions â†’ Expand wikilink context, which resolves [[links]] inside your notes to file paths.)",
+								"Ask agents to write note links as [[Note Name]].",
 							)
 							.addToggle((toggle) =>
 								toggle
@@ -1368,14 +1356,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							);
 					}
 				},
-				{
-					nested: true,
-					foldable: nestedFoldable(
-						this.plugin.settings.promptInjection.enabled ? 4 : 1,
-					),
-				},
-			);
-		});
+			{
+				trailing: this.plugin.settings.promptInjection.enabled
+					? "On"
+					: "Off",
+			},
+		);
 	}
 
 	private renderExportSection(containerEl: HTMLElement): void {
@@ -1402,7 +1388,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			new Setting(bodyEl)
 				.setName("Filename")
 				.setDesc(
-					"Template for exported filenames. Use {date} for date and {time} for time",
+					"Template for exported filenames. Use {date} for date and {time} for time.",
 				)
 				.addText((text) =>
 					text
@@ -1424,7 +1410,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			new Setting(bodyEl)
 				.setName("Frontmatter tag")
 				.setDesc(
-					"Tag to add to exported notes. Supports nested tags (e.g., projects/agent-client). Leave empty to disable.",
+					"Tag added to exported notes. Leave empty to skip the tag.",
 				)
 				.addText((text) =>
 					text
@@ -1615,6 +1601,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				},
 				{ nested: true, foldable: nestedFoldable(4) },
 			);
+		}, {
+			trailing:
+				this.plugin.settings.exportSettings.defaultFolder.trim() ||
+				undefined,
 		});
 	}
 
@@ -1627,7 +1617,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				new Setting(bodyEl)
 					.setName("Enable voice input")
 					.setDesc(
-						"Adds a microphone button to the chat input area for Gemini Live voice transcription.",
+						"Show a microphone button on the chat input for live transcription.",
 					)
 					.addToggle((toggle) =>
 						toggle
@@ -1740,7 +1730,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					new Setting(bodyEl)
 						.setName("Custom vocabulary")
 						.setDesc(
-							"Terms sent to Gemini as customVocabulary for better recognition of names and jargon (comma- or newline-separated). Takes effect on the next voice session.",
+							"Names and jargon for Gemini to recognize. Applies on the next voice session.",
 						)
 						.addTextArea((text) => {
 							text
@@ -1756,13 +1746,13 @@ export class AgentClientSettingTab extends PluginSettingTab {
 										value;
 									await this.plugin.saveSettings();
 								});
-							text.inputEl.rows = 4;
+							text.inputEl.rows = 2;
 						});
 
 					new Setting(bodyEl)
 						.setName("Pause tolerance")
 						.setDesc(
-							"How long silence can last before the Live API ends a speech segment. Higher values keep thinking pauses from splitting your sentence. Applies to the next session.",
+							"Silence length before a phrase ends. Longer keeps mid-sentence pauses together.",
 						)
 						.addDropdown((dropdown) => {
 							dropdown
@@ -1787,7 +1777,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					new Setting(bodyEl)
 						.setName("Stop flush delay (ms)")
 						.setDesc(
-							"Milliseconds to wait after you stop dictation before closing the Live connection, so final words are not cut off. Set to 0 to skip the wait.",
+							"Wait after Stop so the last words are not cut off. 0 skips the wait.",
 						)
 						.addText((text) =>
 							text
@@ -1809,108 +1799,31 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								}),
 						);
 
-					new Setting(bodyEl)
-						.setName("Speech detection")
-						.setDesc(
-							"Fine-tune server-side voice activity detection. Some preview models ignore silence duration; gemini-3.5-transcribe-live honors these fields.",
-						)
-						.setHeading();
-
-					new Setting(bodyEl)
-						.setName("Prefix padding (ms)")
-						.setDesc(
-							"Audio included before detected speech starts.",
-						)
-						.addText((text) =>
-							text
-								.setPlaceholder("300")
-								.setValue(
-									String(
-										this.plugin.settings.voiceInput
-											.prefixPaddingMs,
-									),
-								)
-								.onChange(async (value) => {
-									const parsed = Number.parseInt(
-										value.trim(),
-										10,
-									);
-									this.plugin.settings.voiceInput.prefixPaddingMs =
-										Number.isFinite(parsed) ? parsed : 300;
-									await this.plugin.saveSettings();
-								}),
-						);
-
-					new Setting(bodyEl)
-						.setName("Start-of-speech sensitivity")
-						.setDesc(
-							"High reacts quickly when you begin speaking; Low waits for clearer speech.",
-						)
-						.addDropdown((dropdown) =>
-							dropdown
-								.addOption(
-									"START_SENSITIVITY_HIGH",
-									"High (default)",
-								)
-								.addOption(
-									"START_SENSITIVITY_LOW",
-									"Low",
-								)
-								.setValue(
-									this.plugin.settings.voiceInput
-										.startOfSpeechSensitivity,
-								)
-								.onChange(async (value) => {
-									this.plugin.settings.voiceInput.startOfSpeechSensitivity =
-										value as
-											| "START_SENSITIVITY_HIGH"
-											| "START_SENSITIVITY_LOW";
-									await this.plugin.saveSettings();
-								}),
-						);
-
-					new Setting(bodyEl)
-						.setName("End-of-speech sensitivity")
-						.setDesc(
-							"Low tolerates longer pauses before ending a segment; High commits sooner.",
-						)
-						.addDropdown((dropdown) =>
-							dropdown
-								.addOption(
-									"END_SENSITIVITY_LOW",
-									"Low (default, pause tolerant)",
-								)
-								.addOption(
-									"END_SENSITIVITY_HIGH",
-									"High",
-								)
-								.setValue(
-									this.plugin.settings.voiceInput
-										.endOfSpeechSensitivity,
-								)
-								.onChange(async (value) => {
-									this.plugin.settings.voiceInput.endOfSpeechSensitivity =
-										value as
-											| "END_SENSITIVITY_LOW"
-											| "END_SENSITIVITY_HIGH";
-									await this.plugin.saveSettings();
-								}),
-						);
 				}
+			},
+			{
+				trailing: this.plugin.settings.voiceInput.enabled
+					? "On"
+					: "Off",
 			},
 		);
 	}
 
-	private renderDeveloperSection(containerEl: HTMLElement): void {
+	private renderAdvancedSection(containerEl: HTMLElement): void {
+		const trailing = this.plugin.settings.debugMode
+			? "Debug on"
+			: undefined;
 		this.renderSettingsCallout(
 			containerEl,
-			"developer",
-			"Developer",
+			"advanced",
+			"Advanced",
 			(bodyEl) => {
+				this.renderNodePathSetting(bodyEl);
+				this.renderSpeechDetection(bodyEl);
 				new Setting(bodyEl)
 					.setName("Debug mode")
 					.setDesc(
-						"Enable debug logging to console. Useful for development and troubleshooting.",
+						"Log ACP connection details in the developer console.",
 					)
 					.addToggle((toggle) =>
 						toggle
@@ -1924,6 +1837,84 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							}),
 					);
 			},
+			{ trailing },
+		);
+	}
+
+	private renderSpeechDetection(containerEl: HTMLElement): void {
+		this.renderSettingsCallout(
+			containerEl,
+			"speech-detection",
+			"Speech detection",
+			(nestedEl) => {
+				new Setting(nestedEl)
+					.setName("Prefix padding (ms)")
+					.setDesc("Audio included before detected speech starts.")
+					.addText((text) =>
+						text
+							.setPlaceholder("300")
+							.setValue(
+								String(
+									this.plugin.settings.voiceInput
+										.prefixPaddingMs,
+								),
+							)
+							.onChange(async (value) => {
+								const parsed = Number.parseInt(value.trim(), 10);
+								this.plugin.settings.voiceInput.prefixPaddingMs =
+									Number.isFinite(parsed) ? parsed : 300;
+								await this.plugin.saveSettings();
+							}),
+					);
+
+				new Setting(nestedEl)
+					.setName("Start-of-speech sensitivity")
+					.setDesc(
+						"High reacts quickly when you begin speaking. Low waits for clearer speech.",
+					)
+					.addDropdown((dropdown) =>
+						dropdown
+							.addOption("START_SENSITIVITY_HIGH", "High (default)")
+							.addOption("START_SENSITIVITY_LOW", "Low")
+							.setValue(
+								this.plugin.settings.voiceInput
+									.startOfSpeechSensitivity,
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.voiceInput.startOfSpeechSensitivity =
+									value as
+										| "START_SENSITIVITY_HIGH"
+										| "START_SENSITIVITY_LOW";
+								await this.plugin.saveSettings();
+							}),
+					);
+
+				new Setting(nestedEl)
+					.setName("End-of-speech sensitivity")
+					.setDesc(
+						"Low tolerates longer pauses. High ends a phrase sooner.",
+					)
+					.addDropdown((dropdown) =>
+						dropdown
+							.addOption(
+								"END_SENSITIVITY_LOW",
+								"Low (default, pause tolerant)",
+							)
+							.addOption("END_SENSITIVITY_HIGH", "High")
+							.setValue(
+								this.plugin.settings.voiceInput
+									.endOfSpeechSensitivity,
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.voiceInput.endOfSpeechSensitivity =
+									value as
+										| "END_SENSITIVITY_LOW"
+										| "END_SENSITIVITY_HIGH";
+								await this.plugin.saveSettings();
+							}),
+					);
+			},
+			{ nested: true, foldable: true },
 		);
 	}
 
@@ -1986,7 +1977,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Default agent scope")
 			.setDesc(
-				"All devices shares the default via Obsidian Sync. This device only keeps a local overlay that does not overwrite other computers.",
+				"All devices syncs the default. This device only stays on this computer.",
 			)
 			.addDropdown((dropdown) => {
 				dropdown.addOption("shared", "All devices (sync)");
