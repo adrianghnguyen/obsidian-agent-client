@@ -20,6 +20,14 @@ export interface LiveTranscript {
 	errorMessage?: string;
 }
 
+export type StartOfSpeechSensitivity =
+	| "START_SENSITIVITY_HIGH"
+	| "START_SENSITIVITY_LOW";
+
+export type EndOfSpeechSensitivity =
+	| "END_SENSITIVITY_LOW"
+	| "END_SENSITIVITY_HIGH";
+
 export interface LiveSetupOptions {
 	languageCodes?: string[];
 	transcriptionMode?: GeminiTranscriptionMode;
@@ -27,10 +35,18 @@ export interface LiveSetupOptions {
 	systemPrompt?: string;
 	/** Pause tolerance before the server ends a speech turn (ms). Default 2000. */
 	silenceDurationMs?: number;
+	prefixPaddingMs?: number;
+	startOfSpeechSensitivity?: StartOfSpeechSensitivity;
+	endOfSpeechSensitivity?: EndOfSpeechSensitivity;
 }
 
 /** Hybrid VAD tuned for natural pauses during dictation (see whisper fork RCA). */
 export const DEFAULT_SILENCE_DURATION_MS = 2000;
+export const DEFAULT_PREFIX_PADDING_MS = 300;
+export const DEFAULT_START_OF_SPEECH_SENSITIVITY: StartOfSpeechSensitivity =
+	"START_SENSITIVITY_HIGH";
+export const DEFAULT_END_OF_SPEECH_SENSITIVITY: EndOfSpeechSensitivity =
+	"END_SENSITIVITY_LOW";
 
 export function setupMessage(
 	model: string,
@@ -56,11 +72,16 @@ export function setupMessage(
 		realtimeInputConfig: {
 			automaticActivityDetection: {
 				disabled: false,
-				startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
-				endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+				startOfSpeechSensitivity:
+					options.startOfSpeechSensitivity ??
+					DEFAULT_START_OF_SPEECH_SENSITIVITY,
+				endOfSpeechSensitivity:
+					options.endOfSpeechSensitivity ??
+					DEFAULT_END_OF_SPEECH_SENSITIVITY,
 				silenceDurationMs:
 					options.silenceDurationMs ?? DEFAULT_SILENCE_DURATION_MS,
-				prefixPaddingMs: 300,
+				prefixPaddingMs:
+					options.prefixPaddingMs ?? DEFAULT_PREFIX_PADDING_MS,
 			},
 		},
 	};

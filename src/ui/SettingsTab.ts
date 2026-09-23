@@ -1721,7 +1721,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					new Setting(bodyEl)
 						.setName("Language codes")
 						.setDesc(
-							"Comma-separated BCP-47 language codes (e.g. en-US, fr-CA).",
+							"Comma-separated BCP-47 language codes (e.g. en-US, fr-CA). Leave empty for auto-detect.",
 						)
 						.addText((text) =>
 							text
@@ -1733,6 +1733,166 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								.onChange(async (value) => {
 									this.plugin.settings.voiceInput.languageCodes =
 										value;
+									await this.plugin.saveSettings();
+								}),
+						);
+
+					new Setting(bodyEl)
+						.setName("Custom vocabulary")
+						.setDesc(
+							"Terms sent to Gemini as customVocabulary for better recognition of names and jargon (comma- or newline-separated). Takes effect on the next voice session.",
+						)
+						.addTextArea((text) => {
+							text
+								.setPlaceholder(
+									"Obsidian\nKubernetes\nZyntriQix",
+								)
+								.setValue(
+									this.plugin.settings.voiceInput
+										.customVocabulary,
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.voiceInput.customVocabulary =
+										value;
+									await this.plugin.saveSettings();
+								});
+							text.inputEl.rows = 4;
+						});
+
+					new Setting(bodyEl)
+						.setName("Pause tolerance")
+						.setDesc(
+							"How long silence can last before the Live API ends a speech segment. Higher values keep thinking pauses from splitting your sentence. Applies to the next session.",
+						)
+						.addDropdown((dropdown) => {
+							dropdown
+								.addOption("1000", "Short (1 s)")
+								.addOption("1500", "Medium (1.5 s)")
+								.addOption("2000", "Long (2 s, default)")
+								.addOption("2500", "Relaxed (2.5 s)")
+								.addOption("3000", "Very long (3 s)")
+								.setValue(
+									String(
+										this.plugin.settings.voiceInput
+											.silenceDurationMs,
+									),
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.voiceInput.silenceDurationMs =
+										Number(value) || 2000;
+									await this.plugin.saveSettings();
+								});
+						});
+
+					new Setting(bodyEl)
+						.setName("Stop flush delay (ms)")
+						.setDesc(
+							"Milliseconds to wait after you stop dictation before closing the Live connection, so final words are not cut off. Set to 0 to skip the wait.",
+						)
+						.addText((text) =>
+							text
+								.setPlaceholder("1000")
+								.setValue(
+									String(
+										this.plugin.settings.voiceInput
+											.flushDelayMs,
+									),
+								)
+								.onChange(async (value) => {
+									const parsed = Number.parseInt(
+										value.trim(),
+										10,
+									);
+									this.plugin.settings.voiceInput.flushDelayMs =
+										Number.isFinite(parsed) ? parsed : 1000;
+									await this.plugin.saveSettings();
+								}),
+						);
+
+					new Setting(bodyEl)
+						.setName("Speech detection")
+						.setDesc(
+							"Fine-tune server-side voice activity detection. Some preview models ignore silence duration; gemini-3.5-transcribe-live honors these fields.",
+						)
+						.setHeading();
+
+					new Setting(bodyEl)
+						.setName("Prefix padding (ms)")
+						.setDesc(
+							"Audio included before detected speech starts.",
+						)
+						.addText((text) =>
+							text
+								.setPlaceholder("300")
+								.setValue(
+									String(
+										this.plugin.settings.voiceInput
+											.prefixPaddingMs,
+									),
+								)
+								.onChange(async (value) => {
+									const parsed = Number.parseInt(
+										value.trim(),
+										10,
+									);
+									this.plugin.settings.voiceInput.prefixPaddingMs =
+										Number.isFinite(parsed) ? parsed : 300;
+									await this.plugin.saveSettings();
+								}),
+						);
+
+					new Setting(bodyEl)
+						.setName("Start-of-speech sensitivity")
+						.setDesc(
+							"High reacts quickly when you begin speaking; Low waits for clearer speech.",
+						)
+						.addDropdown((dropdown) =>
+							dropdown
+								.addOption(
+									"START_SENSITIVITY_HIGH",
+									"High (default)",
+								)
+								.addOption(
+									"START_SENSITIVITY_LOW",
+									"Low",
+								)
+								.setValue(
+									this.plugin.settings.voiceInput
+										.startOfSpeechSensitivity,
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.voiceInput.startOfSpeechSensitivity =
+										value as
+											| "START_SENSITIVITY_HIGH"
+											| "START_SENSITIVITY_LOW";
+									await this.plugin.saveSettings();
+								}),
+						);
+
+					new Setting(bodyEl)
+						.setName("End-of-speech sensitivity")
+						.setDesc(
+							"Low tolerates longer pauses before ending a segment; High commits sooner.",
+						)
+						.addDropdown((dropdown) =>
+							dropdown
+								.addOption(
+									"END_SENSITIVITY_LOW",
+									"Low (default, pause tolerant)",
+								)
+								.addOption(
+									"END_SENSITIVITY_HIGH",
+									"High",
+								)
+								.setValue(
+									this.plugin.settings.voiceInput
+										.endOfSpeechSensitivity,
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.voiceInput.endOfSpeechSensitivity =
+										value as
+											| "END_SENSITIVITY_LOW"
+											| "END_SENSITIVITY_HIGH";
 									await this.plugin.saveSettings();
 								}),
 						);

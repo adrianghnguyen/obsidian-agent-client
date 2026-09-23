@@ -29,6 +29,11 @@ const TEST_SETTINGS: VoiceInputSettings = {
 	languageCodes: "",
 	customVocabulary: "",
 	audioDeviceId: "default",
+	silenceDurationMs: 2000,
+	flushDelayMs: 1000,
+	prefixPaddingMs: 300,
+	startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+	endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
 };
 
 describe("VoiceInputModule", () => {

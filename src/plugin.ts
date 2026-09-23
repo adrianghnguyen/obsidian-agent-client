@@ -905,6 +905,11 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	async saveSettings() {
+		this.settings.voiceInput = normalizeVoiceInputSettings(
+			this.settings.voiceInput,
+		);
+		this.voiceInput?.updateSettings(this.settings.voiceInput);
+
 		if (!this.settings.defaultAgentPerDevice) {
 			this.syncedDefaultAgentId = this.settings.defaultAgentId;
 		} else {
