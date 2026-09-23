@@ -7,6 +7,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ### Added
 - **Voice input advanced settings** — Settings → Voice input exposes custom vocabulary (keyword recognition), pause tolerance (silence before a segment ends), stop flush delay, and speech-detection tuning (prefix padding, start/end sensitivity). Values apply on the next dictation session.
 
+### Changed
+- **Settings layout** — Settings opens as a short list. Version, documentation, and releases share one line, and recent changes stay folded. Only Agents starts expanded. Section headers show the current value (default agent, send key, floating chat, voice, export folder). Single-control headings for Node path, permissions, and notifications are gone.
+
 ## 0.22.0
 
 ### Added
