@@ -59,6 +59,25 @@ describe("LiveProtocol", () => {
 			expect(iat.customVocabulary).toEqual(["Obsidian", "Note"]);
 		});
 
+		it("applies custom VAD options when provided", () => {
+			const msg = setupMessage("model", {
+				silenceDurationMs: 3000,
+				prefixPaddingMs: 500,
+				startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
+				endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+			});
+			const aad = (
+				(msg.setup as Record<string, unknown>).realtimeInputConfig as Record<
+					string,
+					unknown
+				>
+			).automaticActivityDetection as Record<string, unknown>;
+			expect(aad.silenceDurationMs).toBe(3000);
+			expect(aad.prefixPaddingMs).toBe(500);
+			expect(aad.startOfSpeechSensitivity).toBe("START_SENSITIVITY_LOW");
+			expect(aad.endOfSpeechSensitivity).toBe("END_SENSITIVITY_HIGH");
+		});
+
 		it("includes system instruction when systemPrompt is non-empty", () => {
 			const msg = setupMessage("model", { systemPrompt: "Hello" });
 			const setup = msg.setup as Record<string, unknown>;

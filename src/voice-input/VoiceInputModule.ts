@@ -3,6 +3,7 @@ import { LiveTranscriber } from "./LiveTranscriber";
 import type { LiveSetupOptions } from "./LiveProtocol";
 import {
 	VOICE_INPUT_SECRET_ID,
+	parseVoiceTermList,
 	type VoiceInputSettings,
 } from "./VoiceInputSettings";
 import type { TranscriptSink } from "./types";
@@ -47,7 +48,10 @@ export class VoiceInputModule {
 		this.createTranscriber =
 			createTranscriber ??
 			((apiKey, model, setupOptions) =>
-				new LiveTranscriber(apiKey, model, { setupOptions }));
+				new LiveTranscriber(apiKey, model, {
+					setupOptions,
+					flushDelayMs: this.settings.flushDelayMs,
+				}));
 	}
 
 	/** Update settings at runtime (called from plugin load/settings change). */
@@ -135,16 +139,19 @@ export class VoiceInputModule {
 			.split(",")
 			.map((code) => code.trim())
 			.filter(Boolean);
-		const customVocabulary = this.settings.customVocabulary
-			.split(",")
-			.map((term) => term.trim())
-			.filter(Boolean);
+		const customVocabulary = parseVoiceTermList(
+			this.settings.customVocabulary,
+		);
 		return {
 			transcriptionMode: this.settings.transcriptionMode,
 			languageCodes: languageCodes.length ? languageCodes : undefined,
 			customVocabulary: customVocabulary.length
 				? customVocabulary
 				: undefined,
+			silenceDurationMs: this.settings.silenceDurationMs,
+			prefixPaddingMs: this.settings.prefixPaddingMs,
+			startOfSpeechSensitivity: this.settings.startOfSpeechSensitivity,
+			endOfSpeechSensitivity: this.settings.endOfSpeechSensitivity,
 		};
 	}
 }
