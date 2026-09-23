@@ -208,10 +208,9 @@ If your plugin does not need CSS, delete this file.
 
 /* ===== Settings Tab Expandable Callouts ===== */
 .agent-client-settings-callout {
-	margin: 0 0 12px;
+	margin: 0;
 	border: none;
 	border-bottom: 1px solid var(--background-modifier-border);
-	border-left: 3px solid var(--interactive-accent);
 	border-radius: 0;
 	background-color: transparent;
 	overflow: hidden;
@@ -235,7 +234,7 @@ If your plugin does not need CSS, delete this file.
 	align-items: center;
 	gap: var(--size-4-2);
 	width: 100%;
-	padding: 10px 8px 10px 10px;
+	padding: 12px 2px;
 	background: none;
 	border: none;
 	box-shadow: none;
@@ -259,8 +258,10 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-client-settings-callout.is-nested .agent-client-settings-callout-header {
-	padding: 6px 0;
+	padding: 8px 0 2px;
 	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
 }
 
 .agent-client-settings-callout-header:hover {
@@ -296,7 +297,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-client-settings-callout-body {
-	padding: 0 8px 8px 10px;
+	padding: 0 2px 8px;
 	border-top: none;
 }
 
@@ -309,74 +310,11 @@ If your plugin does not need CSS, delete this file.
 	display: none;
 }
 
-.agent-client-settings-manifest-banner {
-	padding: 12px 16px;
-	margin-bottom: 12px;
-	background-color: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-left: 4px solid var(--interactive-accent);
-	border-radius: 8px;
+.agent-client-settings-subhead {
+	margin: 16px 0 0;
+	color: var(--text-muted);
 	font-size: var(--font-ui-small);
-	color: var(--text-muted);
-}
-
-.agent-client-settings-manifest-banner-header {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 12px;
-	margin-bottom: 8px;
-	color: var(--text-normal);
-}
-
-.agent-client-settings-manifest-banner-header a {
-	color: var(--text-accent);
-	text-decoration: none;
-	font-size: var(--font-ui-smaller);
-}
-
-.agent-client-settings-manifest-banner-header a:hover {
-	text-decoration: underline;
-}
-
-.agent-client-settings-manifest-banner-heading {
-	margin-bottom: 4px;
-	color: var(--text-normal);
-	font-weight: var(--font-semibold);
-}
-
-.agent-client-settings-manifest-banner-list {
-	margin: 0;
-	padding-left: 1.2em;
-}
-
-.agent-client-settings-manifest-banner-list li {
-	margin: 2px 0;
-}
-
-.agent-client-settings-manifest-banner-more {
-	margin-top: 6px;
-	font-size: var(--font-ui-smaller);
-}
-
-.agent-client-settings-info-callout {
-	padding: 12px 16px;
-	margin-bottom: 16px;
-	background-color: rgba(var(--color-blue-rgb), 0.08);
-	border: 1px solid var(--background-modifier-border);
-	border-left: 4px solid var(--color-blue);
-	border-radius: 8px;
-	font-size: 14px;
-	color: var(--text-muted);
-}
-
-.agent-client-settings-info-callout a {
-	color: var(--text-accent);
-	text-decoration: none;
-}
-
-.agent-client-settings-info-callout a:hover {
-	text-decoration: underline;
+	font-weight: var(--font-medium);
 }
 
 .agent-client-antigravity-health {
@@ -426,21 +364,12 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-client-settings-warning-callout {
-	padding: 10px 12px;
-	margin: 0 0 12px;
-	background-color: rgba(var(--color-orange-rgb), 0.1);
-	border: 1px solid var(--background-modifier-border);
-	border-left: 4px solid var(--color-orange);
-	border-radius: 6px;
+	margin: 0 0 4px;
+	padding: 0;
+	background: none;
+	border: none;
 	font-size: var(--font-ui-small);
-	color: var(--text-muted);
-}
-
-.agent-client-settings-warning-callout-title {
-	display: block;
-	margin-bottom: 4px;
-	color: var(--text-normal);
-	font-weight: var(--font-semibold);
+	color: var(--text-warning);
 }
 
 /* ===== Settings Tab Collapsible Agent Sections ===== */
@@ -448,8 +377,8 @@ If your plugin does not need CSS, delete this file.
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
-	padding: var(--size-4-2) 0;
-	border-top: 1px solid var(--background-modifier-border);
+	padding: 6px 0;
+	border-top: none;
 }
 
 /* Text-like button: the summary is a real <button> for keyboard/focus,

@@ -328,42 +328,29 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	private renderGettingStartedSection(containerEl: HTMLElement): void {
 		this.renderSettingsCallout(containerEl, "getting-started", "Getting started", (bodyEl) => {
 			this.renderAgentSelector(bodyEl);
+			this.renderNodePathSetting(bodyEl);
+		});
+	}
 
-			this.renderSettingsCallout(
-				bodyEl,
-				"advanced-runtime",
-				"Advanced runtime",
-				(nestedEl) => {
-					const nodePathSetting = new Setting(nestedEl)
-						.setName("Node.js path")
-						.setDesc(
-							"Path to Node.js. Usually leave blank. Only needed if node is in a non-standard location (enter absolute path, e.g. /usr/local/bin/node).",
-						)
-						.addText((text) => {
-							text.setPlaceholder(
-								"Leave blank (login shell auto-resolves)",
-							)
-								.setValue(this.plugin.settings.nodePath)
-								.onChange(async (value) => {
-									await this.plugin.settingsService.updateSettings(
-										{
-											nodePath: value.trim(),
-										},
-									);
-								});
+	private renderNodePathSetting(containerEl: HTMLElement): void {
+		const nodePathSetting = new Setting(containerEl)
+			.setName("Node.js path")
+			.setDesc(
+				"Absolute path to Node.js. Leave blank to use the login shell.",
+			)
+			.addText((text) => {
+				text.setPlaceholder("Leave blank (login shell auto-resolves)")
+					.setValue(this.plugin.settings.nodePath)
+					.onChange(async (value) => {
+						await this.plugin.settingsService.updateSettings({
+							nodePath: value.trim(),
 						});
-					this.addAutoDetectButton(
-						nodePathSetting,
-						"node",
-						async (path) => {
-							await this.plugin.settingsService.updateSettings({
-								nodePath: path,
-							});
-						},
-					);
-				},
-				{ nested: true, foldable: nestedFoldable(1) },
-			);
+					});
+			});
+		this.addAutoDetectButton(nodePathSetting, "node", async (path) => {
+			await this.plugin.settingsService.updateSettings({
+				nodePath: path,
+			});
 		});
 	}
 
@@ -377,15 +364,9 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			"Agents",
 			(bodyEl) => {
 				if (Platform.isWin && this.plugin.settings.windowsWslMode) {
-					const warn = bodyEl.createDiv({
+					bodyEl.createDiv({
 						cls: "agent-client-settings-warning-callout",
-					});
-					warn.createSpan({
-						cls: "agent-client-settings-warning-callout-title",
-						text: "Windows",
-					});
-					warn.createSpan({
-						text: "WSL mode is enabled — agents run inside your Linux distribution.",
+						text: "WSL mode is on. Agents run inside your Linux distribution.",
 					});
 				}
 
@@ -451,7 +432,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							}),
 					);
 
-				new Setting(bodyEl).setName("Preset agents").setHeading();
+				bodyEl.createDiv({
+					cls: "agent-client-settings-subhead",
+					text: "Preset agents",
+				});
 				const sortedPresets = [...PRESET_AGENTS]
 					.filter((def) => {
 						if (!this.plugin.settings.hideUnusedAgents) {
@@ -490,7 +474,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					}
 				}
 
-				new Setting(bodyEl).setName("Custom agents").setHeading();
+				bodyEl.createDiv({
+					cls: "agent-client-settings-subhead",
+					text: "Custom agents",
+				});
 				this.renderCustomAgents(bodyEl);
 			},
 			{ trailing },
@@ -1232,61 +1219,38 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 	private renderBehaviorSection(containerEl: HTMLElement): void {
 		this.renderSettingsCallout(containerEl, "behavior", "Behavior", (bodyEl) => {
-			this.renderSettingsCallout(
-				bodyEl,
-				"permissions",
-				"Permissions",
-				(nestedEl) => {
-					new Setting(nestedEl)
-						.setName("Auto-allow permissions")
-						.setDesc(
-							"Automatically allow all permission requests from agents. âš ï¸ Use with caution - this gives agents full access to your system.",
-						)
-						.addToggle((toggle) =>
-							toggle
-								.setValue(
-									this.plugin.settings.autoAllowPermissions,
-								)
-								.onChange(async (value) => {
-									await this.plugin.settingsService.updateSettings(
-										{
-											autoAllowPermissions: value,
-										},
-									);
-									this.plugin.updateAllAutoAllow(value);
-								}),
-						);
-				},
-				{ nested: true, foldable: nestedFoldable(1) },
-			);
+			new Setting(bodyEl)
+				.setName("Auto-allow permissions")
+				.setDesc(
+					"Allow every permission request without asking. Agents can then change files and run commands.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.plugin.settings.autoAllowPermissions)
+						.onChange(async (value) => {
+							await this.plugin.settingsService.updateSettings({
+								autoAllowPermissions: value,
+							});
+							this.plugin.updateAllAutoAllow(value);
+						}),
+				);
 
-			this.renderSettingsCallout(
-				bodyEl,
-				"notifications",
-				"Notifications",
-				(nestedEl) => {
-					new Setting(nestedEl)
-						.setName("System notifications")
-						.setDesc(
-							"Show OS notifications when the agent completes a response or requests permission. Notifications are suppressed while Obsidian is focused.",
+			new Setting(bodyEl)
+				.setName("System notifications")
+				.setDesc(
+					"Notify when a reply finishes or a permission is waiting, unless Obsidian is focused.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.enableSystemNotifications,
 						)
-						.addToggle((toggle) =>
-							toggle
-								.setValue(
-									this.plugin.settings
-										.enableSystemNotifications,
-								)
-								.onChange(async (value) => {
-									await this.plugin.settingsService.updateSettings(
-										{
-											enableSystemNotifications: value,
-										},
-									);
-								}),
-						);
-				},
-				{ nested: true, foldable: nestedFoldable(1) },
-			);
+						.onChange(async (value) => {
+							await this.plugin.settingsService.updateSettings({
+								enableSystemNotifications: value,
+							});
+						}),
+				);
 
 			this.renderSettingsCallout(
 				bodyEl,
