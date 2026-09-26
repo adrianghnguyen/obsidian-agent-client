@@ -3,6 +3,9 @@
  * One composer control cycles first → always → off.
  */
 
+import type { AttachedFile } from "../types/chat";
+import type { NoteMetadata } from "./vault-service";
+
 export type ChatContextVariant = "sidebar" | "floating" | "embedded";
 
 /** first = only the first message; always = every message; off = never. */
@@ -108,4 +111,49 @@ export function showFloatingNoteContextControl(
 	variant: ChatContextVariant,
 ): boolean {
 	return variant === "floating";
+}
+
+/** @ chip label for a manually attached file (same `@name` pattern as auto-mention). */
+export function composerAttachedFileChipLabel(file: AttachedFile): string {
+	const name = file.name ?? "file";
+	return `@${name}`;
+}
+
+/** One @ chip per attached non-image file, in composer order. */
+export function composerAttachedFileChipLabels(
+	files: AttachedFile[],
+): string[] {
+	return files
+		.filter((file) => file.kind === "file")
+		.map((file) => composerAttachedFileChipLabel(file));
+}
+
+/** Active-note @ chip label (matches sidebar auto-mention badge text). */
+export function composerActiveNoteChipLabel(
+	note: NoteMetadata,
+): string {
+	let label = `@${note.name}`;
+	if (note.selection) {
+		const from = note.selection.from.line + 1;
+		const to = note.selection.to.line + 1;
+		label += `:${from}-${to}`;
+	}
+	return label;
+}
+
+/**
+ * Floating context-row chip labels: active note (when mode attaches it) plus
+ * each user-attached file. Mirrors main composer @ badges, one chip per file.
+ */
+export function floatingComposerContextChipLabels(input: {
+	showActiveNoteChip: boolean;
+	activeNote: NoteMetadata | null;
+	attachedFiles: AttachedFile[];
+}): string[] {
+	const labels: string[] = [];
+	if (input.showActiveNoteChip && input.activeNote) {
+		labels.push(composerActiveNoteChipLabel(input.activeNote));
+	}
+	labels.push(...composerAttachedFileChipLabels(input.attachedFiles));
+	return labels;
 }
