@@ -898,7 +898,7 @@ export function InputArea({
 		}
 	}, [inputValue, stopVoiceListening]);
 
-	// Poll mic amplitude while recording so the mic icon can fill with level
+	// Poll mic amplitude while recording so the mic icon can draw a live wave
 	useEffect(() => {
 		if (!isVoiceListening) {
 			setAudioLevel(0);
@@ -1261,8 +1261,6 @@ export function InputArea({
 							audioLevel={audioLevel}
 							onStart={handleStartVoice}
 							onStop={() => void stopVoiceListening()}
-							onStopAndSend={() => void handleVoiceStopAndSend()}
-							sendMessageShortcut={settings.sendMessageShortcut}
 							disabled={!isSessionReady || isRestoringSession}
 						/>
 					)}
