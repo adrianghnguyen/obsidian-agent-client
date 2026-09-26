@@ -20,7 +20,9 @@ export interface PresetAgentApiKeyLegacy {
 export interface PresetAgentApiKey {
 	/** Environment variable the resolved secret is injected as at spawn time. */
 	envVarName: string;
-	/** Description shown under the "API key" setting. */
+	/** Settings row title; defaults to "API key". */
+	settingName?: string;
+	/** Description shown under the API key setting. */
 	settingDesc: string;
 	/** Present only for presets that ever stored a plaintext key in data.json. */
 	legacy?: PresetAgentApiKeyLegacy;

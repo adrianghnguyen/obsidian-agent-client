@@ -10,6 +10,8 @@ import type {
 } from "../types/agent";
 import type { ChatSession, SavedSessionInfo } from "../types/session";
 import type { ChatMessage } from "../types/chat";
+import type { AgentConfig } from "../acp/acp-client";
+import type { PresetAgentApiKey } from "../harnesses/shared/preset-types";
 import { toAgentConfig } from "./settings-normalizer";
 import { PRESET_AGENTS, DEFAULT_PRESET_AGENT_ID } from "./preset-agents";
 import { truncateTitle } from "../utils/text";
@@ -242,6 +244,42 @@ export function buildAgentConfigWithApiKey(
 
 	// Custom agents — no API key injection
 	return baseConfig;
+}
+
+/** Preset env rows plus resolved API-key secret (for health checks and session-open auth probes). */
+export function buildPresetProbeEnv(
+	preset: Pick<PresetAgentUserSettings, "env" | "apiKeySecretId">,
+	apiKeyDef: PresetAgentApiKey | undefined,
+	resolveSecret: (secretId: string) => string | null | undefined,
+): Record<string, string> {
+	const env: Record<string, string> = {};
+	for (const entry of preset.env) {
+		if (entry.key.trim()) {
+			env[entry.key.trim()] = entry.value ?? "";
+		}
+	}
+	if (apiKeyDef && preset.apiKeySecretId.trim()) {
+		const secret = resolveSecret(preset.apiKeySecretId.trim())?.trim();
+		if (secret) {
+			env[apiKeyDef.envVarName] = secret;
+		}
+	}
+	return env;
+}
+
+/** Same env shape as ACP spawn for harness sessionAuthPolicy probes. */
+export function buildHarnessSessionOpenEnv(
+	config: AgentConfig,
+	resolveSecret: (secretId: string) => string | null | undefined,
+): Record<string, string> {
+	const env = { ...(config.env ?? {}) };
+	if (config.apiKey) {
+		const secret = resolveSecret(config.apiKey.secretId)?.trim();
+		if (secret) {
+			env[config.apiKey.envVarName] = secret;
+		}
+	}
+	return env;
 }
 
 // ============================================================================

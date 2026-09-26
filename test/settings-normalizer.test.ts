@@ -150,8 +150,8 @@ describe("normalizePresetAgents", () => {
 			migrate,
 		);
 
-		// Called once per active preset with legacy wiring (claude + codex).
-		expect(migrate).toHaveBeenCalledTimes(2);
+		// Once per active preset with legacy apiKey wiring (claude, codex, cursor).
+		expect(migrate).toHaveBeenCalledTimes(3);
 		const claudeCall = migrate.mock.calls.find(
 			([args]) => args.def.presetId === "claude-code-acp",
 		);
@@ -167,6 +167,11 @@ describe("normalizePresetAgents", () => {
 			"migrated-claude-code-acp",
 		);
 		expect(result["codex-acp"].apiKeySecretId).toBe("");
+		expect(result.cursor.apiKeySecretId).toBe("");
+		const cursorCall = migrate.mock.calls.find(
+			([args]) => args.def.presetId === "cursor",
+		);
+		expect(cursorCall?.[0].def.apiKey?.legacy?.noticeLabel).toBe("Cursor");
 	});
 });
 

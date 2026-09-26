@@ -39,6 +39,7 @@ import {
 	type AntigravityHealthReport,
 } from "../harnesses/antigravity";
 import {
+	buildPresetProbeEnv,
 	getAvailableAgentsFromSettings,
 	getCurrentAgent,
 	isAgentEnabled,
@@ -2225,7 +2226,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	) {
 		if (def.apiKey) {
 			new Setting(bodyEl)
-				.setName("API key")
+				.setName(def.apiKey.settingName ?? "API key")
 				.setDesc(def.apiKey.settingDesc)
 				.addComponent((el) =>
 					new SecretComponent(this.app, el)
@@ -2696,11 +2697,14 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			});
 		};
 
+		const setupCheckDesc =
+			harness.preset.presetId === "cursor"
+				? "Verify the Cursor CLI, `agent acp`, and authentication. After you link an API key in Secrets manager, auth should show OK even when Terminal `agent status` differs."
+				: `Verify ${displayName} is installed, reachable, and authenticated.`;
+
 		new Setting(bodyEl)
 			.setName("Setup check")
-			.setDesc(
-				`Verify ${displayName} is installed, reachable, and authenticated.`,
-			)
+			.setDesc(setupCheckDesc)
 			.addButton((btn) => {
 				btn.setButtonText("Check setup").onClick(async () => {
 					btn.setButtonText("Checking…");
@@ -2711,12 +2715,13 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							this.plugin.settings.presetAgents[
 								harness.preset.presetId
 							] ?? preset;
-						const envRecord: Record<string, string> = {};
-						for (const entry of live.env) {
-							if (entry.key) {
-								envRecord[entry.key] = entry.value ?? "";
-							}
-						}
+						const envRecord = buildPresetProbeEnv(
+							live,
+							harness.preset.apiKey,
+							(id) =>
+								this.plugin.app.secretStorage.getSecret(id) ??
+								null,
+						);
 						const result = await harness.healthCheck!({
 							agentId: harness.preset.presetId,
 							command: live.command.trim() || defaultCommand,

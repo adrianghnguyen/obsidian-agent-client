@@ -40,6 +40,8 @@ export type HarnessSessionAuthPolicy =
 				error: unknown,
 				ctx: HarnessSessionOpenContext,
 			) => boolean | Promise<boolean>;
+			/** When true, auth retry after session/new failure is deferred to UI (no silent authenticate). */
+			readonly deferAuthRetry?: boolean;
 	  };
 
 export interface HealthCheckItem {

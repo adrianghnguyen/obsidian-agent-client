@@ -1,4 +1,5 @@
 import type { SessionOpenPlan } from "./build-session-open-plan";
+import { HarnessAuthRequiredError } from "./harness-auth-error";
 
 export interface HarnessSessionClient<T> {
 	authenticate(methodId: string): Promise<boolean>;
@@ -31,6 +32,9 @@ export async function runSessionOpen<T>(
 			plan.shouldRetryAfterSessionError &&
 			(await plan.shouldRetryAfterSessionError(error))
 		) {
+			if (plan.deferAuthRetry) {
+				throw new HarnessAuthRequiredError(plan.retryMethodId);
+			}
 			const ok = await client.authenticate(plan.retryMethodId);
 			if (!ok) {
 				throw new Error("Authentication required");

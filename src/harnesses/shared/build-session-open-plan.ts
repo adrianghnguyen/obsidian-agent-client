@@ -9,6 +9,7 @@ export interface SessionOpenPlan {
 	readonly shouldRetryAfterSessionError?: (
 		error: unknown,
 	) => boolean | Promise<boolean>;
+	readonly deferAuthRetry?: boolean;
 }
 
 export async function buildSessionOpenPlan(
@@ -20,16 +21,22 @@ export async function buildSessionOpenPlan(
 		return {};
 	}
 
+	const deferAuthRetry = policy.deferAuthRetry === true;
+	const retryPlan = policy.retryOnSessionError
+		? {
+				retryMethodId: policy.methodId,
+				shouldRetryAfterSessionError: (error: unknown) =>
+					policy.retryOnSessionError!(error, ctx),
+				...(deferAuthRetry ? { deferAuthRetry: true as const } : {}),
+			}
+		: {};
+
 	const ready = await policy.credentialsReady(ctx);
 	if (ready) {
 		if (!policy.retryOnSessionError) {
 			return {};
 		}
-		return {
-			retryMethodId: policy.methodId,
-			shouldRetryAfterSessionError: (error) =>
-				policy.retryOnSessionError!(error, ctx),
-		};
+		return retryPlan;
 	}
 
 	if (!policy.retryOnSessionError) {
@@ -37,8 +44,6 @@ export async function buildSessionOpenPlan(
 	}
 	return {
 		preSessionMethodId: policy.methodId,
-		retryMethodId: policy.methodId,
-		shouldRetryAfterSessionError: (error) =>
-			policy.retryOnSessionError!(error, ctx),
+		...retryPlan,
 	};
 }

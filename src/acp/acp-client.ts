@@ -618,6 +618,11 @@ export class AcpClient {
 		}
 	}
 
+	/** Read a linked preset secret (sync; same source as spawn-time API key injection). */
+	resolvePresetSecret(secretId: string): string | null {
+		return this.plugin.app.secretStorage.getSecret(secretId) ?? null;
+	}
+
 	/**
 	 * Authenticate with the agent using a specific method.
 	 */

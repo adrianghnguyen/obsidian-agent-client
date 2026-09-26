@@ -143,7 +143,7 @@ export function cursorFailureCopy(
 				message:
 					"The Cursor CLI (`agent`) is installed but not authenticated, so `agent acp` cannot start a session.",
 				suggestion:
-					"Run `agent login` in a terminal (or set CURSOR_API_KEY), then use **Check setup** in Settings → Agent Client → Cursor or start a new chat.",
+					"Link a Cursor API key under Settings → Agent Client → Cursor → **API key (Secrets manager)** (Link…), then **Check setup**. On macOS/Linux you can use Terminal `agent login` instead; on Windows desktop Obsidian, Secrets manager is usually required.",
 				link: CURSOR_SETUP_LINK,
 			};
 		case "cli_not_found":

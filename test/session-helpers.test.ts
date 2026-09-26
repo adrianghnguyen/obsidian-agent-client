@@ -6,6 +6,7 @@ import {
 	getCurrentAgent,
 	findAgentSettings,
 	buildAgentConfigWithApiKey,
+	buildHarnessSessionOpenEnv,
 	isAgentEnabled,
 	firstEnabledAgentId,
 	repairNoEnabledAgents,
@@ -266,6 +267,45 @@ describe("buildAgentConfigWithApiKey", () => {
 			"/wd",
 		);
 		expect(config).not.toHaveProperty("apiKey");
+	});
+
+	it("wires Cursor API key intent when a secret id is set", () => {
+		const agentSettings = preset("cursor", "Cursor", "agent", {
+			apiKeySecretId: "cursor-api-key",
+		});
+		const config = buildAgentConfigWithApiKey(
+			agentSettings,
+			"cursor",
+			"/wd",
+		);
+		expect(config.apiKey).toEqual({
+			secretId: "cursor-api-key",
+			envVarName: "CURSOR_API_KEY",
+		});
+	});
+});
+
+describe("buildHarnessSessionOpenEnv", () => {
+	it("merges resolved API key into probe env", () => {
+		const env = buildHarnessSessionOpenEnv(
+			{
+				id: "cursor",
+				displayName: "Cursor",
+				command: "agent",
+				args: ["acp"],
+				env: { FOO: "bar" },
+				workingDirectory: "/v",
+				apiKey: {
+					secretId: "cursor-api-key",
+					envVarName: "CURSOR_API_KEY",
+				},
+			},
+			(id) => (id === "cursor-api-key" ? "  sk-cursor  " : null),
+		);
+		expect(env).toEqual({
+			FOO: "bar",
+			CURSOR_API_KEY: "sk-cursor",
+		});
 	});
 });
 

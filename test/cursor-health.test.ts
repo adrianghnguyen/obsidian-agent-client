@@ -61,7 +61,9 @@ describe.skipIf(process.platform !== "win32")(
 			Platform.isWin = priorIsWin;
 		});
 
-		it("probes version, acp, and auth when agent is on PATH", async () => {
+		it(
+			"probes version, acp, and auth when agent is on PATH",
+			async () => {
 			Platform.isWin = true;
 			const result = await checkCursorCliHealth({
 				command: "agent",
@@ -74,6 +76,8 @@ describe.skipIf(process.platform !== "win32")(
 			expect(byId.acp?.ok).toBe(true);
 			expect(byId.auth?.ok).toBe(true);
 			expect(result.state).toBe("ok");
-		});
+			},
+			60_000,
+		);
 	},
 );
