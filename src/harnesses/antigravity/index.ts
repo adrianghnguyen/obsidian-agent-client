@@ -11,7 +11,7 @@ import {
 	resolveAntigravityEndpoint,
 } from "./errors";
 import { checkAntigravityHealth } from "./health";
-import { resolveAntigravitySessionAuthMethod } from "./auth";
+import { antigravitySessionAuthPolicy } from "./session-auth";
 import { ANTIGRAVITY_PRESET_ID } from "./paths";
 import { antigravityPreset } from "./preset";
 
@@ -103,6 +103,6 @@ export const ANTIGRAVITY_CONNECTING_COPY =
 export const antigravityHarness = defineHarness(antigravityPreset, {
 	healthCheck,
 	mapConnectionError,
-	authenticateBeforeNewSession: resolveAntigravitySessionAuthMethod,
+	sessionAuthPolicy: antigravitySessionAuthPolicy,
 	docs: { page: "antigravity" },
 });

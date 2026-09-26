@@ -337,9 +337,12 @@ interface ISettingsAccess {
 6. Wrap return object in `useMemo` if passed as dependency to other hooks
 
 ### Add Preset Agent
-1. Add one harness module under `src/harnesses/<id>/` (preset row plus optional
-   `healthCheck` / `mapConnectionError` / `docs` slots) and register it in
-   `src/harnesses/index.ts`. `PRESET_AGENTS` is derived from the registry.
+1. Add one harness module under `src/harnesses/<id>/` (preset row plus required
+   `sessionAuthPolicy` — `{ kind: "none" }` or conditional with `credentialsReady` —
+   and optional `healthCheck` / `mapConnectionError` / `docs` slots) and register
+   it in `src/harnesses/index.ts`. `PRESET_AGENTS` is derived from the registry.
+   Registry contract tests in `test/harnesses/session-auth-contract.test.ts` iterate
+   every harness automatically.
    Settings storage, enumeration, API key injection, and the settings UI are all
    registry-driven — no per-agent code elsewhere.
 2. Add docs — the full file list (do not shorten it; every past addition that

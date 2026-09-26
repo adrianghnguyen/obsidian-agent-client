@@ -16,13 +16,16 @@ import {
 	CURSOR_SESSION_AUTH_METHOD,
 	cursorPreset,
 } from "./preset";
+import { cursorSessionAuthPolicy } from "./session-auth";
 
 export { CURSOR_PRESET_ID, CURSOR_SESSION_AUTH_METHOD, cursorPreset } from "./preset";
 export {
 	checkCursorCliHealth,
 	hasCursorApiKey,
+	isCursorCliSignedIn,
 	isCursorStatusAuthenticated,
 } from "./health";
+export { cursorSessionAuthPolicy } from "./session-auth";
 export {
 	isCursorAgent,
 	resolveCursorEndpoint,
@@ -74,6 +77,6 @@ function mapConnectionError(
 export const cursorHarness = defineHarness(cursorPreset, {
 	healthCheck,
 	mapConnectionError,
-	authenticateBeforeNewSession: CURSOR_SESSION_AUTH_METHOD,
+	sessionAuthPolicy: cursorSessionAuthPolicy,
 	docs: { page: "cursor" },
 });

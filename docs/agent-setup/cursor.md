@@ -57,6 +57,8 @@ Alternatively, set `CURSOR_API_KEY` in **Environment variables** (or in your she
 
 Credentials are stored by the Cursor CLI and picked up by the `agent acp` process Agent Client starts.
 
+When you are already signed in (`agent status` OK) or use `CURSOR_API_KEY`, Agent Client skips the interactive `cursor_login` step when opening chat so the browser login page does not open on every load.
+
 ::: tip Migrating from a custom agent
 If you previously configured Cursor as a custom agent with id `cursor`, your path, args, and saved sessions migrate to this preset automatically.
 :::

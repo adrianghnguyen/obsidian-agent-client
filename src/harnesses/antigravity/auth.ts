@@ -293,6 +293,9 @@ export async function resolveAntigravitySessionAuthMethod(
 	io?: AntigravityAuthIo,
 	env: NodeJS.ProcessEnv = process.env,
 ): Promise<string | undefined> {
-	const signals = await gatherAntigravityAuthSignals(io, env);
+	const signals = await gatherAntigravityAuthSignals(
+		io ?? defaultAntigravityAuthIo(),
+		env,
+	);
 	return classifyAntigravityAuth(signals).sessionAuthMethod;
 }

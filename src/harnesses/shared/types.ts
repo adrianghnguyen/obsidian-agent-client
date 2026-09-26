@@ -21,6 +21,27 @@ export interface HealthContext {
 	readonly env?: Record<string, string>;
 }
 
+/** Spawn settings passed when resolving session authenticate (Cursor CLI probes). */
+export type HarnessSessionOpenContext = Pick<
+	HealthContext,
+	"command" | "args" | "wslMode" | "wslDistribution" | "env"
+>;
+
+/** How this harness may call ACP authenticate before session/new. */
+export type HarnessSessionAuthPolicy =
+	| { readonly kind: "none" }
+	| {
+			readonly kind: "conditional";
+			readonly methodId: string;
+			readonly credentialsReady: (
+				ctx: HarnessSessionOpenContext,
+			) => boolean | Promise<boolean>;
+			readonly retryOnSessionError?: (
+				error: unknown,
+				ctx: HarnessSessionOpenContext,
+			) => boolean | Promise<boolean>;
+	  };
+
 export interface HealthCheckItem {
 	readonly ok: boolean;
 	readonly message: string;
@@ -73,15 +94,8 @@ export interface HarnessDefinition {
 		err: ProcessError,
 		ctx?: ConnectionErrorContext,
 	) => ConnectionErrorCard | null;
-	/**
-	 * ACP authenticate method id to call after initialize and before
-	 * session/new. A function resolves the method at connect time (Antigravity
-	 * picks oauth vs API key from ~/.gemini/). Absent / undefined = skip
-	 * authenticate (Cursor and other login-via-CLI harnesses).
-	 */
-	readonly authenticateBeforeNewSession?:
-		| string
-		| (() => string | undefined | Promise<string | undefined>);
+	/** Required: declares when pre-session ACP authenticate may run. */
+	readonly sessionAuthPolicy: HarnessSessionAuthPolicy;
 	readonly updateRules?: readonly PackageUpdateRule[];
 	readonly notices?: readonly AgentNotice[];
 	readonly docs?: HarnessDocsManifest;

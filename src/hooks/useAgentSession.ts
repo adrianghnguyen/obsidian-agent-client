@@ -268,6 +268,12 @@ export function useAgentSession(
 					agentId,
 					effectiveCwd,
 					agentClient,
+					{
+						command: agentConfig.command,
+						args: agentConfig.args,
+						wslMode: settings.windowsWslMode,
+						env: agentConfig.env,
+					},
 				);
 
 				// Pre-compute restored modes/configOptions BEFORE

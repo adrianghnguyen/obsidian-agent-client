@@ -11,7 +11,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Fixed
 - **Cursor Check setup on Windows** — Health probes no longer run through a Unix login shell; they use the same cmd spawn path as chat so `agent acp` and sign-in are detected when the CLI works in PowerShell.
-- **Cursor ACP session start** — Call ACP `authenticate` with `cursor_login` before `session/new` so Obsidian chat no longer fails with Authentication required when the CLI is already signed in.
+- **Session open auth (all presets)** — Shared session-open coordinator runs ACP `authenticate` only when a harness `sessionAuthPolicy` reports credentials are not ready. Cursor skips `cursor_login` when `agent status` or `CURSOR_API_KEY` already shows a login (no browser login on every chat load). Claude, Codex, Antigravity, and future presets declare the same contract; registry tests loop every harness so unconditional pre-session auth cannot regress.
 
 ### Changed
 - **Settings layout** — Settings opens as a short flat list: Agents, Composer, Appearance, Reply formatting, Behavior, Floating chat, Export, Voice input, and Advanced. The default agent sits at the top of Agents. Node path, speech detection, and debug mode are under Advanced. Hide unused agents, the export filename, and the frontmatter tag sit in their sections. Version, documentation, and releases share one line, and recent changes stay folded. Only Agents starts expanded. Section headers show the current value.
