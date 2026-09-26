@@ -8,7 +8,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Cursor API key setting** — Settings → Cursor exposes **API key (Secrets manager)** (`CURSOR_API_KEY`) with step-by-step copy, env-field guidance, and setup-check text for the Windows desktop vs Terminal login mismatch; session-open and **Check setup** use the resolved secret like other presets.
 
 ### Changed
-- **Voice input** — While recording, the mic button turns red and the icon becomes a live wave. Hover it to reveal a stop square, then click to stop. Enter or the composer send button still sends the dictation.
+- **Voice input** — While recording, the mic button turns red and the icon becomes live level bars. Hover it to reveal a stop square, then click to stop. Enter or the composer send button still sends the dictation.
 
 ## 0.23.0
 

@@ -898,7 +898,7 @@ export function InputArea({
 		}
 	}, [inputValue, stopVoiceListening]);
 
-	// Poll mic amplitude while recording so the mic icon can draw a live wave
+	// Poll mic amplitude while recording so the mic icon can draw level bars
 	useEffect(() => {
 		if (!isVoiceListening) {
 			setAudioLevel(0);

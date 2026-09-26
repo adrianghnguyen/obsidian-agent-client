@@ -1,11 +1,10 @@
 import * as React from "react";
-const { useEffect, useState } = React;
-import { micWavePath } from "../voice-input/mic-level-fill";
+const { useMemo } = React;
+import { micLevelBars } from "../voice-input/mic-level-fill";
 
 /** Lucide mic glyph (24×24), shown only while idle. */
 const MIC_HEAD_PATH = "M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z";
 const MIC_ARC_PATH = "M19 10v2a7 7 0 0 1-14 0v-2";
-const WAVE_TICK_MS = 70;
 
 export interface VoiceInputInlineProps {
 	isListening: boolean;
@@ -22,18 +21,10 @@ function MicLevelIcon({
 	level: number;
 	recording: boolean;
 }) {
-	const [phase, setPhase] = useState(0);
-
-	useEffect(() => {
-		if (!recording) {
-			setPhase(0);
-			return;
-		}
-		const id = window.setInterval(() => {
-			setPhase((current) => (current + 0.65) % (Math.PI * 2));
-		}, WAVE_TICK_MS);
-		return () => window.clearInterval(id);
-	}, [recording]);
+	const bars = useMemo(
+		() => (recording ? micLevelBars(level) : []),
+		[level, recording],
+	);
 
 	return (
 		<svg
@@ -45,10 +36,19 @@ function MicLevelIcon({
 		>
 			<g className="agent-client-voice-mic-live">
 				{recording ? (
-					<path
-						className="agent-client-voice-mic-wave"
-						d={micWavePath(level, phase)}
-					/>
+					<g className="agent-client-voice-mic-bars">
+						{bars.map((bar, i) => (
+							<rect
+								key={i}
+								className="agent-client-voice-mic-bar"
+								x={bar.x}
+								y={bar.y}
+								width={bar.width}
+								height={bar.height}
+								rx="0.75"
+							/>
+						))}
+					</g>
 				) : (
 					<>
 						<path d={MIC_HEAD_PATH} />

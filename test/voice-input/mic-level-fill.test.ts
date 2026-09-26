@@ -1,24 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { micWavePath } from "../../src/voice-input/mic-level-fill";
+import { micLevelBars } from "../../src/voice-input/mic-level-fill";
 
-describe("micWavePath", () => {
-	it("draws a flat line across the icon when silent", () => {
-		expect(micWavePath(0, 0)).toBe(
-			"M2 12 L5.33 12 L8.67 12 L12 12 L15.33 12 L18.67 12 L22 12",
-		);
+describe("micLevelBars", () => {
+	it("draws short bars when silent", () => {
+		const bars = micLevelBars(0);
+		expect(bars).toHaveLength(5);
+		for (const bar of bars) {
+			expect(bar.height).toBeCloseTo(14 * 0.12, 2);
+			expect(bar.y + bar.height).toBeCloseTo(20, 2);
+		}
 	});
 
-	it("spans the icon at full level", () => {
-		const path = micWavePath(1, Math.PI / 2);
-		expect(path.startsWith("M2 5")).toBe(true);
-		expect(path).toContain("L12 19");
-		expect(path.endsWith("L22 5")).toBe(true);
+	it("scales center bars higher than edges at full level", () => {
+		const bars = micLevelBars(1);
+		expect(bars[2].height).toBeGreaterThan(bars[0].height);
+		expect(bars[2].height).toBeGreaterThan(bars[4].height);
+		expect(bars[0].height).toBeCloseTo(bars[4].height, 2);
 	});
 
 	it("treats out-of-range and non-finite levels as silence", () => {
-		const silent = micWavePath(0, 0);
-		expect(micWavePath(-1, 0)).toBe(silent);
-		expect(micWavePath(Number.NaN, 0)).toBe(silent);
-		expect(micWavePath(4, 0)).toBe(micWavePath(1, 0));
+		const silent = micLevelBars(0);
+		expect(micLevelBars(-1)).toEqual(silent);
+		expect(micLevelBars(Number.NaN)).toEqual(silent);
+		expect(micLevelBars(4)[2].height).toBeCloseTo(micLevelBars(1)[2].height, 2);
 	});
 });
