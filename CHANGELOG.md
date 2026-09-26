@@ -8,10 +8,12 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Added
 - **Cursor API key setting** — Settings → Cursor exposes **API key (Secrets manager)** (`CURSOR_API_KEY`) with step-by-step copy, env-field guidance, and setup-check text for the Windows desktop vs Terminal login mismatch; session-open and **Check setup** use the resolved secret like other presets.
-- **Floating chat note context** — In floating chat, the control left of the composer cycles **first message only** (attach the active note once), **keep active note** (re-attach the focused file each send), or **attach nothing**. Settings → Floating chat sets the default for new windows. When a note will be included, an `@` chip shows its name so you know what the agent receives.
-- **Floating chat file chips** — Manually attached files show as separate `@` badges in the same context row. **Attach nothing** hides only the auto active-note chip; your own attachments stay visible. Multiple chips wrap instead of stretching one wide label.
+- **Floating chat active note modes** — One control left of the floating composer cycles **first message only** (attach the open note once per session), **keep active note** (attach the focused file on every send), or **don't attach**. Each floating window and tab keeps its own mode so parallel floats do not pick up the wrong file when the editor focus changes.
+- **Floating chat active note default** — **Settings → Composer → Mentions & context → Floating chat active note** sets the starting mode for new floating sessions; the composer button only changes the current session. Sidebar and embedded chat still follow global **Auto-mention active note**.
+- **Floating chat context chips** — When a note will auto-attach, an `@` chip shows its name beside the mode control (file +1 / file ∞ icons). Manually attached files appear as separate `@` badges in the same row; **don't attach** hides only the auto note chip. Multiple chips wrap instead of stretching one wide label.
 
 ### Changed
+- **Floating chat composer layout** — Active-note mode and context chips sit in a vertical stack on the left rail of the floating textarea; sidebar chat keeps its existing top context row.
 - **Voice input recording mic** — While dictating, the mic button turns red and the icon becomes live level bars driven by input volume. Hover to reveal a stop square, then click to stop. Enter or the composer send button still sends the transcript.
 
 ## 0.23.0
