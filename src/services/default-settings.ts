@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	defaultAgentPerDevice: false,
 	autoAllowPermissions: false,
 	autoMentionActiveNote: true,
+	floatingAttachActiveNoteFirstMessage: true,
 	expandWikilinkContext: true,
 	enableSystemNotifications: true,
 	promptInjection: {

@@ -48,6 +48,10 @@ Not their content—but with **Expand wikilink context** (on by default, **Setti
 
 Click the **×** button next to the auto-mention badge above the input field. Click **+** to re-enable it. This only affects the current message.
 
+### How do I avoid wrong-note context with multiple floating chats?
+
+Turn on **Floating chat: first message only** in **Settings → Composer → Mentions & context**, or use the **file** icon in the floating chat composer. Each floating session attaches the active note only on its first message; later messages in that window never auto-attach the current note.
+
 ## Agents
 
 ### How do I switch between agents?

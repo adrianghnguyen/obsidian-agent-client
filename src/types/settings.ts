@@ -59,6 +59,11 @@ export interface AgentClientPluginSettings {
 	defaultAgentPerDevice: boolean;
 	autoAllowPermissions: boolean;
 	autoMentionActiveNote: boolean;
+	/**
+	 * Default for floating chat: attach the active note only on the first
+	 * message of each session (composer toggle can override per session).
+	 */
+	floatingAttachActiveNoteFirstMessage: boolean;
 	/** Surface `[[wikilinks]]` inside note content as resolved metadata so the agent can decide which links to follow */
 	expandWikilinkContext: boolean;
 	/** Show OS system notifications on response completion and permission requests */

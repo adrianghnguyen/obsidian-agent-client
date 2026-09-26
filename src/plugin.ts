@@ -741,6 +741,10 @@ export default class AgentClientPlugin extends Plugin {
 				raw.autoMentionActiveNote,
 				D.autoMentionActiveNote,
 			),
+			floatingAttachActiveNoteFirstMessage: bool(
+				raw.floatingAttachActiveNoteFirstMessage,
+				D.floatingAttachActiveNoteFirstMessage,
+			),
 			expandWikilinkContext: bool(
 				raw.expandWikilinkContext,
 				D.expandWikilinkContext,

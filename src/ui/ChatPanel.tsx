@@ -174,6 +174,8 @@ const TRAILING_SAVE_DEBOUNCE_MS = 800;
 function selectChatPanelSettings(s: AgentClientPluginSettings) {
 	return {
 		autoMentionActiveNote: s.autoMentionActiveNote,
+		floatingAttachActiveNoteFirstMessage:
+			s.floatingAttachActiveNoteFirstMessage,
 		debugMode: s.debugMode,
 		// Read by useChatActions (WSL path conversion); rarely changes.
 		windowsWslMode: s.windowsWslMode,
@@ -200,6 +202,8 @@ function chatPanelSettingsEqual(
 ): boolean {
 	return (
 		a.autoMentionActiveNote === b.autoMentionActiveNote &&
+		a.floatingAttachActiveNoteFirstMessage ===
+			b.floatingAttachActiveNoteFirstMessage &&
 		a.debugMode === b.debugMode &&
 		a.windowsWslMode === b.windowsWslMode &&
 		a.enableSystemNotifications === b.enableSystemNotifications &&
@@ -369,11 +373,41 @@ export const ChatPanel = React.memo(function ChatPanel({
 		};
 	}, [plugin, embeddedConfig?.noteContext, embeddedConfig?.sourcePath]);
 
+	const [floatingNoteContextEnabled, setFloatingNoteContextEnabled] =
+		useState(settings.floatingAttachActiveNoteFirstMessage);
+
+	useEffect(() => {
+		if (variant === "floating" && messages.length === 0) {
+			setFloatingNoteContextEnabled(
+				settings.floatingAttachActiveNoteFirstMessage,
+			);
+		}
+	}, [
+		variant,
+		messages.length,
+		settings.floatingAttachActiveNoteFirstMessage,
+	]);
+
+	const autoMentionDefaultForSuggestions = useMemo(() => {
+		if (variant === "floating") {
+			if (messages.length > 0) {
+				return false;
+			}
+			return floatingNoteContextEnabled;
+		}
+		return settings.autoMentionActiveNote;
+	}, [
+		variant,
+		messages.length,
+		floatingNoteContextEnabled,
+		settings.autoMentionActiveNote,
+	]);
+
 	const suggestions = useSuggestions(
 		vaultService,
 		plugin,
 		session.availableCommands || EMPTY_COMMANDS,
-		settings.autoMentionActiveNote,
+		autoMentionDefaultForSuggestions,
 		pinnedActiveNote,
 	);
 
@@ -482,6 +516,8 @@ export const ChatPanel = React.memo(function ChatPanel({
 		vaultPath,
 		embeddedConfig?.persist ? embeddedConfig.id : undefined,
 		() => queuedSendsRef.current.length > 0,
+		variant,
+		floatingNoteContextEnabled,
 	);
 
 	const {
@@ -1690,6 +1726,9 @@ export const ChatPanel = React.memo(function ChatPanel({
 			agentLabel={activeAgentLabel}
 			availableCommands={session.availableCommands || []}
 			autoMentionEnabled={settings.autoMentionActiveNote}
+			chatVariant={variant}
+			floatingNoteContextEnabled={floatingNoteContextEnabled}
+			onFloatingNoteContextChange={setFloatingNoteContextEnabled}
 			restoredMessage={restoredMessage}
 			suggestions={suggestions}
 			plugin={plugin}

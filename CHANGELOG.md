@@ -6,6 +6,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Added
 - **Cursor API key setting** — Settings → Cursor exposes **API key (Secrets manager)** (`CURSOR_API_KEY`) with step-by-step copy, env-field guidance, and setup-check text for the Windows desktop vs Terminal login mismatch; session-open and **Check setup** use the resolved secret like other presets.
+- **Floating chat: first-message active note** — Settings and a composer toggle (file icon) attach the active note only on the first message of each floating session, so parallel floating chats do not pick up the wrong file when you switch notes.
 
 ## 0.23.0
 

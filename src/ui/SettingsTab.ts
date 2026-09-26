@@ -535,6 +535,27 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						);
 
 					new Setting(nestedEl)
+						.setName("Floating chat: first message only")
+						.setDesc(
+							"In floating chat, attach the active note only on the first message of each session. You can also toggle this in the floating chat composer.",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings
+										.floatingAttachActiveNoteFirstMessage,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											floatingAttachActiveNoteFirstMessage:
+												value,
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
 						.setName("Expand wikilink context")
 						.setDesc(
 							"List [[wikilinks]] inside mentioned notes as file paths. Does not insert the linked text.",

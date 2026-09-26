@@ -1335,6 +1335,30 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Auto-mention inline display */
+.agent-client-composer-context-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 8px 0;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.agent-client-composer-context-row .agent-client-auto-mention-inline {
+	flex: 1;
+	min-width: 0;
+}
+
+.agent-client-floating-note-context-toggle {
+	flex-shrink: 0;
+}
+
+.agent-client-floating-note-context-toggle.is-locked {
+	opacity: 0.45;
+	cursor: default;
+	pointer-events: none;
+}
+
 .agent-client-auto-mention-inline {
 	display: flex;
 	align-items: center;
