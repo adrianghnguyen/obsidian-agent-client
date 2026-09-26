@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.23.0
+
 ### Added
 - **Voice input advanced settings** — Settings → Voice input exposes custom vocabulary (keyword recognition), pause tolerance (silence before a segment ends), stop flush delay, and speech-detection tuning (prefix padding, start/end sensitivity). Values apply on the next dictation session.
 
