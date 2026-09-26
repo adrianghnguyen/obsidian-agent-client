@@ -1814,18 +1814,54 @@ If your plugin does not need CSS, delete this file.
 		color 0.15s ease;
 }
 
-.agent-client-voice-mic-button svg {
+.agent-client-voice-mic-icon {
 	width: 16px;
 	height: 16px;
 	color: var(--text-muted);
+	overflow: visible;
+}
+
+.agent-client-voice-mic-icon path,
+.agent-client-voice-mic-icon line {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.agent-client-voice-mic-level {
+	fill: currentColor;
+	stroke: none;
+}
+
+.agent-client-voice-mic-button.is-recording {
+	background-color: color-mix(
+		in srgb,
+		var(--color-red) 18%,
+		var(--background-modifier-hover)
+	) !important;
+}
+
+.agent-client-voice-mic-button.is-recording .agent-client-voice-mic-icon {
+	color: var(--color-red);
 }
 
 .agent-client-voice-mic-button:hover:not(:disabled) {
 	background-color: var(--background-modifier-border-hover) !important;
 }
 
-.agent-client-voice-mic-button:hover:not(:disabled) svg {
+.agent-client-voice-mic-button:hover:not(:disabled):not(.is-recording)
+	.agent-client-voice-mic-icon {
 	color: var(--text-normal);
+}
+
+.agent-client-voice-mic-button.is-recording:hover {
+	background-color: color-mix(
+		in srgb,
+		var(--color-red) 28%,
+		var(--background-modifier-hover)
+	) !important;
 }
 
 .agent-client-voice-mic-button:disabled {
@@ -1873,24 +1909,6 @@ If your plugin does not need CSS, delete this file.
 	min-width: 2.5em;
 	text-align: center;
 	user-select: none;
-}
-
-.agent-client-voice-level-bars {
-	display: flex;
-	align-items: flex-end;
-	gap: 2px;
-	height: 16px;
-	width: 22px;
-}
-
-.agent-client-voice-level-bar {
-	display: block;
-	width: 3px;
-	height: 100%;
-	border-radius: 1px;
-	background-color: var(--text-normal);
-	transform-origin: bottom center;
-	transition: transform 0.05s linear;
 }
 
 .agent-client-voice-send-button {

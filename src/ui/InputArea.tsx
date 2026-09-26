@@ -898,7 +898,7 @@ export function InputArea({
 		}
 	}, [inputValue, stopVoiceListening]);
 
-	// Poll mic amplitude while recording for the inline level bars
+	// Poll mic amplitude while recording so the mic icon can fill with level
 	useEffect(() => {
 		if (!isVoiceListening) {
 			setAudioLevel(0);

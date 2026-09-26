@@ -96,7 +96,7 @@ export class VoiceInputModule {
 		return this.transcriber?.isActive ?? false;
 	}
 
-	/** Instantaneous mic amplitude in [0, 1] for the inline level bars. */
+	/** Instantaneous mic amplitude in [0, 1] for the recording mic fill. */
 	getAudioLevel(): number {
 		return this.transcriber?.getLevel() ?? 0;
 	}
