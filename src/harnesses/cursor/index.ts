@@ -11,11 +11,7 @@ import {
 	resolveCursorEndpoint,
 } from "./connection-errors";
 import { checkCursorCliHealth } from "./health";
-import {
-	CURSOR_PRESET_ID,
-	CURSOR_SESSION_AUTH_METHOD,
-	cursorPreset,
-} from "./preset";
+import { CURSOR_PRESET_ID, cursorPreset } from "./preset";
 import { cursorSessionAuthPolicy } from "./session-auth";
 
 export { CURSOR_PRESET_ID, CURSOR_SESSION_AUTH_METHOD, cursorPreset } from "./preset";

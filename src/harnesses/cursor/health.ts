@@ -138,10 +138,10 @@ async function runWindowsProbe(
 		}, PROBE_TIMEOUT_MS);
 
 		child.stdout?.on("data", (chunk: Buffer | string) => {
-			stdout += chunk.toString();
+			stdout += typeof chunk === "string" ? chunk : chunk.toString("utf8");
 		});
 		child.stderr?.on("data", (chunk: Buffer | string) => {
-			stderr += chunk.toString();
+			stderr += typeof chunk === "string" ? chunk : chunk.toString("utf8");
 		});
 		child.on("error", (err) => {
 			clearTimeout(timer);
