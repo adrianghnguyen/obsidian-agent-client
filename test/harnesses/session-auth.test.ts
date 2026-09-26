@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { Platform } from "obsidian";
 import { access, readFile } from "fs/promises";
 import { openHarnessSession } from "../../src/harnesses";
 import { ANTIGRAVITY_SESSION_AUTH_METHOD } from "../../src/harnesses/antigravity";
@@ -62,6 +63,7 @@ function makeClient() {
 
 describe("openHarnessSession integration", () => {
 	const originalGemini = process.env.GEMINI_API_KEY;
+	const priorIsWin = Platform.isWin;
 
 	beforeEach(() => {
 		mockedAccess.mockImplementation(async () => rejectMissing());
@@ -72,6 +74,7 @@ describe("openHarnessSession integration", () => {
 	});
 
 	afterEach(() => {
+		Platform.isWin = priorIsWin;
 		if (originalGemini === undefined) {
 			delete process.env.GEMINI_API_KEY;
 		} else {
@@ -80,7 +83,8 @@ describe("openHarnessSession integration", () => {
 		vi.clearAllMocks();
 	});
 
-	it("authenticates Cursor with cursor_login when the CLI is not signed in", async () => {
+	it("authenticates Cursor with cursor_login when the CLI is not signed in (non-Windows)", async () => {
+		Platform.isWin = false;
 		mockedCursorSignedIn.mockResolvedValue(false);
 		const client = makeClient();
 		await openHarnessSession("cursor", "C:\\Obsidian", client);
@@ -90,7 +94,19 @@ describe("openHarnessSession integration", () => {
 		]);
 	});
 
+	it("skips Cursor pre-session authenticate on native Windows (optimistic)", async () => {
+		Platform.isWin = true;
+		mockedCursorSignedIn.mockResolvedValue(false);
+		const client = makeClient();
+		await openHarnessSession("cursor", "C:\\Obsidian", client, {
+			wslMode: false,
+		});
+		expect(client.calls).toEqual(["session/new"]);
+		expect(client.authenticate).not.toHaveBeenCalled();
+	});
+
 	it("skips Cursor authenticate when the CLI is already signed in", async () => {
+		Platform.isWin = false;
 		mockedCursorSignedIn.mockResolvedValue(true);
 		const client = makeClient();
 		await openHarnessSession("cursor", "C:\\Obsidian", client);

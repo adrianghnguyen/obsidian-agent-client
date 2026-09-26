@@ -66,6 +66,8 @@ agent status
 
 When `agent status` reports a login (from the same environment Agent Client uses), Agent Client skips `cursor_login` on session open. You can also set `CURSOR_API_KEY` in **Environment variables** instead of the API key field.
 
+When you are already signed in (`agent status` OK) or use `CURSOR_API_KEY`, Agent Client skips the interactive `cursor_login` step when opening chat so the browser login page does not open on every load.
+
 ::: tip Migrating from a custom agent
 If you previously configured Cursor as a custom agent with id `cursor`, your path, args, and saved sessions migrate to this preset automatically.
 :::
