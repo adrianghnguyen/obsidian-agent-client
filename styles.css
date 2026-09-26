@@ -1830,9 +1830,14 @@ If your plugin does not need CSS, delete this file.
 	stroke-linejoin: round;
 }
 
-.agent-client-voice-mic-level {
+.agent-client-voice-mic-icon path.agent-client-voice-mic-wave {
+	stroke-width: 1.75;
+}
+
+.agent-client-voice-mic-stop {
 	fill: currentColor;
 	stroke: none;
+	opacity: 0;
 }
 
 .agent-client-voice-mic-button.is-recording {
@@ -1844,7 +1849,21 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-client-voice-mic-button.is-recording .agent-client-voice-mic-icon {
+	width: 22px;
+	height: 22px;
 	color: var(--color-red);
+}
+
+.agent-client-voice-mic-button.is-recording:hover .agent-client-voice-mic-live,
+.agent-client-voice-mic-button.is-recording:focus-visible
+	.agent-client-voice-mic-live {
+	opacity: 0;
+}
+
+.agent-client-voice-mic-button.is-recording:hover .agent-client-voice-mic-stop,
+.agent-client-voice-mic-button.is-recording:focus-visible
+	.agent-client-voice-mic-stop {
+	opacity: 1;
 }
 
 .agent-client-voice-mic-button:hover:not(:disabled) {
@@ -1867,77 +1886,6 @@ If your plugin does not need CSS, delete this file.
 .agent-client-voice-mic-button:disabled {
 	opacity: 0.45;
 	cursor: not-allowed !important;
-}
-
-.agent-client-voice-recording {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 4px 10px;
-	border-radius: 16px;
-	background-color: var(--background-modifier-hover);
-	min-height: 28px;
-}
-
-.agent-client-voice-stop-button {
-	width: 18px;
-	height: 18px;
-	padding: 0 !important;
-	margin: 0 !important;
-	border: none !important;
-	border-radius: 0 !important;
-	background: transparent !important;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	outline: none !important;
-	appearance: none;
-	box-shadow: none !important;
-}
-
-.agent-client-voice-stop-button svg {
-	width: 12px;
-	height: 12px;
-	color: var(--text-normal);
-}
-
-.agent-client-voice-timer {
-	font-variant-numeric: tabular-nums;
-	font-size: 12px;
-	color: var(--text-muted);
-	min-width: 2.5em;
-	text-align: center;
-	user-select: none;
-}
-
-.agent-client-voice-send-button {
-	width: 32px;
-	height: 32px;
-	padding: 0 !important;
-	margin: 0 !important;
-	border: none !important;
-	border-radius: 50% !important;
-	background-color: var(--text-normal) !important;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	outline: none !important;
-	appearance: none;
-	box-shadow: none !important;
-	flex-shrink: 0;
-	transition: opacity 0.15s ease;
-}
-
-.agent-client-voice-send-button svg {
-	width: 16px;
-	height: 16px;
-	color: var(--background-primary);
-}
-
-.agent-client-voice-send-button:hover {
-	opacity: 0.85;
 }
 
 /* ===== Other Chat Components ===== */
