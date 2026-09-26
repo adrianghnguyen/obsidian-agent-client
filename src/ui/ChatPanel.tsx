@@ -40,6 +40,7 @@ import { useSettingsSelector } from "../hooks/useSettings";
 import { useSuggestions } from "../hooks/useSuggestions";
 import { useAgent } from "../hooks/useAgent";
 import { useSessionHistory } from "../hooks/useSessionHistory";
+import { cycleFloatingNoteContextMode } from "../services/floating-note-context";
 
 // Domain model imports
 import {
@@ -174,8 +175,7 @@ const TRAILING_SAVE_DEBOUNCE_MS = 800;
 function selectChatPanelSettings(s: AgentClientPluginSettings) {
 	return {
 		autoMentionActiveNote: s.autoMentionActiveNote,
-		floatingAttachActiveNoteFirstMessage:
-			s.floatingAttachActiveNoteFirstMessage,
+		floatingNoteContextMode: s.floatingNoteContextMode,
 		debugMode: s.debugMode,
 		// Read by useChatActions (WSL path conversion); rarely changes.
 		windowsWslMode: s.windowsWslMode,
@@ -202,8 +202,7 @@ function chatPanelSettingsEqual(
 ): boolean {
 	return (
 		a.autoMentionActiveNote === b.autoMentionActiveNote &&
-		a.floatingAttachActiveNoteFirstMessage ===
-			b.floatingAttachActiveNoteFirstMessage &&
+		a.floatingNoteContextMode === b.floatingNoteContextMode &&
 		a.debugMode === b.debugMode &&
 		a.windowsWslMode === b.windowsWslMode &&
 		a.enableSystemNotifications === b.enableSystemNotifications &&
@@ -373,33 +372,31 @@ export const ChatPanel = React.memo(function ChatPanel({
 		};
 	}, [plugin, embeddedConfig?.noteContext, embeddedConfig?.sourcePath]);
 
-	const [floatingNoteContextEnabled, setFloatingNoteContextEnabled] =
-		useState(settings.floatingAttachActiveNoteFirstMessage);
+	const [floatingNoteContextMode, setFloatingNoteContextMode] = useState(
+		settings.floatingNoteContextMode,
+	);
 
 	useEffect(() => {
 		if (variant === "floating" && messages.length === 0) {
-			setFloatingNoteContextEnabled(
-				settings.floatingAttachActiveNoteFirstMessage,
-			);
+			setFloatingNoteContextMode(settings.floatingNoteContextMode);
 		}
-	}, [
-		variant,
-		messages.length,
-		settings.floatingAttachActiveNoteFirstMessage,
-	]);
+	}, [variant, messages.length, settings.floatingNoteContextMode]);
 
 	const autoMentionDefaultForSuggestions = useMemo(() => {
 		if (variant === "floating") {
-			if (messages.length > 0) {
+			if (floatingNoteContextMode === "off") {
 				return false;
 			}
-			return floatingNoteContextEnabled;
+			if (floatingNoteContextMode === "first" && messages.length > 0) {
+				return false;
+			}
+			return true;
 		}
 		return settings.autoMentionActiveNote;
 	}, [
 		variant,
 		messages.length,
-		floatingNoteContextEnabled,
+		floatingNoteContextMode,
 		settings.autoMentionActiveNote,
 	]);
 
@@ -517,7 +514,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 		embeddedConfig?.persist ? embeddedConfig.id : undefined,
 		() => queuedSendsRef.current.length > 0,
 		variant,
-		floatingNoteContextEnabled,
+		floatingNoteContextMode,
 	);
 
 	const {
@@ -1727,8 +1724,12 @@ export const ChatPanel = React.memo(function ChatPanel({
 			availableCommands={session.availableCommands || []}
 			autoMentionEnabled={settings.autoMentionActiveNote}
 			chatVariant={variant}
-			floatingNoteContextEnabled={floatingNoteContextEnabled}
-			onFloatingNoteContextChange={setFloatingNoteContextEnabled}
+			floatingNoteContextMode={floatingNoteContextMode}
+			onFloatingNoteContextCycle={() =>
+				setFloatingNoteContextMode((mode) =>
+					cycleFloatingNoteContextMode(mode),
+				)
+			}
 			restoredMessage={restoredMessage}
 			suggestions={suggestions}
 			plugin={plugin}

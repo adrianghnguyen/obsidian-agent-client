@@ -30,17 +30,15 @@ If you select text in your note, the selected lines are passed as context to the
   <img src="/images/selection-context.gif" alt="Selection context feature" />
 </p>
 
-### Floating chat: first message only
+### Floating chat active note
 
-When you keep several **floating chat** windows open, attaching the active note on every message can send the wrong file after you switch tabs.
+Floating chat uses one composer button on the left of the text box. It always stays in that slot and **cycles** three modes (the `@` badge does not appear in floating chat):
 
-Enable the default in **Settings → Agent Client → Composer → Mentions & context → Floating chat: first message only**, or use the **file** icon toggle in the floating chat composer (next to the `@Note` badge):
+1. **First message only** (file-plus) — attach the active note on the first message of that window, then stop.
+2. **Keep active note** (file-check) — attach the active note on every message in that window.
+3. **Don't attach** (×) — never auto-attach; use `@` mentions yourself.
 
-- **On** — the active note is attached only on the **first message** of that floating session.
-- **Off** — no automatic active note for that session’s first message either (manual `@` mentions still work).
-- After the first send, auto-include stays off for that window; start **New chat** to allow a first-message attach again.
-
-This works even when global **Auto-mention active note** is off—the floating composer toggle opts in per window.
+Set the default in **Settings → Agent Client → Composer → Mentions & context → Floating chat active note**. The composer button only changes the current floating session. This is independent of global **Auto-mention active note** (sidebar and embedded chat still follow that setting).
 
 ## Manual Mentions
 

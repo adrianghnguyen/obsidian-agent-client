@@ -28,6 +28,7 @@ import { convertWindowsPathToWsl } from "../utils/platform";
 import {
 	shouldAttachActiveNote,
 	type ChatContextVariant,
+	type FloatingNoteContextMode,
 } from "../services/floating-note-context";
 
 // ============================================================================
@@ -90,7 +91,7 @@ export function useChatActions(
 	/** Skip putting the cancelled prompt back in the composer (queued follow-up). */
 	shouldSkipCancelledDraftRestore?: () => boolean,
 	chatVariant: ChatContextVariant = "sidebar",
-	floatingNoteContextEnabled = false,
+	floatingNoteContextMode: FloatingNoteContextMode = "first",
 ): UseChatActionsReturn {
 	const logger = getLogger();
 
@@ -197,7 +198,7 @@ export function useChatActions(
 			const attachActiveNote = shouldAttachActiveNote({
 				variant: chatVariant,
 				globalAutoMention: settings.autoMentionActiveNote,
-				floatingSessionToggle: floatingNoteContextEnabled,
+				floatingNoteContextMode,
 				messageCount: messages.length,
 				isAutoMentionDisabled:
 					suggestions.mentions.isAutoMentionDisabled,
@@ -240,7 +241,7 @@ export function useChatActions(
 			shouldConvertToWsl,
 			vaultPath,
 			chatVariant,
-			floatingNoteContextEnabled,
+			floatingNoteContextMode,
 			settings.autoMentionActiveNote,
 		],
 	);

@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+	cycleFloatingNoteContextMode,
+	parseFloatingNoteContextMode,
 	shouldAttachActiveNote,
-	showFloatingNoteContextToggle,
-	isFloatingNoteContextToggleLocked,
+	showFloatingNoteContextControl,
+	floatingNoteContextIcon,
 } from "../src/services/floating-note-context";
 
 const base = {
 	globalAutoMention: true,
-	floatingSessionToggle: true,
+	floatingNoteContextMode: "first" as const,
 	messageCount: 0,
 	isAutoMentionDisabled: false,
 };
@@ -26,12 +28,11 @@ describe("shouldAttachActiveNote", () => {
 				...base,
 				variant: "sidebar",
 				globalAutoMention: false,
-				messageCount: 0,
 			}),
 		).toBe(false);
 	});
 
-	it("floating attaches only on first message when session toggle is on", () => {
+	it("floating first mode attaches only when the session is empty", () => {
 		expect(
 			shouldAttachActiveNote({
 				...base,
@@ -43,61 +44,74 @@ describe("shouldAttachActiveNote", () => {
 			shouldAttachActiveNote({
 				...base,
 				variant: "floating",
-				messageCount: 1,
-				globalAutoMention: true,
+				messageCount: 2,
 			}),
 		).toBe(false);
 	});
 
-	it("floating respects session toggle off even when global is on", () => {
+	it("floating always mode attaches on later messages", () => {
 		expect(
 			shouldAttachActiveNote({
 				...base,
 				variant: "floating",
-				floatingSessionToggle: false,
-			}),
-		).toBe(false);
-	});
-
-	it("badge dismiss disables attach for current send", () => {
-		expect(
-			shouldAttachActiveNote({
-				...base,
-				variant: "floating",
-				isAutoMentionDisabled: true,
-			}),
-		).toBe(false);
-		expect(
-			shouldAttachActiveNote({
-				...base,
-				variant: "sidebar",
-				isAutoMentionDisabled: true,
-			}),
-		).toBe(false);
-	});
-
-	it("embedded follows global like sidebar", () => {
-		expect(
-			shouldAttachActiveNote({
-				...base,
-				variant: "embedded",
-				messageCount: 3,
+				floatingNoteContextMode: "always",
+				messageCount: 4,
+				globalAutoMention: false,
 			}),
 		).toBe(true);
 	});
-});
 
-describe("showFloatingNoteContextToggle", () => {
-	it("only shows for floating variant", () => {
-		expect(showFloatingNoteContextToggle("floating")).toBe(true);
-		expect(showFloatingNoteContextToggle("sidebar")).toBe(false);
-		expect(showFloatingNoteContextToggle("embedded")).toBe(false);
+	it("floating off mode never attaches", () => {
+		expect(
+			shouldAttachActiveNote({
+				...base,
+				variant: "floating",
+				floatingNoteContextMode: "off",
+				messageCount: 0,
+			}),
+		).toBe(false);
+	});
+
+	it("badge dismiss disables attach for the current send", () => {
+		expect(
+			shouldAttachActiveNote({
+				...base,
+				variant: "floating",
+				floatingNoteContextMode: "always",
+				isAutoMentionDisabled: true,
+			}),
+		).toBe(false);
 	});
 });
 
-describe("isFloatingNoteContextToggleLocked", () => {
-	it("locks after first message", () => {
-		expect(isFloatingNoteContextToggleLocked(0)).toBe(false);
-		expect(isFloatingNoteContextToggleLocked(1)).toBe(true);
+describe("cycleFloatingNoteContextMode", () => {
+	it("cycles first, always, off", () => {
+		expect(cycleFloatingNoteContextMode("first")).toBe("always");
+		expect(cycleFloatingNoteContextMode("always")).toBe("off");
+		expect(cycleFloatingNoteContextMode("off")).toBe("first");
+	});
+});
+
+describe("parseFloatingNoteContextMode", () => {
+	it("reads the enum and maps the legacy boolean", () => {
+		expect(parseFloatingNoteContextMode("always")).toBe("always");
+		expect(parseFloatingNoteContextMode(undefined, false)).toBe("off");
+		expect(parseFloatingNoteContextMode(undefined, true)).toBe("first");
+		expect(parseFloatingNoteContextMode("nope")).toBe("first");
+	});
+});
+
+describe("floatingNoteContextIcon", () => {
+	it("uses x for off", () => {
+		expect(floatingNoteContextIcon("off")).toBe("x");
+		expect(floatingNoteContextIcon("first")).toBe("file-plus");
+		expect(floatingNoteContextIcon("always")).toBe("file-check");
+	});
+});
+
+describe("showFloatingNoteContextControl", () => {
+	it("only shows for floating variant", () => {
+		expect(showFloatingNoteContextControl("floating")).toBe(true);
+		expect(showFloatingNoteContextControl("sidebar")).toBe(false);
 	});
 });

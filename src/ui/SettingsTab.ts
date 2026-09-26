@@ -535,21 +535,29 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						);
 
 					new Setting(nestedEl)
-						.setName("Floating chat: first message only")
+						.setName("Floating chat active note")
 						.setDesc(
-							"In floating chat, attach the active note only on the first message of each session. You can also toggle this in the floating chat composer.",
+							"Default for new floating chats. The composer button cycles the same three choices: first message only, keep the active note, or attach nothing.",
 						)
-						.addToggle((toggle) =>
-							toggle
+						.addDropdown((dropdown) =>
+							dropdown
+								.addOption("first", "First message only")
+								.addOption("always", "Keep active note")
+								.addOption("off", "Don't attach")
 								.setValue(
-									this.plugin.settings
-										.floatingAttachActiveNoteFirstMessage,
+									this.plugin.settings.floatingNoteContextMode,
 								)
 								.onChange(async (value) => {
+									if (
+										value !== "first" &&
+										value !== "always" &&
+										value !== "off"
+									) {
+										return;
+									}
 									await this.plugin.settingsService.updateSettings(
 										{
-											floatingAttachActiveNoteFirstMessage:
-												value,
+											floatingNoteContextMode: value,
 										},
 									);
 								}),
