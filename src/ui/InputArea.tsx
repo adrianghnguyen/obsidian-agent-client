@@ -197,49 +197,6 @@ function useInputHistory(
 	return { handleHistoryKeyDown, resetHistory };
 }
 
-function ActiveNoteContextChip({
-	note,
-	disabled,
-	onToggle,
-}: {
-	note: NoteMetadata;
-	disabled: boolean;
-	onToggle: () => void;
-}) {
-	return (
-		<button
-			type="button"
-			className="agent-client-auto-mention-inline"
-			onClick={onToggle}
-			title={
-				disabled
-					? "Enable auto-mention"
-					: "Temporarily disable auto-mention"
-			}
-		>
-			<span
-				className={`agent-client-mention-badge ${disabled ? "agent-client-disabled" : ""}`}
-			>
-				@{note.name}
-				{note.selection && (
-					<span className="agent-client-selection-indicator">
-						{":"}
-						{note.selection.from.line + 1}-{note.selection.to.line + 1}
-					</span>
-				)}
-			</span>
-			<span
-				className="agent-client-auto-mention-toggle-icon"
-				ref={(el) => {
-					if (el) {
-						setIcon(el, disabled ? "plus" : "x");
-					}
-				}}
-			/>
-		</button>
-	);
-}
-
 // ============================================================================
 // InputArea Component
 // ============================================================================
@@ -1291,15 +1248,48 @@ export function InputArea({
 				{chatVariant !== "floating" &&
 					mentions.activeNote &&
 					willAttachActiveNote && (
-						<ActiveNoteContextChip
-							note={mentions.activeNote}
-							disabled={mentions.isAutoMentionDisabled}
-							onToggle={() =>
+						<button
+							type="button"
+							className="agent-client-auto-mention-inline"
+							onClick={() =>
 								mentions.toggleAutoMention(
 									!mentions.isAutoMentionDisabled,
 								)
 							}
-						/>
+							title={
+								mentions.isAutoMentionDisabled
+									? "Enable auto-mention"
+									: "Temporarily disable auto-mention"
+							}
+						>
+							<span
+								className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
+							>
+								@{mentions.activeNote.name}
+								{mentions.activeNote.selection && (
+									<span className="agent-client-selection-indicator">
+										{":"}
+										{mentions.activeNote.selection.from
+											.line + 1}
+										-
+										{mentions.activeNote.selection.to.line +
+											1}
+									</span>
+								)}
+							</span>
+							<span
+								className="agent-client-auto-mention-toggle-icon"
+								ref={(el) => {
+									if (el) {
+										const iconName =
+											mentions.isAutoMentionDisabled
+												? "plus"
+												: "x";
+										setIcon(el, iconName);
+									}
+								}}
+							/>
+						</button>
 					)}
 
 				{showFloatingContextControl && (
@@ -1315,15 +1305,49 @@ export function InputArea({
 							onClick={() => onFloatingNoteContextCycle?.()}
 						/>
 						{showFloatingNoteChip && mentions.activeNote && (
-							<ActiveNoteContextChip
-								note={mentions.activeNote}
-								disabled={mentions.isAutoMentionDisabled}
-								onToggle={() =>
+							<button
+								type="button"
+								className="agent-client-auto-mention-inline"
+								onClick={() =>
 									mentions.toggleAutoMention(
 										!mentions.isAutoMentionDisabled,
 									)
 								}
-							/>
+								title={
+									mentions.isAutoMentionDisabled
+										? "Enable auto-mention"
+										: "Temporarily disable auto-mention"
+								}
+							>
+								<span
+									className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
+								>
+									@{mentions.activeNote.name}
+									{mentions.activeNote.selection && (
+										<span className="agent-client-selection-indicator">
+											{":"}
+											{mentions.activeNote.selection.from
+												.line + 1}
+											-
+											{mentions.activeNote.selection.to
+												.line + 1}
+										</span>
+									)}
+								</span>
+								<span
+									className="agent-client-auto-mention-toggle-icon"
+									ref={(el) => {
+										if (el) {
+											setIcon(
+												el,
+												mentions.isAutoMentionDisabled
+													? "plus"
+													: "x",
+											);
+										}
+									}}
+								/>
+							</button>
 						)}
 					</div>
 				)}
