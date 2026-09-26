@@ -36,34 +36,28 @@ describe("harness registry", () => {
 		expect(getHarnessById("unknown-harness")).toBeUndefined();
 	});
 
-	it("leaves optional harness slots empty for migrated presets", () => {
+	it("declares sessionAuthPolicy none for migrated presets", () => {
 		for (const id of MIGRATED_PRESET_IDS) {
 			const harness = getHarnessById(id);
+			expect(harness?.sessionAuthPolicy.kind).toBe("none");
 			expect(harness?.vendorAcp).toBeUndefined();
-			expect(harness?.traceAdapters).toBeUndefined();
 			expect(harness?.healthCheck).toBeUndefined();
-			expect(harness?.mapConnectionError).toBeUndefined();
-			expect(harness?.authenticateBeforeNewSession).toBeUndefined();
-			expect(harness?.updateRules).toBeUndefined();
-			expect(harness?.notices).toBeUndefined();
 		}
 	});
 
-	it("registers Cursor with health, connection-error, and docs slots", () => {
+	it("registers Cursor with health, connection-error, conditional session auth, and docs", () => {
 		const cursor = getHarnessById("cursor");
 		expect(cursor?.healthCheck).toEqual(expect.any(Function));
 		expect(cursor?.mapConnectionError).toEqual(expect.any(Function));
-		expect(cursor?.authenticateBeforeNewSession).toBe("cursor_login");
+		expect(cursor?.sessionAuthPolicy.kind).toBe("conditional");
 		expect(cursor?.docs).toEqual({ page: "cursor" });
 	});
 
-	it("registers Antigravity with health, connection-error, auth, and docs slots", () => {
+	it("registers Antigravity with health, connection-error, conditional session auth, and docs", () => {
 		const antigravity = getHarnessById("antigravity");
 		expect(antigravity?.healthCheck).toEqual(expect.any(Function));
 		expect(antigravity?.mapConnectionError).toEqual(expect.any(Function));
-		expect(antigravity?.authenticateBeforeNewSession).toEqual(
-			expect.any(Function),
-		);
+		expect(antigravity?.sessionAuthPolicy.kind).toBe("conditional");
 		expect(antigravity?.docs).toEqual({ page: "antigravity" });
 	});
 });

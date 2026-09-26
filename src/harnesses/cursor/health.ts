@@ -258,11 +258,9 @@ export async function checkCursorCliHealth(
 		message: "`agent acp` is available for ACP sessions.",
 	});
 
-	const statusProbe = await runProbe(resolved, ["status"], options);
-	const statusText = `${statusProbe.stdout}\n${statusProbe.stderr}`;
-	const hasApiKey = hasCursorApiKey(env);
+	const signedIn = await isCursorCliSignedIn(options, resolved);
 
-	if (hasApiKey) {
+	if (hasCursorApiKey(env)) {
 		checks.push({
 			id: "auth",
 			ok: true,
@@ -271,10 +269,8 @@ export async function checkCursorCliHealth(
 		return finalize(checks);
 	}
 
-	if (
-		statusProbe.code !== 0 ||
-		!isCursorStatusAuthenticated(statusText)
-	) {
+	if (!signedIn) {
+		const statusProbe = await runProbe(resolved, ["status"], options);
 		const copy = cursorFailureCopy("auth_missing", {
 			command,
 			args,
@@ -297,6 +293,56 @@ export async function checkCursorCliHealth(
 	});
 
 	return finalize(checks);
+}
+
+export type CursorCliSignInProbeOptions = Pick<
+	CursorCliHealthOptions,
+	"command" | "args" | "wslMode" | "wslDistribution" | "env"
+>;
+
+/**
+ * True when CURSOR_API_KEY is configured or `agent status` reports a login.
+ * When `resolvedBin` is omitted, resolves `command` on this machine first.
+ */
+export async function isCursorCliSignedIn(
+	options: CursorCliSignInProbeOptions,
+	resolvedBin?: string,
+): Promise<boolean> {
+	const env = options.env ?? {};
+	if (hasCursorApiKey(env)) {
+		return true;
+	}
+
+	const command = options.command.trim() || "agent";
+	const probeOptions: CursorCliHealthOptions = {
+		command,
+		args:
+			options.args && options.args.length > 0
+				? [...options.args]
+				: ["acp"],
+		wslMode: options.wslMode ?? false,
+		wslDistribution: options.wslDistribution,
+		env,
+	};
+
+	const resolved =
+		resolvedBin ??
+		(Platform.isWin && probeOptions.wslMode
+			? await resolveCommandPathInWsl(
+					command,
+					probeOptions.wslDistribution,
+				)
+			: await resolveCommandPath(command));
+
+	if (!resolved) {
+		return false;
+	}
+
+	const statusProbe = await runProbe(resolved, ["status"], probeOptions);
+	const statusText = `${statusProbe.stdout}\n${statusProbe.stderr}`;
+	return (
+		statusProbe.code === 0 && isCursorStatusAuthenticated(statusText)
+	);
 }
 
 /** True when Cursor CLI status output shows a real login (not API-key mode). */

@@ -1,16 +1,9 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { access, readFile } from "fs/promises";
-import {
-	getAuthenticateBeforeNewSession,
-	openHarnessSession,
-} from "../../src/harnesses";
+import { openHarnessSession } from "../../src/harnesses";
 import { ANTIGRAVITY_SESSION_AUTH_METHOD } from "../../src/harnesses/antigravity";
 import { CURSOR_SESSION_AUTH_METHOD } from "../../src/harnesses/cursor";
-import {
-	classifyAntigravityAuth,
-	gatherAntigravityAuthSignals,
-	type AntigravityAuthIo,
-} from "../../src/harnesses/antigravity/auth";
+import { isCursorCliSignedIn } from "../../src/harnesses/cursor/health";
 import {
 	getAntigravityAcpSettingsPath,
 	getAntigravityAcpTokenPath,
@@ -25,6 +18,18 @@ vi.mock("fs/promises", async (importOriginal) => {
 	};
 });
 
+vi.mock("../../src/harnesses/cursor/health", async (importOriginal) => {
+	const actual =
+		await importOriginal<
+			typeof import("../../src/harnesses/cursor/health")
+		>();
+	return {
+		...actual,
+		isCursorCliSignedIn: vi.fn(async () => false),
+	};
+});
+
+const mockedCursorSignedIn = vi.mocked(isCursorCliSignedIn);
 const mockedAccess = vi.mocked(access);
 const mockedReadFile = vi.mocked(readFile);
 
@@ -36,9 +41,6 @@ function makeClient() {
 	const calls: string[] = [];
 	return {
 		calls,
-		initialize: vi.fn(async () => {
-			calls.push("initialize");
-		}),
 		authenticate: vi.fn(async (methodId: string) => {
 			calls.push(`authenticate:${methodId}`);
 			return true;
@@ -50,23 +52,13 @@ function makeClient() {
 	};
 }
 
-function fakeIo(files: Record<string, string | true>): AntigravityAuthIo {
-	return {
-		fileExists: async (path) => path in files,
-		readJson: async (path) => {
-			const value = files[path];
-			if (typeof value !== "string") return null;
-			return JSON.parse(value) as Record<string, unknown>;
-		},
-	};
-}
-
-describe("openHarnessSession", () => {
+describe("openHarnessSession integration", () => {
 	const originalGemini = process.env.GEMINI_API_KEY;
 
 	beforeEach(() => {
 		mockedAccess.mockImplementation(async () => rejectMissing());
 		mockedReadFile.mockImplementation(async () => rejectMissing());
+		mockedCursorSignedIn.mockResolvedValue(false);
 	});
 
 	afterEach(() => {
@@ -78,84 +70,25 @@ describe("openHarnessSession", () => {
 		vi.clearAllMocks();
 	});
 
-	it("exposes session auth slots for Cursor and Antigravity", () => {
-		expect(getAuthenticateBeforeNewSession("antigravity")).toEqual(
-			expect.any(Function),
-		);
-		expect(ANTIGRAVITY_SESSION_AUTH_METHOD).toBe("gemini-api-key");
-		expect(getAuthenticateBeforeNewSession("cursor")).toBe(
-			CURSOR_SESSION_AUTH_METHOD,
-		);
-		expect(
-			getAuthenticateBeforeNewSession("claude-code-acp"),
-		).toBeUndefined();
-	});
-
-	it("authenticates Cursor with cursor_login before session/new", async () => {
+	it("authenticates Cursor with cursor_login when the CLI is not signed in", async () => {
+		mockedCursorSignedIn.mockResolvedValue(false);
 		const client = makeClient();
-		await client.initialize();
 		await openHarnessSession("cursor", "C:\\Obsidian", client);
 		expect(client.calls).toEqual([
-			"initialize",
-			"authenticate:cursor_login",
+			`authenticate:${CURSOR_SESSION_AUTH_METHOD}`,
 			"session/new",
 		]);
 	});
 
-	it("skips authenticate when no ACP store and no API key", async () => {
-		delete process.env.GEMINI_API_KEY;
+	it("skips Cursor authenticate when the CLI is already signed in", async () => {
+		mockedCursorSignedIn.mockResolvedValue(true);
 		const client = makeClient();
-		await client.initialize();
-		const result = await openHarnessSession(
-			"antigravity",
-			"/vault",
-			client,
-		);
-		expect(result).toEqual({ sessionId: "sess-1", cwd: "/vault" });
-		expect(client.calls).toEqual(["initialize", "session/new"]);
+		await openHarnessSession("cursor", "C:\\Obsidian", client);
+		expect(client.calls).toEqual(["session/new"]);
 		expect(client.authenticate).not.toHaveBeenCalled();
 	});
 
-	it("authenticates Antigravity with gemini-api-key when only the env key is set", async () => {
-		process.env.GEMINI_API_KEY = "test-key";
-		const client = makeClient();
-		await client.initialize();
-		await openHarnessSession("antigravity", "/vault", client);
-		expect(client.calls).toEqual([
-			"initialize",
-			"authenticate:gemini-api-key",
-			"session/new",
-		]);
-		expect(client.authenticate).toHaveBeenCalledWith("gemini-api-key");
-	});
-
-	it("does not authenticate other presets before session/new", async () => {
-		const client = makeClient();
-		await client.initialize();
-		await openHarnessSession("claude-code-acp", "/vault", client);
-		expect(client.calls).toEqual(["initialize", "session/new"]);
-		expect(client.authenticate).not.toHaveBeenCalled();
-	});
-
-	it("does not call session/new when API-key authenticate fails", async () => {
-		process.env.GEMINI_API_KEY = "test-key";
-		const client = makeClient();
-		client.authenticate.mockImplementation(async (methodId: string) => {
-			client.calls.push(`authenticate:${methodId}`);
-			return false;
-		});
-		await client.initialize();
-		await expect(
-			openHarnessSession("antigravity", "/vault", client),
-		).rejects.toThrow("Authentication required");
-		expect(client.calls).toEqual([
-			"initialize",
-			"authenticate:gemini-api-key",
-		]);
-		expect(client.newSession).not.toHaveBeenCalled();
-	});
-
-	it("skips authenticate when ACP OAuth files are present even if GEMINI_API_KEY is set", async () => {
+	it("skips Antigravity authenticate when ACP OAuth files are present", async () => {
 		process.env.GEMINI_API_KEY = "test-key";
 		const settingsPath = getAntigravityAcpSettingsPath();
 		const tokenPath = getAntigravityAcpTokenPath();
@@ -170,22 +103,35 @@ describe("openHarnessSession", () => {
 			rejectMissing();
 		});
 		const client = makeClient();
-		await client.initialize();
 		await openHarnessSession("antigravity", "/vault", client);
-		expect(client.calls).toEqual(["initialize", "session/new"]);
+		expect(client.calls).toEqual(["session/new"]);
 		expect(client.authenticate).not.toHaveBeenCalled();
+	});
 
-		const io = fakeIo({
-			[settingsPath]: JSON.stringify({
-				selectedAuthType: "oauth-personal",
-			}),
-			[tokenPath]: true,
-		});
-		const method = classifyAntigravityAuth(
-			await gatherAntigravityAuthSignals(io, {
-				GEMINI_API_KEY: "test-key",
-			}),
-		).sessionAuthMethod;
-		expect(method).toBeUndefined();
+	it("authenticates Antigravity with gemini-api-key when only the env key is set", async () => {
+		process.env.GEMINI_API_KEY = "test-key";
+		const client = makeClient();
+		await openHarnessSession("antigravity", "/vault", client);
+		expect(client.calls).toEqual([
+			`authenticate:${ANTIGRAVITY_SESSION_AUTH_METHOD}`,
+			"session/new",
+		]);
+	});
+
+	it("does not authenticate Claude before session/new", async () => {
+		const client = makeClient();
+		await openHarnessSession("claude-code-acp", "/vault", client);
+		expect(client.calls).toEqual(["session/new"]);
+		expect(client.authenticate).not.toHaveBeenCalled();
+	});
+
+	it("does not call session/new when pre-session authenticate fails", async () => {
+		process.env.GEMINI_API_KEY = "test-key";
+		const client = makeClient();
+		client.authenticate.mockResolvedValue(false);
+		await expect(
+			openHarnessSession("antigravity", "/vault", client),
+		).rejects.toThrow("Authentication required");
+		expect(client.newSession).not.toHaveBeenCalled();
 	});
 });

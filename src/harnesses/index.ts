@@ -3,8 +3,17 @@ import { antigravityHarness } from "./antigravity";
 import { claudeCodeHarness } from "./claude-code";
 import { codexHarness } from "./codex";
 import { cursorHarness } from "./cursor";
+import { buildSessionOpenPlan } from "./shared/build-session-open-plan";
 import type { PresetAgentDefinition } from "./shared/preset-types";
-import type { ConnectionErrorContext, HarnessDefinition } from "./shared/types";
+import {
+	runSessionOpen,
+	type HarnessSessionClient,
+} from "./shared/open-harness-session";
+import type {
+	ConnectionErrorContext,
+	HarnessDefinition,
+	HarnessSessionOpenContext,
+} from "./shared/types";
 
 /** All first-class harness modules, registration order = preset list order. */
 export const HARNESS_DEFINITIONS: readonly HarnessDefinition[] = [
@@ -53,51 +62,40 @@ export function applyHarnessConnectionError(
 	};
 }
 
-/** Raw harness authenticate slot (string, resolver, or missing). */
-export function getAuthenticateBeforeNewSession(
-	agentId: string,
-): HarnessDefinition["authenticateBeforeNewSession"] {
-	return getHarnessById(agentId)?.authenticateBeforeNewSession;
-}
-
-/** ACP authenticate method to run after initialize, or undefined (no-op). */
-export async function resolveAuthenticateBeforeNewSession(
-	agentId: string,
-): Promise<string | undefined> {
-	const slot = getAuthenticateBeforeNewSession(agentId);
-	if (typeof slot === "function") {
-		return slot();
-	}
-	return slot;
-}
-
-export interface HarnessSessionClient<T> {
-	authenticate(methodId: string): Promise<boolean>;
-	newSession(workingDirectory: string): Promise<T>;
-}
+export type { HarnessSessionClient };
 
 /**
- * Open a session after initialize: authenticate when the harness slot
- * resolves to a method id, then session/new. Antigravity skips authenticate
- * when ACP OAuth is already on disk. Cursor calls `cursor_login` before
- * session/new so CLI credentials are bound inside the ACP process.
+ * Open a session after initialize using the harness sessionAuthPolicy
+ * (authenticate only when credentials are not already ready).
  */
 export async function openHarnessSession<T>(
 	agentId: string,
 	workingDirectory: string,
 	client: HarnessSessionClient<T>,
+	ctx?: HarnessSessionOpenContext,
 ): Promise<T> {
-	const methodId = await resolveAuthenticateBeforeNewSession(agentId);
-	if (methodId) {
-		const ok = await client.authenticate(methodId);
-		if (!ok) {
-			throw new Error("Authentication required");
-		}
+	const harness = getHarnessById(agentId);
+	if (!harness) {
+		throw new Error(`Unknown harness "${agentId}"`);
 	}
-	return client.newSession(workingDirectory);
+	const plan = await buildSessionOpenPlan(harness, ctx);
+	return runSessionOpen(plan, workingDirectory, client);
 }
 
-export type { HarnessDefinition } from "./shared/types";
+export { buildSessionOpenPlan } from "./shared/build-session-open-plan";
+export type { SessionOpenPlan } from "./shared/build-session-open-plan";
+export { runSessionOpen } from "./shared/open-harness-session";
+export {
+	assertValidSessionAuthPolicy,
+	SESSION_AUTH_NONE,
+	withCredentialsReadyOverride,
+} from "./shared/session-auth-policy";
+
+export type {
+	HarnessDefinition,
+	HarnessSessionAuthPolicy,
+	HarnessSessionOpenContext,
+} from "./shared/types";
 export type {
 	PresetAgentDefinition,
 	PresetAgentApiKey,
