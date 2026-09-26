@@ -4,7 +4,7 @@ import type { SessionOpenPlan } from "../../src/harnesses/shared/build-session-o
 
 function makeClient(options?: {
 	authOk?: boolean;
-	newSessionError?: unknown;
+	newSessionError?: Error;
 	newSessionErrorOnce?: boolean;
 }) {
 	const authOk = options?.authOk ?? true;

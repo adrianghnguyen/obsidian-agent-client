@@ -24,8 +24,6 @@ function makeClient() {
 
 describe("session auth registry contract", () => {
 	for (const harness of HARNESS_DEFINITIONS) {
-		const id = harness.preset.presetId;
-
 		describe(harness.preset.presetId, () => {
 			it("declares a valid sessionAuthPolicy", () => {
 				expect(() => assertValidSessionAuthPolicy(harness)).not.toThrow();
