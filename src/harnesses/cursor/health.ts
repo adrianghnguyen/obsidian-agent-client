@@ -137,10 +137,10 @@ async function runWindowsProbe(
 			});
 		}, PROBE_TIMEOUT_MS);
 
-		child.stdout?.on("data", (chunk) => {
+		child.stdout?.on("data", (chunk: Buffer | string) => {
 			stdout += chunk.toString();
 		});
-		child.stderr?.on("data", (chunk) => {
+		child.stderr?.on("data", (chunk: Buffer | string) => {
 			stderr += chunk.toString();
 		});
 		child.on("error", (err) => {
