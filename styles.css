@@ -1337,6 +1337,7 @@ If your plugin does not need CSS, delete this file.
 /* Auto-mention inline display */
 .agent-client-composer-context-row {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px;
 	padding: 6px 8px 0;
@@ -1345,8 +1346,9 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-client-composer-context-row .agent-client-auto-mention-inline {
-	flex: 1;
+	flex: 0 1 auto;
 	min-width: 0;
+	max-width: 100%;
 }
 
 .agent-client-floating-note-context-cycle {

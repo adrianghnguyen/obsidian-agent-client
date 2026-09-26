@@ -1349,6 +1349,29 @@ export function InputArea({
 								/>
 							</button>
 						)}
+						{attachedFiles
+							.filter((file) => file.kind === "file")
+							.map((file) => (
+								<button
+									key={file.id}
+									type="button"
+									className="agent-client-auto-mention-inline"
+									onClick={() => removeFile(file.id)}
+									title="Remove attachment"
+								>
+									<span className="agent-client-mention-badge">
+										@{file.name ?? "file"}
+									</span>
+									<span
+										className="agent-client-auto-mention-toggle-icon"
+										ref={(el) => {
+											if (el) {
+												setIcon(el, "x");
+											}
+										}}
+									/>
+								</button>
+							))}
 					</div>
 				)}
 
