@@ -3039,6 +3039,41 @@ If your plugin does not need CSS, delete this file.
 	padding-bottom: 8px;
 }
 
+/* Floating composer: first-message context + @ badge on the left of the textarea */
+.agent-client-input-main-row-floating {
+	align-items: flex-start;
+}
+
+.agent-client-floating-composer-left {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 6px;
+	flex-shrink: 0;
+	padding: 10px 0 0 6px;
+}
+
+.agent-client-floating-composer-left
+	.agent-client-floating-note-context-toggle {
+	margin: 0;
+}
+
+.agent-client-floating-composer-left .agent-client-auto-mention-inline {
+	width: auto;
+	max-width: 112px;
+	padding: 4px 6px !important;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+}
+
+.agent-client-floating-composer-left .agent-client-mention-badge {
+	max-width: 100px;
+	font-size: var(--font-ui-small);
+	text-align: center;
+}
+
 .agent-client-floating-messages-container {
 	flex: 1;
 	display: flex;

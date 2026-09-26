@@ -345,6 +345,83 @@ export function InputArea({
 		messageCount: sessionMessageCount,
 		isAutoMentionDisabled: mentions.isAutoMentionDisabled,
 	});
+	const showComposerContextControls =
+		showFloatingContextToggle ||
+		(mentions.activeNote != null && willAttachActiveNote);
+
+	const composerContextControls = showComposerContextControls ? (
+		<>
+			{showFloatingContextToggle && (
+				<HeaderButton
+					iconName="file-text"
+					className={`agent-client-floating-note-context-toggle ${floatingNoteContextEnabled ? "is-active" : ""} ${floatingContextToggleLocked ? "is-locked" : ""}`}
+					pressed={
+						floatingNoteContextEnabled &&
+						!floatingContextToggleLocked
+					}
+					tooltip={
+						floatingContextToggleLocked
+							? "Active note context was limited to the first message in this session"
+							: floatingNoteContextEnabled
+								? "Include active note on this session's first message only (click to turn off)"
+								: "Include active note on this session's first message only (click to turn on)"
+					}
+					onClick={() => {
+						if (
+							floatingContextToggleLocked ||
+							!onFloatingNoteContextChange
+						) {
+							return;
+						}
+						onFloatingNoteContextChange(
+							!floatingNoteContextEnabled,
+						);
+					}}
+				/>
+			)}
+			{mentions.activeNote && willAttachActiveNote && (
+				<button
+					type="button"
+					className="agent-client-auto-mention-inline"
+					onClick={() =>
+						mentions.toggleAutoMention(
+							!mentions.isAutoMentionDisabled,
+						)
+					}
+					title={
+						mentions.isAutoMentionDisabled
+							? "Add context: include active note on this message"
+							: "Remove active note from this message"
+					}
+				>
+					<span
+						className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
+					>
+						@{mentions.activeNote.name}
+						{mentions.activeNote.selection && (
+							<span className="agent-client-selection-indicator">
+								{":"}
+								{mentions.activeNote.selection.from.line + 1}-
+								{mentions.activeNote.selection.to.line + 1}
+							</span>
+						)}
+					</span>
+					<span
+						className="agent-client-auto-mention-toggle-icon"
+						ref={(el) => {
+							if (el) {
+								const iconName = mentions.isAutoMentionDisabled
+									? "plus"
+									: "x";
+								setIcon(el, iconName);
+							}
+						}}
+					/>
+				</button>
+			)}
+		</>
+	) : null;
+
 	const logger = getLogger();
 	const settings = useSettings(plugin);
 	const showEmojis = plugin.settings.displaySettings.showEmojis;
@@ -1238,86 +1315,22 @@ export function InputArea({
 				onDragLeave={handleDragLeave}
 				onDrop={(e) => void handleDrop(e)}
 			>
-				{(showFloatingContextToggle ||
-					(mentions.activeNote && willAttachActiveNote)) && (
+				{chatVariant !== "floating" && composerContextControls && (
 					<div className="agent-client-composer-context-row">
-						{showFloatingContextToggle && (
-							<HeaderButton
-								iconName="file-text"
-								className={`agent-client-floating-note-context-toggle ${floatingNoteContextEnabled ? "is-active" : ""} ${floatingContextToggleLocked ? "is-locked" : ""}`}
-								pressed={
-									floatingNoteContextEnabled &&
-									!floatingContextToggleLocked
-								}
-								tooltip={
-									floatingContextToggleLocked
-										? "Active note context was limited to the first message in this session"
-										: floatingNoteContextEnabled
-											? "Include active note on this session's first message only (click to turn off)"
-											: "Include active note on this session's first message only (click to turn on)"
-								}
-								onClick={() => {
-									if (
-										floatingContextToggleLocked ||
-										!onFloatingNoteContextChange
-									) {
-										return;
-									}
-									onFloatingNoteContextChange(
-										!floatingNoteContextEnabled,
-									);
-								}}
-							/>
-						)}
-						{mentions.activeNote && willAttachActiveNote && (
-							<button
-								type="button"
-								className="agent-client-auto-mention-inline"
-								onClick={() =>
-									mentions.toggleAutoMention(
-										!mentions.isAutoMentionDisabled,
-									)
-								}
-								title={
-									mentions.isAutoMentionDisabled
-										? "Enable auto-mention"
-										: "Temporarily disable auto-mention"
-								}
-							>
-								<span
-									className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
-								>
-									@{mentions.activeNote.name}
-									{mentions.activeNote.selection && (
-										<span className="agent-client-selection-indicator">
-											{":"}
-											{mentions.activeNote.selection.from
-												.line + 1}
-											-
-											{mentions.activeNote.selection.to
-												.line + 1}
-										</span>
-									)}
-								</span>
-								<span
-									className="agent-client-auto-mention-toggle-icon"
-									ref={(el) => {
-										if (el) {
-											const iconName =
-												mentions.isAutoMentionDisabled
-													? "plus"
-													: "x";
-											setIcon(el, iconName);
-										}
-									}}
-								/>
-							</button>
-						)}
+						{composerContextControls}
 					</div>
 				)}
 
 				{/* Inline voice controls + textarea with Hint Overlay */}
-				<div className="agent-client-input-main-row">
+				<div
+					className={`agent-client-input-main-row ${chatVariant === "floating" ? "agent-client-input-main-row-floating" : ""}`}
+				>
+					{chatVariant === "floating" &&
+						composerContextControls && (
+							<div className="agent-client-floating-composer-left">
+								{composerContextControls}
+							</div>
+						)}
 					{plugin.voiceInput && (
 						<VoiceInputInline
 							isListening={isVoiceListening}
