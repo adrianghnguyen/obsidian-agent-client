@@ -79,7 +79,8 @@ export interface HarnessSessionClient<T> {
 /**
  * Open a session after initialize: authenticate when the harness slot
  * resolves to a method id, then session/new. Antigravity skips authenticate
- * when ACP OAuth is already on disk. Cursor and other harnesses skip.
+ * when ACP OAuth is already on disk. Cursor calls `cursor_login` before
+ * session/new so CLI credentials are bound inside the ACP process.
  */
 export async function openHarnessSession<T>(
 	agentId: string,

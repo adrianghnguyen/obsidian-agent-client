@@ -11,9 +11,13 @@ import {
 	resolveCursorEndpoint,
 } from "./connection-errors";
 import { checkCursorCliHealth } from "./health";
-import { CURSOR_PRESET_ID, cursorPreset } from "./preset";
+import {
+	CURSOR_PRESET_ID,
+	CURSOR_SESSION_AUTH_METHOD,
+	cursorPreset,
+} from "./preset";
 
-export { CURSOR_PRESET_ID, cursorPreset } from "./preset";
+export { CURSOR_PRESET_ID, CURSOR_SESSION_AUTH_METHOD, cursorPreset } from "./preset";
 export {
 	checkCursorCliHealth,
 	hasCursorApiKey,
@@ -70,5 +74,6 @@ function mapConnectionError(
 export const cursorHarness = defineHarness(cursorPreset, {
 	healthCheck,
 	mapConnectionError,
+	authenticateBeforeNewSession: CURSOR_SESSION_AUTH_METHOD,
 	docs: { page: "cursor" },
 });

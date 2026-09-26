@@ -7,6 +7,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ### Added
 - **Voice input advanced settings** — Settings → Voice input exposes custom vocabulary (keyword recognition), pause tolerance (silence before a segment ends), stop flush delay, and speech-detection tuning (prefix padding, start/end sensitivity). Values apply on the next dictation session.
 
+### Fixed
+- **Cursor Check setup on Windows** — Health probes no longer run through a Unix login shell; they use the same cmd spawn path as chat so `agent acp` and sign-in are detected when the CLI works in PowerShell.
+- **Cursor ACP session start** — Call ACP `authenticate` with `cursor_login` before `session/new` so Obsidian chat no longer fails with Authentication required when the CLI is already signed in.
+
 ### Changed
 - **Settings layout** — Settings opens as a short flat list: Agents, Composer, Appearance, Reply formatting, Behavior, Floating chat, Export, Voice input, and Advanced. The default agent sits at the top of Agents. Node path, speech detection, and debug mode are under Advanced. Hide unused agents, the export filename, and the frontmatter tag sit in their sections. Version, documentation, and releases share one line, and recent changes stay folded. Only Agents starts expanded. Section headers show the current value.
 

@@ -3,6 +3,9 @@ import type { PresetAgentDefinition } from "../shared/preset-types";
 /** Stable id for the Cursor preset — used by connection-error copy and health-check. */
 export const CURSOR_PRESET_ID = "cursor";
 
+/** ACP authenticate method id advertised by `agent acp` (cursor_login). */
+export const CURSOR_SESSION_AUTH_METHOD = "cursor_login";
+
 export const cursorPreset: PresetAgentDefinition = {
 	presetId: CURSOR_PRESET_ID,
 	defaultDisplayName: "Cursor",

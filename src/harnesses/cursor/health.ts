@@ -3,11 +3,13 @@
  * Read-only shell probes — same pattern as path auto-detect.
  */
 
-import { execFile } from "child_process";
+import { execFile, spawn } from "child_process";
 import { Platform } from "obsidian";
 import {
 	buildWslShellWrapper,
+	getEnhancedWindowsEnv,
 	getLoginShell,
+	prepareShellCommand,
 } from "../../utils/platform";
 import {
 	resolveCommandPath,
@@ -104,10 +106,66 @@ function runWslShell(
 	});
 }
 
+async function runWindowsProbe(
+	resolvedBin: string,
+	probeArgs: string[],
+	env: Record<string, string>,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
+	const prepared = prepareShellCommand(resolvedBin, probeArgs, process.cwd(), {
+		wslMode: false,
+		alwaysEscape: true,
+	});
+	const spawnEnv = getEnhancedWindowsEnv({
+		...process.env,
+		...env,
+	});
+
+	return new Promise((resolve) => {
+		const child = spawn(prepared.command, prepared.args, {
+			shell: prepared.needsShell,
+			env: spawnEnv,
+			windowsHide: true,
+		});
+		let stdout = "";
+		let stderr = "";
+		const timer = setTimeout(() => {
+			child.kill();
+			resolve({
+				code: null,
+				stdout,
+				stderr: stderr.trim() || "Probe timed out",
+			});
+		}, PROBE_TIMEOUT_MS);
+
+		child.stdout?.on("data", (chunk) => {
+			stdout += chunk.toString();
+		});
+		child.stderr?.on("data", (chunk) => {
+			stderr += chunk.toString();
+		});
+		child.on("error", (err) => {
+			clearTimeout(timer);
+			resolve({ code: 1, stdout, stderr: err.message });
+		});
+		child.on("close", (code) => {
+			clearTimeout(timer);
+			resolve({ code, stdout, stderr });
+		});
+	});
+}
+
 async function runProbe(
-	shellCommand: string,
+	resolvedBin: string,
+	probeArgs: string[],
 	options: CursorCliHealthOptions,
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
+	if (Platform.isWin && !options.wslMode) {
+		return runWindowsProbe(resolvedBin, probeArgs, options.env ?? {});
+	}
+
+	const bin = shellQuote(resolvedBin);
+	const argStr = probeArgs.map(shellQuote).join(" ");
+	const shellCommand = `${bin}${argStr.length > 0 ? ` ${argStr}` : ""} 2>&1`;
 	if (Platform.isWin && options.wslMode) {
 		return runWslShell(shellCommand, options.wslDistribution);
 	}
@@ -152,8 +210,7 @@ export async function checkCursorCliHealth(
 		message: `Found \`${command}\` at ${resolved}`,
 	});
 
-	const bin = shellQuote(resolved);
-	const versionProbe = await runProbe(`${bin} --version 2>&1`, options);
+	const versionProbe = await runProbe(resolved, ["--version"], options);
 	const versionLine = versionProbe.stdout.split("\n")[0].trim();
 	if (versionProbe.code !== 0 || !versionLine) {
 		checks.push({
@@ -173,7 +230,7 @@ export async function checkCursorCliHealth(
 		message: `Cursor CLI ${versionLine}`,
 	});
 
-	const acpProbe = await runProbe(`${bin} acp --help 2>&1`, options);
+	const acpProbe = await runProbe(resolved, ["acp", "--help"], options);
 	const acpText = `${acpProbe.stdout}\n${acpProbe.stderr}`.toLowerCase();
 	if (
 		acpProbe.code !== 0 &&
@@ -201,7 +258,7 @@ export async function checkCursorCliHealth(
 		message: "`agent acp` is available for ACP sessions.",
 	});
 
-	const statusProbe = await runProbe(`${bin} status 2>&1`, options);
+	const statusProbe = await runProbe(resolved, ["status"], options);
 	const statusText = `${statusProbe.stdout}\n${statusProbe.stderr}`;
 	const hasApiKey = hasCursorApiKey(env);
 

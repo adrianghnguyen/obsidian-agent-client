@@ -5,6 +5,7 @@ import {
 	openHarnessSession,
 } from "../../src/harnesses";
 import { ANTIGRAVITY_SESSION_AUTH_METHOD } from "../../src/harnesses/antigravity";
+import { CURSOR_SESSION_AUTH_METHOD } from "../../src/harnesses/cursor";
 import {
 	classifyAntigravityAuth,
 	gatherAntigravityAuthSignals,
@@ -77,15 +78,28 @@ describe("openHarnessSession", () => {
 		vi.clearAllMocks();
 	});
 
-	it("exposes a resolver on Antigravity only", () => {
+	it("exposes session auth slots for Cursor and Antigravity", () => {
 		expect(getAuthenticateBeforeNewSession("antigravity")).toEqual(
 			expect.any(Function),
 		);
 		expect(ANTIGRAVITY_SESSION_AUTH_METHOD).toBe("gemini-api-key");
-		expect(getAuthenticateBeforeNewSession("cursor")).toBeUndefined();
+		expect(getAuthenticateBeforeNewSession("cursor")).toBe(
+			CURSOR_SESSION_AUTH_METHOD,
+		);
 		expect(
 			getAuthenticateBeforeNewSession("claude-code-acp"),
 		).toBeUndefined();
+	});
+
+	it("authenticates Cursor with cursor_login before session/new", async () => {
+		const client = makeClient();
+		await client.initialize();
+		await openHarnessSession("cursor", "C:\\Obsidian", client);
+		expect(client.calls).toEqual([
+			"initialize",
+			"authenticate:cursor_login",
+			"session/new",
+		]);
 	});
 
 	it("skips authenticate when no ACP store and no API key", async () => {
@@ -113,15 +127,6 @@ describe("openHarnessSession", () => {
 			"session/new",
 		]);
 		expect(client.authenticate).toHaveBeenCalledWith("gemini-api-key");
-	});
-
-	it("does not authenticate Cursor before session/new", async () => {
-		const client = makeClient();
-		await client.initialize();
-		await openHarnessSession("cursor", "/vault", client);
-		expect(client.calls).toEqual(["initialize", "session/new"]);
-		expect(client.authenticate).not.toHaveBeenCalled();
-		expect(client.newSession).toHaveBeenCalledOnce();
 	});
 
 	it("does not authenticate other presets before session/new", async () => {

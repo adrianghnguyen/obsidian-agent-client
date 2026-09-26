@@ -1,5 +1,7 @@
+import { Platform } from "obsidian";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+	checkCursorCliHealth,
 	hasCursorApiKey,
 	isCursorStatusAuthenticated,
 } from "../src/harnesses/cursor/health";
@@ -49,3 +51,29 @@ describe("hasCursorApiKey", () => {
 		expect(hasCursorApiKey({})).toBe(true);
 	});
 });
+
+describe.skipIf(process.platform !== "win32")(
+	"checkCursorCliHealth (native Windows)",
+	() => {
+		const priorIsWin = Platform.isWin;
+
+		afterEach(() => {
+			Platform.isWin = priorIsWin;
+		});
+
+		it("probes version, acp, and auth when agent is on PATH", async () => {
+			Platform.isWin = true;
+			const result = await checkCursorCliHealth({
+				command: "agent",
+				args: ["acp"],
+				wslMode: false,
+			});
+			const byId = Object.fromEntries(result.checks.map((c) => [c.id, c]));
+			expect(byId.path?.ok).toBe(true);
+			expect(byId.version?.ok).toBe(true);
+			expect(byId.acp?.ok).toBe(true);
+			expect(byId.auth?.ok).toBe(true);
+			expect(result.state).toBe("ok");
+		});
+	},
+);

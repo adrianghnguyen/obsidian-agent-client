@@ -53,7 +53,7 @@ describe("harness registry", () => {
 		const cursor = getHarnessById("cursor");
 		expect(cursor?.healthCheck).toEqual(expect.any(Function));
 		expect(cursor?.mapConnectionError).toEqual(expect.any(Function));
-		expect(cursor?.authenticateBeforeNewSession).toBeUndefined();
+		expect(cursor?.authenticateBeforeNewSession).toBe("cursor_login");
 		expect(cursor?.docs).toEqual({ page: "cursor" });
 	});
 
