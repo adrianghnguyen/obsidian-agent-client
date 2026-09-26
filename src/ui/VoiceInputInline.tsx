@@ -1,8 +1,8 @@
 import * as React from "react";
-const { useEffect, useState, useId } = React;
+const { useEffect, useState } = React;
 import { micWavePath } from "../voice-input/mic-level-fill";
 
-/** Lucide mic glyph (24×24). Head path is also the wave clip. */
+/** Lucide mic glyph (24×24), shown only while idle. */
 const MIC_HEAD_PATH = "M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z";
 const MIC_ARC_PATH = "M19 10v2a7 7 0 0 1-14 0v-2";
 const WAVE_TICK_MS = 70;
@@ -22,7 +22,6 @@ function MicLevelIcon({
 	level: number;
 	recording: boolean;
 }) {
-	const clipId = `agent-client-mic-head-${useId().replace(/:/g, "")}`;
 	const [phase, setPhase] = useState(0);
 
 	useEffect(() => {
@@ -44,22 +43,19 @@ function MicLevelIcon({
 			height="16"
 			aria-hidden="true"
 		>
-			<defs>
-				<clipPath id={clipId}>
-					<path d={MIC_HEAD_PATH} />
-				</clipPath>
-			</defs>
 			<g className="agent-client-voice-mic-live">
-				{recording && (
+				{recording ? (
 					<path
 						className="agent-client-voice-mic-wave"
 						d={micWavePath(level, phase)}
-						clipPath={`url(#${clipId})`}
 					/>
+				) : (
+					<>
+						<path d={MIC_HEAD_PATH} />
+						<path d={MIC_ARC_PATH} />
+						<line x1="12" x2="12" y1="19" y2="22" />
+					</>
 				)}
-				<path d={MIC_HEAD_PATH} />
-				<path d={MIC_ARC_PATH} />
-				<line x1="12" x2="12" y1="19" y2="22" />
 			</g>
 			<rect
 				className="agent-client-voice-mic-stop"

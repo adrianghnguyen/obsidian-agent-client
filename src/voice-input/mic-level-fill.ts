@@ -1,9 +1,9 @@
-/** Lucide mic head center, in a 24×24 viewBox. */
-const WAVE_MID_Y = 7;
-const WAVE_LEFT = 9.35;
-const WAVE_RIGHT = 14.65;
-const WAVE_MAX_AMP = 4.2;
-const WAVE_POINTS = 5;
+/** Wave replaces the mic glyph while recording, in a 24×24 viewBox. */
+const WAVE_MID_Y = 12;
+const WAVE_LEFT = 2;
+const WAVE_RIGHT = 22;
+const WAVE_MAX_AMP = 7;
+const WAVE_POINTS = 7;
 
 function clampLevel(level: number): number {
 	return Math.max(0, Math.min(1, Number.isFinite(level) ? level : 0));
@@ -14,9 +14,9 @@ function round2(n: number): number {
 }
 
 /**
- * Live wave inside the mic head. Amplitude follows `level` in [0, 1].
- * `phase` scrolls the wave so a steady tone still moves.
- * Silence is a flat line through the middle of the head.
+ * Live wave that stands in for the mic while recording.
+ * Amplitude follows `level` in [0, 1]. `phase` scrolls the wave.
+ * Silence is a flat line across the middle of the icon.
  */
 export function micWavePath(level: number, phase: number): string {
 	const amp = clampLevel(level) * WAVE_MAX_AMP;
