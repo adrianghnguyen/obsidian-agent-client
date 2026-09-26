@@ -7,6 +7,7 @@ import { CURSOR_SESSION_AUTH_METHOD } from "../../src/harnesses/cursor";
 import {
 	hasCursorApiKey,
 	isCursorCliSignedIn,
+	type CursorCliSignInProbeOptions,
 } from "../../src/harnesses/cursor/health";
 import {
 	getAntigravityAcpSettingsPath,
@@ -29,12 +30,14 @@ vi.mock("../../src/harnesses/cursor/health", async (importOriginal) => {
 		>();
 	return {
 		...actual,
-		isCursorCliSignedIn: vi.fn(async (options) => {
-			if (actual.hasCursorApiKey(options.env)) {
-				return true;
-			}
-			return false;
-		}),
+		isCursorCliSignedIn: vi.fn(
+			async (options: CursorCliSignInProbeOptions) => {
+				if (hasCursorApiKey(options.env)) {
+					return true;
+				}
+				return false;
+			},
+		),
 	};
 });
 
