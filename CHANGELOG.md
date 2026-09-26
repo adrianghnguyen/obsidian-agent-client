@@ -4,12 +4,15 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.24.0
+
 ### Added
 - **Cursor API key setting** — Settings → Cursor exposes **API key (Secrets manager)** (`CURSOR_API_KEY`) with step-by-step copy, env-field guidance, and setup-check text for the Windows desktop vs Terminal login mismatch; session-open and **Check setup** use the resolved secret like other presets.
-- **Floating chat active note** — when a note will be attached, it shows as an `@` chip. The icon on the left cycles first-message-only (file +1), keep the active note (file ∞), or attach nothing. The same three choices are the Settings default for new floating chats.
+- **Floating chat note context** — In floating chat, the control left of the composer cycles **first message only** (attach the active note once), **keep active note** (re-attach the focused file each send), or **attach nothing**. Settings → Floating chat sets the default for new windows. When a note will be included, an `@` chip shows its name so you know what the agent receives.
+- **Floating chat file chips** — Manually attached files show as separate `@` badges in the same context row. **Attach nothing** hides only the auto active-note chip; your own attachments stay visible. Multiple chips wrap instead of stretching one wide label.
 
 ### Changed
-- **Voice input** — While recording, the mic button turns red and the icon becomes live level bars. Hover it to reveal a stop square, then click to stop. Enter or the composer send button still sends the dictation.
+- **Voice input recording mic** — While dictating, the mic button turns red and the icon becomes live level bars driven by input volume. Hover to reveal a stop square, then click to stop. Enter or the composer send button still sends the transcript.
 
 ## 0.23.0
 
