@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AttachedFile } from "../src/types/chat";
 import {
 	cycleFloatingNoteContextMode,
 	parseFloatingNoteContextMode,
@@ -6,6 +7,7 @@ import {
 	showFloatingNoteContextControl,
 	floatingNoteContextIcon,
 	composerShowsFloatingNoteChip,
+	floatingComposerContextChipLabels,
 } from "../src/services/floating-note-context";
 
 const base = {
@@ -154,5 +156,86 @@ describe("showFloatingNoteContextControl", () => {
 	it("only shows for floating variant", () => {
 		expect(showFloatingNoteContextControl("floating")).toBe(true);
 		expect(showFloatingNoteContextControl("sidebar")).toBe(false);
+	});
+});
+
+function fileAttachment(name: string, id = name): AttachedFile {
+	return {
+		id,
+		kind: "file",
+		mimeType: "text/markdown",
+		name,
+		path: `/vault/${name}.md`,
+	};
+}
+
+describe("floatingComposerContextChipLabels", () => {
+	it("renders one @ chip per attached file", () => {
+		expect(
+			floatingComposerContextChipLabels({
+				showActiveNoteChip: false,
+				activeNote: null,
+				attachedFiles: [
+					fileAttachment("file-A"),
+					fileAttachment("file-B"),
+					fileAttachment("file-C"),
+				],
+			}),
+		).toEqual(["@file-A", "@file-B", "@file-C"]);
+	});
+
+	it("leaves two chips after one attached file is removed", () => {
+		const attachedFiles = [
+			fileAttachment("file-A"),
+			fileAttachment("file-B"),
+			fileAttachment("file-C"),
+		];
+		attachedFiles.splice(1, 1);
+		expect(
+			floatingComposerContextChipLabels({
+				showActiveNoteChip: false,
+				activeNote: null,
+				attachedFiles,
+			}),
+		).toEqual(["@file-A", "@file-C"]);
+	});
+
+	it("omits the active note in don't-attach mode but keeps attached files", () => {
+		expect(
+			floatingComposerContextChipLabels({
+				showActiveNoteChip: false,
+				activeNote: {
+					path: "Notes/Active.md",
+					name: "Active",
+					extension: "md",
+					created: 0,
+					modified: 0,
+				},
+				attachedFiles: [
+					fileAttachment("file-A"),
+					fileAttachment("file-B"),
+				],
+			}),
+		).toEqual(["@file-A", "@file-B"]);
+	});
+
+	it("includes the active note chip when first-message mode will attach it", () => {
+		expect(
+			floatingComposerContextChipLabels({
+				showActiveNoteChip: true,
+				activeNote: {
+					path: "Notes/Active.md",
+					name: "Active",
+					extension: "md",
+					created: 0,
+					modified: 0,
+					selection: {
+						from: { line: 4, ch: 0 },
+						to: { line: 9, ch: 0 },
+					},
+				},
+				attachedFiles: [fileAttachment("file-A")],
+			}),
+		).toEqual(["@Active:5-10", "@file-A"]);
 	});
 });
