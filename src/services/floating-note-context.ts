@@ -41,12 +41,38 @@ export function parseFloatingNoteContextMode(
 	return "first";
 }
 
+/** Composer glyph: file+1, file with infinity, or x. */
+export type FloatingNoteContextIconId = "file-plus-one" | "file-infinity" | "x";
+
 export function floatingNoteContextIcon(
 	mode: FloatingNoteContextMode,
-): string {
-	if (mode === "always") return "file-check";
+): FloatingNoteContextIconId {
+	if (mode === "always") return "file-infinity";
 	if (mode === "off") return "x";
-	return "file-plus";
+	return "file-plus-one";
+}
+
+/**
+ * Floating composer shows the active-note chip when that note will be
+ * attached (first message of a "first" session, or every message in "always").
+ * Temporary chip dismiss does not hide the chip; the badge stays so it can
+ * be turned back on.
+ */
+export function composerShowsFloatingNoteChip(input: {
+	hasActiveNote: boolean;
+	floatingNoteContextMode: FloatingNoteContextMode;
+	messageCount: number;
+}): boolean {
+	if (!input.hasActiveNote) {
+		return false;
+	}
+	return shouldAttachActiveNote({
+		variant: "floating",
+		globalAutoMention: false,
+		floatingNoteContextMode: input.floatingNoteContextMode,
+		messageCount: input.messageCount,
+		isAutoMentionDisabled: false,
+	});
 }
 
 export function floatingNoteContextTooltip(

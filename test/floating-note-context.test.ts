@@ -5,6 +5,7 @@ import {
 	shouldAttachActiveNote,
 	showFloatingNoteContextControl,
 	floatingNoteContextIcon,
+	composerShowsFloatingNoteChip,
 } from "../src/services/floating-note-context";
 
 const base = {
@@ -102,10 +103,50 @@ describe("parseFloatingNoteContextMode", () => {
 });
 
 describe("floatingNoteContextIcon", () => {
-	it("uses x for off", () => {
+	it("uses file+1, file infinity, and x", () => {
 		expect(floatingNoteContextIcon("off")).toBe("x");
-		expect(floatingNoteContextIcon("first")).toBe("file-plus");
-		expect(floatingNoteContextIcon("always")).toBe("file-check");
+		expect(floatingNoteContextIcon("first")).toBe("file-plus-one");
+		expect(floatingNoteContextIcon("always")).toBe("file-infinity");
+	});
+});
+
+describe("composerShowsFloatingNoteChip", () => {
+	it("shows the active note while first or always will attach it", () => {
+		expect(
+			composerShowsFloatingNoteChip({
+				hasActiveNote: true,
+				floatingNoteContextMode: "first",
+				messageCount: 0,
+			}),
+		).toBe(true);
+		expect(
+			composerShowsFloatingNoteChip({
+				hasActiveNote: true,
+				floatingNoteContextMode: "first",
+				messageCount: 2,
+			}),
+		).toBe(false);
+		expect(
+			composerShowsFloatingNoteChip({
+				hasActiveNote: true,
+				floatingNoteContextMode: "always",
+				messageCount: 4,
+			}),
+		).toBe(true);
+		expect(
+			composerShowsFloatingNoteChip({
+				hasActiveNote: true,
+				floatingNoteContextMode: "off",
+				messageCount: 0,
+			}),
+		).toBe(false);
+		expect(
+			composerShowsFloatingNoteChip({
+				hasActiveNote: false,
+				floatingNoteContextMode: "always",
+				messageCount: 0,
+			}),
+		).toBe(false);
 	});
 });
 

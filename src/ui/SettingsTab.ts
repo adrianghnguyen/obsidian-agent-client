@@ -537,7 +537,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					new Setting(nestedEl)
 						.setName("Floating chat active note")
 						.setDesc(
-							"Default for new floating chats. The composer button cycles the same three choices: first message only, keep the active note, or attach nothing.",
+							"Default for new floating chats. The icon on the left of the @ note chip cycles the same three choices: first message only, keep the active note, or attach nothing.",
 						)
 						.addDropdown((dropdown) =>
 							dropdown

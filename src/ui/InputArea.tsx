@@ -26,10 +26,11 @@ import type { TranscriptSink } from "../voice-input/types";
 import { VoiceTranscriptAccumulator } from "../voice-input/transcript-accumulation";
 import { captureVoiceMessageForSend } from "../voice-input/format-voice-duration";
 import { composerEnterShouldSend } from "../voice-input/composer-enter";
-import { HeaderButton } from "./shared/IconButton";
+import { FloatingNoteContextButton } from "./FloatingNoteContextButton";
 import {
 	shouldAttachActiveNote,
 	showFloatingNoteContextControl,
+	composerShowsFloatingNoteChip,
 	floatingNoteContextIcon,
 	floatingNoteContextTooltip,
 	type ChatContextVariant,
@@ -196,6 +197,49 @@ function useInputHistory(
 	return { handleHistoryKeyDown, resetHistory };
 }
 
+function ActiveNoteContextChip({
+	note,
+	disabled,
+	onToggle,
+}: {
+	note: NoteMetadata;
+	disabled: boolean;
+	onToggle: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			className="agent-client-auto-mention-inline"
+			onClick={onToggle}
+			title={
+				disabled
+					? "Enable auto-mention"
+					: "Temporarily disable auto-mention"
+			}
+		>
+			<span
+				className={`agent-client-mention-badge ${disabled ? "agent-client-disabled" : ""}`}
+			>
+				@{note.name}
+				{note.selection && (
+					<span className="agent-client-selection-indicator">
+						{":"}
+						{note.selection.from.line + 1}-{note.selection.to.line + 1}
+					</span>
+				)}
+			</span>
+			<span
+				className="agent-client-auto-mention-toggle-icon"
+				ref={(el) => {
+					if (el) {
+						setIcon(el, disabled ? "plus" : "x");
+					}
+				}}
+			/>
+		</button>
+	);
+}
+
 // ============================================================================
 // InputArea Component
 // ============================================================================
@@ -338,6 +382,11 @@ export function InputArea({
 	const sessionMessageCount = messages.length;
 	const showFloatingContextControl =
 		showFloatingNoteContextControl(chatVariant);
+	const showFloatingNoteChip = composerShowsFloatingNoteChip({
+		hasActiveNote: !!mentions.activeNote,
+		floatingNoteContextMode,
+		messageCount: sessionMessageCount,
+	});
 	const willAttachActiveNote = shouldAttachActiveNote({
 		variant: chatVariant,
 		globalAutoMention: autoMentionEnabled,
@@ -1242,65 +1291,45 @@ export function InputArea({
 				{chatVariant !== "floating" &&
 					mentions.activeNote &&
 					willAttachActiveNote && (
-						<button
-							type="button"
-							className="agent-client-auto-mention-inline"
-							onClick={() =>
+						<ActiveNoteContextChip
+							note={mentions.activeNote}
+							disabled={mentions.isAutoMentionDisabled}
+							onToggle={() =>
 								mentions.toggleAutoMention(
 									!mentions.isAutoMentionDisabled,
 								)
 							}
-							title={
-								mentions.isAutoMentionDisabled
-									? "Enable auto-mention"
-									: "Temporarily disable auto-mention"
-							}
-						>
-							<span
-								className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
-							>
-								@{mentions.activeNote.name}
-								{mentions.activeNote.selection && (
-									<span className="agent-client-selection-indicator">
-										{":"}
-										{mentions.activeNote.selection.from
-											.line + 1}
-										-
-										{mentions.activeNote.selection.to.line +
-											1}
-									</span>
-								)}
-							</span>
-							<span
-								className="agent-client-auto-mention-toggle-icon"
-								ref={(el) => {
-									if (el) {
-										const iconName =
-											mentions.isAutoMentionDisabled
-												? "plus"
-												: "x";
-										setIcon(el, iconName);
-									}
-								}}
-							/>
-						</button>
+						/>
 					)}
 
-				{/* Inline voice controls + textarea with Hint Overlay */}
-				<div className="agent-client-input-main-row">
-					{showFloatingContextControl && (
-						<HeaderButton
-							iconName={floatingNoteContextIcon(
+				{showFloatingContextControl && (
+					<div className="agent-client-composer-context-row">
+						<FloatingNoteContextButton
+							iconId={floatingNoteContextIcon(
 								floatingNoteContextMode,
 							)}
-							className={`agent-client-floating-note-context-cycle is-${floatingNoteContextMode}`}
-							pressed={floatingNoteContextMode === "always"}
+							mode={floatingNoteContextMode}
 							tooltip={floatingNoteContextTooltip(
 								floatingNoteContextMode,
 							)}
 							onClick={() => onFloatingNoteContextCycle?.()}
 						/>
-					)}
+						{showFloatingNoteChip && mentions.activeNote && (
+							<ActiveNoteContextChip
+								note={mentions.activeNote}
+								disabled={mentions.isAutoMentionDisabled}
+								onToggle={() =>
+									mentions.toggleAutoMention(
+										!mentions.isAutoMentionDisabled,
+									)
+								}
+							/>
+						)}
+					</div>
+				)}
+
+				{/* Inline voice controls + textarea with Hint Overlay */}
+				<div className="agent-client-input-main-row">
 					{plugin.voiceInput && (
 						<VoiceInputInline
 							isListening={isVoiceListening}

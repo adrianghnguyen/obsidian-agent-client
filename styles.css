@@ -1351,8 +1351,30 @@ If your plugin does not need CSS, delete this file.
 
 .agent-client-floating-note-context-cycle {
 	flex-shrink: 0;
-	align-self: flex-start;
-	margin: 10px 0 0 6px;
+	align-self: center;
+	margin: 0;
+	color: var(--icon-color);
+}
+
+.agent-client-floating-note-context-glyph {
+	width: 22px;
+	height: 22px;
+	display: block;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.agent-client-floating-note-context-glyph path {
+	vector-effect: non-scaling-stroke;
+}
+
+.agent-client-floating-note-context-mark {
+	fill: currentColor;
+	stroke: none;
+	font-family: var(--font-interface);
 }
 
 .agent-client-floating-note-context-cycle.is-off {
