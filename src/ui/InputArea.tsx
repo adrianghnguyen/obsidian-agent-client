@@ -26,6 +26,16 @@ import type { TranscriptSink } from "../voice-input/types";
 import { VoiceTranscriptAccumulator } from "../voice-input/transcript-accumulation";
 import { captureVoiceMessageForSend } from "../voice-input/format-voice-duration";
 import { composerEnterShouldSend } from "../voice-input/composer-enter";
+import { FloatingNoteContextButton } from "./FloatingNoteContextButton";
+import {
+	shouldAttachActiveNote,
+	showFloatingNoteContextControl,
+	composerShowsFloatingNoteChip,
+	floatingNoteContextIcon,
+	floatingNoteContextTooltip,
+	type ChatContextVariant,
+	type FloatingNoteContextMode,
+} from "../services/floating-note-context";
 import {
 	endVoiceTranscriptTurn,
 	isCurrentVoiceSink,
@@ -206,6 +216,11 @@ export interface InputAreaProps {
 	availableCommands: SlashCommand[];
 	/** Whether auto-mention setting is enabled */
 	autoMentionEnabled: boolean;
+	/** Sidebar | floating | embedded */
+	chatVariant?: ChatContextVariant;
+	/** Per-session floating active-note mode (cycles in the composer). */
+	floatingNoteContextMode?: FloatingNoteContextMode;
+	onFloatingNoteContextCycle?: () => void;
 	/** Message to restore (e.g., after cancellation) */
 	restoredMessage: string | null;
 	/** Input suggestions (mentions + slash commands) */
@@ -284,6 +299,9 @@ export function InputArea({
 	agentLabel,
 	availableCommands,
 	autoMentionEnabled,
+	chatVariant = "sidebar",
+	floatingNoteContextMode = "first",
+	onFloatingNoteContextCycle,
 	restoredMessage,
 	suggestions,
 	plugin,
@@ -317,6 +335,23 @@ export function InputArea({
 	messages,
 }: InputAreaProps) {
 	const { mentions, commands: slashCommands } = suggestions;
+
+	const sessionMessageCount = messages.length;
+	const showFloatingContextControl =
+		showFloatingNoteContextControl(chatVariant);
+	const showFloatingNoteChip = composerShowsFloatingNoteChip({
+		hasActiveNote: !!mentions.activeNote,
+		floatingNoteContextMode,
+		messageCount: sessionMessageCount,
+	});
+	const willAttachActiveNote = shouldAttachActiveNote({
+		variant: chatVariant,
+		globalAutoMention: autoMentionEnabled,
+		floatingNoteContextMode,
+		messageCount: sessionMessageCount,
+		isAutoMentionDisabled: mentions.isAutoMentionDisabled,
+	});
+
 	const logger = getLogger();
 	const settings = useSettings(plugin);
 	const showEmojis = plugin.settings.displaySettings.showEmojis;
@@ -1210,47 +1245,134 @@ export function InputArea({
 				onDragLeave={handleDragLeave}
 				onDrop={(e) => void handleDrop(e)}
 			>
-				{/* Auto-mention Badge */}
-				{mentions.activeNote && (
-					<button
-						className="agent-client-auto-mention-inline"
-						onClick={() =>
-							mentions.toggleAutoMention(
-								!mentions.isAutoMentionDisabled,
-							)
-						}
-						title={
-							mentions.isAutoMentionDisabled
-								? "Enable auto-mention"
-								: "Temporarily disable auto-mention"
-						}
-					>
-						<span
-							className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
+				{chatVariant !== "floating" &&
+					mentions.activeNote &&
+					willAttachActiveNote && (
+						<button
+							type="button"
+							className="agent-client-auto-mention-inline"
+							onClick={() =>
+								mentions.toggleAutoMention(
+									!mentions.isAutoMentionDisabled,
+								)
+							}
+							title={
+								mentions.isAutoMentionDisabled
+									? "Enable auto-mention"
+									: "Temporarily disable auto-mention"
+							}
 						>
-							@{mentions.activeNote.name}
-							{mentions.activeNote.selection && (
-								<span className="agent-client-selection-indicator">
-									{":"}
-									{mentions.activeNote.selection.from.line +
-										1}
-									-{mentions.activeNote.selection.to.line + 1}
-								</span>
+							<span
+								className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
+							>
+								@{mentions.activeNote.name}
+								{mentions.activeNote.selection && (
+									<span className="agent-client-selection-indicator">
+										{":"}
+										{mentions.activeNote.selection.from
+											.line + 1}
+										-
+										{mentions.activeNote.selection.to.line +
+											1}
+									</span>
+								)}
+							</span>
+							<span
+								className="agent-client-auto-mention-toggle-icon"
+								ref={(el) => {
+									if (el) {
+										const iconName =
+											mentions.isAutoMentionDisabled
+												? "plus"
+												: "x";
+										setIcon(el, iconName);
+									}
+								}}
+							/>
+						</button>
+					)}
+
+				{showFloatingContextControl && (
+					<div className="agent-client-composer-context-row">
+						<FloatingNoteContextButton
+							iconId={floatingNoteContextIcon(
+								floatingNoteContextMode,
 							)}
-						</span>
-						<span
-							className="agent-client-auto-mention-toggle-icon"
-							ref={(el) => {
-								if (el) {
-									const iconName =
-										mentions.isAutoMentionDisabled
-											? "plus"
-											: "x";
-									setIcon(el, iconName);
-								}
-							}}
+							mode={floatingNoteContextMode}
+							tooltip={floatingNoteContextTooltip(
+								floatingNoteContextMode,
+							)}
+							onClick={() => onFloatingNoteContextCycle?.()}
 						/>
-					</button>
+						{showFloatingNoteChip && mentions.activeNote && (
+							<button
+								type="button"
+								className="agent-client-auto-mention-inline"
+								onClick={() =>
+									mentions.toggleAutoMention(
+										!mentions.isAutoMentionDisabled,
+									)
+								}
+								title={
+									mentions.isAutoMentionDisabled
+										? "Enable auto-mention"
+										: "Temporarily disable auto-mention"
+								}
+							>
+								<span
+									className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
+								>
+									@{mentions.activeNote.name}
+									{mentions.activeNote.selection && (
+										<span className="agent-client-selection-indicator">
+											{":"}
+											{mentions.activeNote.selection.from
+												.line + 1}
+											-
+											{mentions.activeNote.selection.to
+												.line + 1}
+										</span>
+									)}
+								</span>
+								<span
+									className="agent-client-auto-mention-toggle-icon"
+									ref={(el) => {
+										if (el) {
+											setIcon(
+												el,
+												mentions.isAutoMentionDisabled
+													? "plus"
+													: "x",
+											);
+										}
+									}}
+								/>
+							</button>
+						)}
+						{attachedFiles
+							.filter((file) => file.kind === "file")
+							.map((file) => (
+								<button
+									key={file.id}
+									type="button"
+									className="agent-client-auto-mention-inline"
+									onClick={() => removeFile(file.id)}
+									title="Remove attachment"
+								>
+									<span className="agent-client-mention-badge">
+										@{file.name ?? "file"}
+									</span>
+									<span
+										className="agent-client-auto-mention-toggle-icon"
+										ref={(el) => {
+											if (el) {
+												setIcon(el, "x");
+											}
+										}}
+									/>
+								</button>
+							))}
+					</div>
 				)}
 
 				{/* Inline voice controls + textarea with Hint Overlay */}

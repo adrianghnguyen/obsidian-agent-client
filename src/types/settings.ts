@@ -35,6 +35,14 @@ export type ChatViewLocation =
 export type FloatingChatEntry = "off" | "button" | "status-bar" | "commands";
 
 /**
+ * How floating chat attaches the active note.
+ * - first: only the first message of the session
+ * - always: every message
+ * - off: never
+ */
+export type FloatingNoteContextMode = "first" | "always" | "off";
+
+/**
  * How much thinking and noisy tool detail to show in chat.
  * Independent of ACP `thought_level` (reasoning effort).
  */
@@ -59,6 +67,14 @@ export interface AgentClientPluginSettings {
 	defaultAgentPerDevice: boolean;
 	autoAllowPermissions: boolean;
 	autoMentionActiveNote: boolean;
+	/**
+	 * Default floating-chat active-note mode. The composer cycles the same
+	 * three states per session without adding extra chips.
+	 * - first: attach only on the first message
+	 * - always: keep attaching the active note
+	 * - off: attach nothing
+	 */
+	floatingNoteContextMode: FloatingNoteContextMode;
 	/** Surface `[[wikilinks]]` inside note content as resolved metadata so the agent can decide which links to follow */
 	expandWikilinkContext: boolean;
 	/** Show OS system notifications on response completion and permission requests */

@@ -1335,6 +1335,54 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Auto-mention inline display */
+.agent-client-composer-context-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 8px 0;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.agent-client-composer-context-row .agent-client-auto-mention-inline {
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 100%;
+}
+
+.agent-client-floating-note-context-cycle {
+	flex-shrink: 0;
+	align-self: center;
+	margin: 0;
+	color: var(--icon-color);
+}
+
+.agent-client-floating-note-context-glyph {
+	width: 22px;
+	height: 22px;
+	display: block;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.agent-client-floating-note-context-glyph path {
+	vector-effect: non-scaling-stroke;
+}
+
+.agent-client-floating-note-context-mark {
+	fill: currentColor;
+	stroke: none;
+	font-family: var(--font-interface);
+}
+
+.agent-client-floating-note-context-cycle.is-off {
+	opacity: 0.55;
+}
+
 .agent-client-auto-mention-inline {
 	display: flex;
 	align-items: center;

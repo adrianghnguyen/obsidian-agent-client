@@ -25,6 +25,11 @@ import { ChatExporter } from "../services/chat-exporter";
 import { getLogger } from "../utils/logger";
 import { buildFileUri } from "../utils/paths";
 import { convertWindowsPathToWsl } from "../utils/platform";
+import {
+	shouldAttachActiveNote,
+	type ChatContextVariant,
+	type FloatingNoteContextMode,
+} from "../services/floating-note-context";
 
 // ============================================================================
 // Types
@@ -77,11 +82,16 @@ export function useChatActions(
 	messages: ChatMessage[],
 	// Only windowsWslMode is read reactively here; exportSettings are read
 	// live from plugin.settings. Narrow so ChatPanel can pass a settings slice.
-	settings: Pick<AgentClientPluginSettings, "windowsWslMode">,
+	settings: Pick<
+		AgentClientPluginSettings,
+		"windowsWslMode" | "autoMentionActiveNote"
+	>,
 	vaultPath: string,
 	persistentEmbedId?: string,
 	/** Skip putting the cancelled prompt back in the composer (queued follow-up). */
 	shouldSkipCancelledDraftRestore?: () => boolean,
+	chatVariant: ChatContextVariant = "sidebar",
+	floatingNoteContextMode: FloatingNoteContextMode = "first",
 ): UseChatActionsReturn {
 	const logger = getLogger();
 
@@ -185,11 +195,21 @@ export function useChatActions(
 				}
 			}
 
-			await agent.sendMessage(content, {
-				activeNote: suggestions.mentions.activeNote,
-				vaultBasePath: vaultPath,
+			const attachActiveNote = shouldAttachActiveNote({
+				variant: chatVariant,
+				globalAutoMention: settings.autoMentionActiveNote,
+				floatingNoteContextMode,
+				messageCount: messages.length,
 				isAutoMentionDisabled:
 					suggestions.mentions.isAutoMentionDisabled,
+			});
+
+			await agent.sendMessage(content, {
+				activeNote: attachActiveNote
+					? suggestions.mentions.activeNote
+					: null,
+				vaultBasePath: vaultPath,
+				isAutoMentionDisabled: !attachActiveNote,
 				images: images.length > 0 ? images : undefined,
 				resourceLinks:
 					resourceLinks.length > 0 ? resourceLinks : undefined,
@@ -220,6 +240,9 @@ export function useChatActions(
 			suggestions.mentions.isAutoMentionDisabled,
 			shouldConvertToWsl,
 			vaultPath,
+			chatVariant,
+			floatingNoteContextMode,
+			settings.autoMentionActiveNote,
 		],
 	);
 

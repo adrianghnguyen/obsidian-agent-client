@@ -47,6 +47,7 @@ import {
 	needsFloatingIdleOpacityMigration,
 } from "./services/settings-normalizer";
 import { parseTraceVerbosity } from "./services/trace-verbosity";
+import { parseFloatingNoteContextMode } from "./services/floating-note-context";
 import {
 	createAppLocalStorageAccess,
 	extractSyncedFloatingWindowLastLayout,
@@ -740,6 +741,10 @@ export default class AgentClientPlugin extends Plugin {
 			autoMentionActiveNote: bool(
 				raw.autoMentionActiveNote,
 				D.autoMentionActiveNote,
+			),
+			floatingNoteContextMode: parseFloatingNoteContextMode(
+				raw.floatingNoteContextMode,
+				raw.floatingAttachActiveNoteFirstMessage,
 			),
 			expandWikilinkContext: bool(
 				raw.expandWikilinkContext,

@@ -6,6 +6,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Added
 - **Cursor API key setting** — Settings → Cursor exposes **API key (Secrets manager)** (`CURSOR_API_KEY`) with step-by-step copy, env-field guidance, and setup-check text for the Windows desktop vs Terminal login mismatch; session-open and **Check setup** use the resolved secret like other presets.
+- **Floating chat active note** — when a note will be attached, it shows as an `@` chip. The icon on the left cycles first-message-only (file +1), keep the active note (file ∞), or attach nothing. The same three choices are the Settings default for new floating chats.
 
 ### Changed
 - **Voice input** — While recording, the mic button turns red and the icon becomes live level bars. Hover it to reveal a stop square, then click to stop. Enter or the composer send button still sends the dictation.
