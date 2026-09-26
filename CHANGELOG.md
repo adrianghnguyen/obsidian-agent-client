@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Cursor API key setting** — Settings → Cursor exposes **API key (Secrets manager)** (`CURSOR_API_KEY`) with step-by-step copy, env-field guidance, and setup-check text for the Windows desktop vs Terminal login mismatch; session-open and **Check setup** use the resolved secret like other presets.
+
 ## 0.23.0
 
 ### Added

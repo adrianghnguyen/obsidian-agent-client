@@ -37,6 +37,7 @@ import {
 	getCurrentAgent,
 	findAgentSettings,
 	buildAgentConfigWithApiKey,
+	buildHarnessSessionOpenEnv,
 	createInitialSession,
 } from "../services/session-helpers";
 import { resolveHarnessSpawnCommand } from "../services/harness-spawn-command";
@@ -272,7 +273,9 @@ export function useAgentSession(
 						command: agentConfig.command,
 						args: agentConfig.args,
 						wslMode: settings.windowsWslMode,
-						env: agentConfig.env,
+						env: buildHarnessSessionOpenEnv(agentConfig, (secretId) =>
+							agentClient.resolvePresetSecret(secretId),
+						),
 					},
 				);
 

@@ -3,7 +3,10 @@ import { access, readFile } from "fs/promises";
 import { openHarnessSession } from "../../src/harnesses";
 import { ANTIGRAVITY_SESSION_AUTH_METHOD } from "../../src/harnesses/antigravity";
 import { CURSOR_SESSION_AUTH_METHOD } from "../../src/harnesses/cursor";
-import { isCursorCliSignedIn } from "../../src/harnesses/cursor/health";
+import {
+	hasCursorApiKey,
+	isCursorCliSignedIn,
+} from "../../src/harnesses/cursor/health";
 import {
 	getAntigravityAcpSettingsPath,
 	getAntigravityAcpTokenPath,
@@ -25,7 +28,12 @@ vi.mock("../../src/harnesses/cursor/health", async (importOriginal) => {
 		>();
 	return {
 		...actual,
-		isCursorCliSignedIn: vi.fn(async () => false),
+		isCursorCliSignedIn: vi.fn(async (options) => {
+			if (actual.hasCursorApiKey(options.env)) {
+				return true;
+			}
+			return false;
+		}),
 	};
 });
 
@@ -58,7 +66,9 @@ describe("openHarnessSession integration", () => {
 	beforeEach(() => {
 		mockedAccess.mockImplementation(async () => rejectMissing());
 		mockedReadFile.mockImplementation(async () => rejectMissing());
-		mockedCursorSignedIn.mockResolvedValue(false);
+		mockedCursorSignedIn.mockImplementation(async (options) =>
+			hasCursorApiKey(options.env),
+		);
 	});
 
 	afterEach(() => {
@@ -84,6 +94,15 @@ describe("openHarnessSession integration", () => {
 		mockedCursorSignedIn.mockResolvedValue(true);
 		const client = makeClient();
 		await openHarnessSession("cursor", "C:\\Obsidian", client);
+		expect(client.calls).toEqual(["session/new"]);
+		expect(client.authenticate).not.toHaveBeenCalled();
+	});
+
+	it("skips Cursor authenticate when CURSOR_API_KEY is in session-open env", async () => {
+		const client = makeClient();
+		await openHarnessSession("cursor", "C:\\Obsidian", client, {
+			env: { CURSOR_API_KEY: "key_test" },
+		});
 		expect(client.calls).toEqual(["session/new"]);
 		expect(client.authenticate).not.toHaveBeenCalled();
 	});

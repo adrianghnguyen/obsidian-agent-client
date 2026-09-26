@@ -66,7 +66,8 @@ The agent requires authentication before processing requests.
 - See [Custom Agents](/agent-setup/custom-agents)
 
 **For Cursor:**
-- Run `agent login` in Terminal first, or set `CURSOR_API_KEY` in Environment variables. Use **Check setup** under **Settings → Agent Client → Cursor**. See [Cursor Setup](/agent-setup/cursor#authentication).
+- **Windows (Obsidian from desktop):** Terminal `agent login` usually does **not** apply to Agent Client spawns. Under **Settings → Agent Client → Cursor → API key (Secrets manager)**, click **Link…** and store a key from [Integrations](https://cursor.com/dashboard?tab=integrations), then run **Check setup**.
+- **Other platforms:** Run `agent login` in Terminal, or link an API key / set `CURSOR_API_KEY` in Environment variables. See [Cursor Setup](/agent-setup/cursor#authentication).
 
 **For Antigravity:**
 - Confirm `~/.gemini/antigravity-acp/settings.json` exists (Google login), or set `GEMINI_API_KEY`. `agy` login alone fills the CLI store, not ACP. Use **Settings → Antigravity → Health check** before chatting. See [Antigravity Setup](/agent-setup/antigravity#authentication).

@@ -39,7 +39,18 @@ where.exe agent
 
 ## Authentication
 
-Cursor manages its own credentials — there is no API key field in Agent Client.
+Use **one** of these methods:
+
+### API key (recommended on Windows)
+
+On Windows, Obsidian often launches from the desktop shortcut. The Cursor CLI inside Agent Client then does **not** see a Terminal `agent login` session, so chat may run the interactive `cursor_login` flow on every new session unless you use an API key.
+
+1. Create a key at [Cursor → Dashboard → Integrations](https://cursor.com/dashboard?tab=integrations).
+2. Open **Settings → Agent Client → Cursor → API key**, click **Link…**, and store the key in Obsidian's secret storage (not in synced `data.json`).
+
+**Check setup** should report authentication via `CURSOR_API_KEY`. Agent Client skips `cursor_login` when the linked key is present.
+
+### CLI login (macOS/Linux, or Windows Terminal-only workflows)
 
 1. Sign in from a terminal:
 
@@ -53,11 +64,7 @@ agent login
 agent status
 ```
 
-Alternatively, set `CURSOR_API_KEY` in **Environment variables** (or in your shell profile) for non-interactive use.
-
-Credentials are stored by the Cursor CLI and picked up by the `agent acp` process Agent Client starts.
-
-When you are already signed in (`agent status` OK) or use `CURSOR_API_KEY`, Agent Client skips the interactive `cursor_login` step when opening chat so the browser login page does not open on every load.
+When `agent status` reports a login (from the same environment Agent Client uses), Agent Client skips `cursor_login` on session open. You can also set `CURSOR_API_KEY` in **Environment variables** instead of the API key field.
 
 ::: tip Migrating from a custom agent
 If you previously configured Cursor as a custom agent with id `cursor`, your path, args, and saved sessions migrate to this preset automatically.

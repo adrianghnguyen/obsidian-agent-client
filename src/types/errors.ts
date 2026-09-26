@@ -40,6 +40,9 @@ export type AcpErrorCodeValue =
 // User-Facing Error Information
 // ============================================================================
 
+/** Identifies a primary action button on error banners (handler lives in hooks). */
+export type ErrorPrimaryActionKind = "cursor-sign-in";
+
 /**
  * User-facing error information for UI display.
  *
@@ -58,6 +61,12 @@ export interface ErrorInfo {
 
 	/** Optional external link rendered as an actionable anchor (e.g. docs). */
 	link?: { text: string; url: string };
+
+	/** Optional primary button (e.g. Cursor browser sign-in). */
+	primaryAction?: {
+		label: string;
+		kind: ErrorPrimaryActionKind;
+	};
 }
 
 // ============================================================================
