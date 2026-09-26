@@ -50,7 +50,7 @@ Click the **×** button next to the auto-mention badge above the input field. Cl
 
 ### How do I avoid wrong-note context with multiple floating chats?
 
-Use the button on the left of the floating composer. It cycles **first message only**, **keep active note**, and **don't attach**. The default is **Settings → Composer → Mentions & context → Floating chat active note**. Each floating window keeps its own mode.
+The floating composer shows the active note as an `@` chip when that note will be attached. The icon on the left of the chip cycles **first message only** (file +1), **keep active note** (file ∞), and **don't attach** (×, no chip). The default is **Settings → Composer → Mentions & context → Floating chat active note**. Each floating window keeps its own mode.
 
 ## Agents
 
