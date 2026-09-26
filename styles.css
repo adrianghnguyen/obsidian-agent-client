@@ -1830,8 +1830,9 @@ If your plugin does not need CSS, delete this file.
 	stroke-linejoin: round;
 }
 
-.agent-client-voice-mic-icon path.agent-client-voice-mic-wave {
-	stroke-width: 2;
+.agent-client-voice-mic-icon .agent-client-voice-mic-bar {
+	fill: currentColor;
+	stroke: none;
 }
 
 .agent-client-voice-mic-stop {
