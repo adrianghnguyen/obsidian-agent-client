@@ -5,6 +5,7 @@ import {
 	parseFloatingNoteContextMode,
 	shouldAttachActiveNote,
 	showFloatingNoteContextControl,
+	shouldShowStandaloneNoteContextGlyph,
 	floatingNoteContextIcon,
 	composerShowsFloatingNoteChip,
 	floatingComposerContextChipLabels,
@@ -156,6 +157,68 @@ describe("showFloatingNoteContextControl", () => {
 	it("only shows for floating variant", () => {
 		expect(showFloatingNoteContextControl("floating")).toBe(true);
 		expect(showFloatingNoteContextControl("sidebar")).toBe(false);
+	});
+});
+
+describe("shouldShowStandaloneNoteContextGlyph", () => {
+	it("hides the standalone glyph while the merged chip shows", () => {
+		for (const mode of ["first", "always"] as const) {
+			for (const messageCount of [0, 3]) {
+				const hasActiveNote = true;
+				expect(
+					shouldShowStandaloneNoteContextGlyph({
+						variant: "floating",
+						hasActiveNote,
+						floatingNoteContextMode: mode,
+						messageCount,
+					}),
+				).toBe(
+					!composerShowsFloatingNoteChip({
+						hasActiveNote,
+						floatingNoteContextMode: mode,
+						messageCount,
+					}),
+				);
+			}
+		}
+	});
+
+	it("shows the standalone glyph when no note will attach", () => {
+		expect(
+			shouldShowStandaloneNoteContextGlyph({
+				variant: "floating",
+				hasActiveNote: true,
+				floatingNoteContextMode: "off",
+				messageCount: 0,
+			}),
+		).toBe(true);
+		expect(
+			shouldShowStandaloneNoteContextGlyph({
+				variant: "floating",
+				hasActiveNote: true,
+				floatingNoteContextMode: "first",
+				messageCount: 2,
+			}),
+		).toBe(true);
+		expect(
+			shouldShowStandaloneNoteContextGlyph({
+				variant: "floating",
+				hasActiveNote: false,
+				floatingNoteContextMode: "always",
+				messageCount: 0,
+			}),
+		).toBe(true);
+	});
+
+	it("never shows the glyph outside floating chat", () => {
+		expect(
+			shouldShowStandaloneNoteContextGlyph({
+				variant: "sidebar",
+				hasActiveNote: true,
+				floatingNoteContextMode: "off",
+				messageCount: 0,
+			}),
+		).toBe(false);
 	});
 });
 

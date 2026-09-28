@@ -7,6 +7,12 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ### Added
 - **Jump to top of response** — Hover an assistant reply to reveal a jump-to-top control above Copy; it scrolls that streamed response to the top of the chat.
 
+### Fixed
+- **Floating chat context chips** — Attach-mode control and `@` note/file chips share one horizontal row (chips no longer stretch full width). The mode control lines up with the mic below and matches the chip hit-target height.
+
+### Changed
+- **Floating chat attach chip** — The active-note mode glyph now sits inside the `@Note` chip on its left instead of as a separate icon. Click the glyph to cycle mode, the label or × to drop the note for the next send. When no note will attach (don't attach, after the first send, or no note open), the glyph shows on its own so mode is still changeable.
+
 ## 0.24.0
 
 ### Added
@@ -16,7 +22,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Floating chat context chips** — When a note will auto-attach, an `@` chip shows its name beside the mode control (file +1 / file ∞ icons). Manually attached files appear as separate `@` badges in the same row; **don't attach** hides only the auto note chip. Multiple chips wrap instead of stretching one wide label.
 
 ### Changed
-- **Floating chat composer layout** — Active-note mode and context chips sit in a vertical stack on the left rail of the floating textarea; sidebar chat keeps its existing top context row.
+- **Floating chat composer layout** — Active-note mode and context chips sit on one horizontal row above the floating textarea (wrap when the window is narrow); sidebar chat keeps its existing top context row.
 - **Voice input recording mic** — While dictating, the mic button turns red and the icon becomes live level bars driven by input volume. Hover to reveal a stop square, then click to stop. Enter or the composer send button still sends the transcript.
 
 ## 0.23.0

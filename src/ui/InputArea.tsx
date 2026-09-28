@@ -26,11 +26,15 @@ import type { TranscriptSink } from "../voice-input/types";
 import { VoiceTranscriptAccumulator } from "../voice-input/transcript-accumulation";
 import { captureVoiceMessageForSend } from "../voice-input/format-voice-duration";
 import { composerEnterShouldSend } from "../voice-input/composer-enter";
-import { FloatingNoteContextButton } from "./FloatingNoteContextButton";
+import {
+	FloatingNoteContextButton,
+	FloatingNoteContextGlyph,
+} from "./FloatingNoteContextButton";
 import {
 	shouldAttachActiveNote,
 	showFloatingNoteContextControl,
 	composerShowsFloatingNoteChip,
+	shouldShowStandaloneNoteContextGlyph,
 	floatingNoteContextIcon,
 	floatingNoteContextTooltip,
 	type ChatContextVariant,
@@ -340,6 +344,12 @@ export function InputArea({
 	const showFloatingContextControl =
 		showFloatingNoteContextControl(chatVariant);
 	const showFloatingNoteChip = composerShowsFloatingNoteChip({
+		hasActiveNote: !!mentions.activeNote,
+		floatingNoteContextMode,
+		messageCount: sessionMessageCount,
+	});
+	const showStandaloneNoteContextGlyph = shouldShowStandaloneNoteContextGlyph({
+		variant: chatVariant,
 		hasActiveNote: !!mentions.activeNote,
 		floatingNoteContextMode,
 		messageCount: sessionMessageCount,
@@ -1294,60 +1304,83 @@ export function InputArea({
 
 				{showFloatingContextControl && (
 					<div className="agent-client-composer-context-row">
-						<FloatingNoteContextButton
-							iconId={floatingNoteContextIcon(
-								floatingNoteContextMode,
-							)}
-							mode={floatingNoteContextMode}
-							tooltip={floatingNoteContextTooltip(
-								floatingNoteContextMode,
-							)}
-							onClick={() => onFloatingNoteContextCycle?.()}
-						/>
+						{showStandaloneNoteContextGlyph && (
+							<FloatingNoteContextButton
+								iconId={floatingNoteContextIcon(
+									floatingNoteContextMode,
+								)}
+								mode={floatingNoteContextMode}
+								tooltip={floatingNoteContextTooltip(
+									floatingNoteContextMode,
+								)}
+								onClick={() => onFloatingNoteContextCycle?.()}
+							/>
+						)}
 						{showFloatingNoteChip && mentions.activeNote && (
-							<button
-								type="button"
-								className="agent-client-auto-mention-inline"
-								onClick={() =>
-									mentions.toggleAutoMention(
-										!mentions.isAutoMentionDisabled,
-									)
-								}
-								title={
-									mentions.isAutoMentionDisabled
-										? "Enable auto-mention"
-										: "Temporarily disable auto-mention"
-								}
-							>
-								<span
-									className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
-								>
-									@{mentions.activeNote.name}
-									{mentions.activeNote.selection && (
-										<span className="agent-client-selection-indicator">
-											{":"}
-											{mentions.activeNote.selection.from
-												.line + 1}
-											-
-											{mentions.activeNote.selection.to
-												.line + 1}
-										</span>
+							<div className="agent-client-auto-mention-inline agent-client-auto-mention-merged">
+								<button
+									type="button"
+									className={`clickable-icon agent-client-floating-note-context-cycle is-${floatingNoteContextMode}`}
+									title={floatingNoteContextTooltip(
+										floatingNoteContextMode,
 									)}
-								</span>
-								<span
-									className="agent-client-auto-mention-toggle-icon"
-									ref={(el) => {
-										if (el) {
-											setIcon(
-												el,
-												mentions.isAutoMentionDisabled
-													? "plus"
-													: "x",
-											);
-										}
-									}}
-								/>
-							</button>
+									aria-label={floatingNoteContextTooltip(
+										floatingNoteContextMode,
+									)}
+									onClick={() =>
+										onFloatingNoteContextCycle?.()
+									}
+								>
+									<FloatingNoteContextGlyph
+										id={floatingNoteContextIcon(
+											floatingNoteContextMode,
+										)}
+									/>
+								</button>
+								<button
+									type="button"
+									className="agent-client-mention-toggle"
+									title={
+										mentions.isAutoMentionDisabled
+											? "Enable auto-mention"
+											: "Temporarily disable auto-mention"
+									}
+									onClick={() =>
+										mentions.toggleAutoMention(
+											!mentions.isAutoMentionDisabled,
+										)
+									}
+								>
+									<span
+										className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
+									>
+										@{mentions.activeNote.name}
+										{mentions.activeNote.selection && (
+											<span className="agent-client-selection-indicator">
+												{":"}
+												{mentions.activeNote.selection.from
+													.line + 1}
+												-
+												{mentions.activeNote.selection.to
+													.line + 1}
+											</span>
+										)}
+									</span>
+									<span
+										className="agent-client-auto-mention-toggle-icon"
+										ref={(el) => {
+											if (el) {
+												setIcon(
+													el,
+													mentions.isAutoMentionDisabled
+														? "plus"
+														: "x",
+												);
+											}
+										}}
+									/>
+								</button>
+							</div>
 						)}
 						{attachedFiles
 							.filter((file) => file.kind === "file")

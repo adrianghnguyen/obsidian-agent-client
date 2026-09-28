@@ -1339,16 +1339,64 @@ If your plugin does not need CSS, delete this file.
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 6px;
-	padding: 6px 8px 0;
+	gap: 8px;
+	/* Left padding matches .agent-client-voice-inline so the mode control
+	   lines up with the mic in the row below. */
+	padding: 6px 8px 0 12px;
 	width: 100%;
 	box-sizing: border-box;
 }
 
 .agent-client-composer-context-row .agent-client-auto-mention-inline {
 	flex: 0 1 auto;
+	width: auto; /* override base width: 100% so chips sit beside the mode control */
 	min-width: 0;
 	max-width: 100%;
+	height: 32px;
+	min-height: 32px;
+	padding: 0 8px !important;
+	box-sizing: border-box;
+	align-items: center;
+}
+
+/* Merged mode glyph + @Note chip: one pill, three click zones. */
+.agent-client-composer-context-row .agent-client-auto-mention-merged {
+	gap: 6px;
+	cursor: default;
+}
+
+.agent-client-composer-context-row
+	.agent-client-auto-mention-merged
+	.agent-client-floating-note-context-cycle {
+	width: 26px;
+	height: 26px;
+	margin: 0 0 0 -4px;
+}
+
+.agent-client-composer-context-row
+	.agent-client-auto-mention-merged
+	.agent-client-floating-note-context-glyph {
+	width: 24px;
+	height: 24px;
+}
+
+.agent-client-composer-context-row .agent-client-mention-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px;
+	min-width: 0;
+	padding: 0;
+	margin: 0;
+	cursor: pointer;
+	background: none !important;
+	border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
+	appearance: none;
+	font: inherit;
+	color: inherit;
+	text-align: left;
 }
 
 .agent-client-floating-note-context-cycle {
@@ -1356,11 +1404,19 @@ If your plugin does not need CSS, delete this file.
 	align-self: center;
 	margin: 0;
 	color: var(--icon-color);
+	/* Match mic button / context chip hit target (32px). */
+	width: 32px;
+	height: 32px;
+	padding: 0 !important;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
 }
 
 .agent-client-floating-note-context-glyph {
-	width: 22px;
-	height: 22px;
+	width: 28px;
+	height: 28px;
 	display: block;
 	fill: none;
 	stroke: currentColor;

@@ -32,11 +32,13 @@ If you select text in your note, the selected lines are passed as context to the
 
 ### Floating chat active note
 
-When floating chat will attach the active note, the composer shows the same `@Note` chip as sidebar auto-mention. The mode icon sits on the **left** of that chip. Click the icon to cycle:
+When floating chat will attach the active note, the composer shows one `@Note` chip. The mode glyph sits inside the chip on the **left**; click it to cycle:
 
 1. **First message only** (file with +1) — attach the active note on the first message of that window. The chip shows that note, then goes away after the first send.
 2. **Keep active note** (file with ∞) — the chip follows whichever note is active, and that note is attached on every message.
 3. **Don't attach** (×) — no chip; use `@` mentions yourself.
+
+Click the `@Note` label or its × to temporarily drop that note for the next send. When the chip is hidden (don't attach, after the first send, or no note open) the mode glyph shows on its own so you can still change the mode.
 
 Set the default in **Settings → Agent Client → Composer → Mentions & context → Floating chat active note**. The composer button only changes the current floating session. This is independent of global **Auto-mention active note** (sidebar and embedded chat still follow that setting).
 

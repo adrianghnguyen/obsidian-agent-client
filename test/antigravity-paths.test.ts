@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Platform } from "obsidian";
-import {
+import { dirname, join } from "path";import {
 	ANTIGRAVITY_BRIDGE_EXE,
 	ANTIGRAVITY_BRIDGE_FILENAME,
 	ANTIGRAVITY_BRIDGE_PAR,
@@ -15,6 +15,15 @@ import {
 	hasGeminiApiKey,
 } from "../src/harnesses/antigravity/paths";
 import { antigravityPreset } from "../src/harnesses/antigravity/preset";
+
+/**
+ * These tests mock Platform to exercise the macOS/Linux branches on any host.
+ * `path.join` still uses the host separator, so build expected strings with the
+ * same `join` — otherwise POSIX literals fail on Windows CI.
+ */
+function hostPath(...segments: string[]): string {
+	return join(...segments);
+}
 
 describe("antigravity-paths", () => {
 	const originalEnv = { ...process.env };
@@ -48,7 +57,12 @@ describe("antigravity-paths", () => {
 		process.env.HOME = "/Users/test";
 		const candidates = getAntigravityBridgeCandidates();
 		expect(candidates[0]).toBe(
-			`/Users/test/Library/agy-acp-server/${ANTIGRAVITY_BRIDGE_PAR}`,
+			hostPath(
+				"/Users/test",
+				"Library",
+				"agy-acp-server",
+				ANTIGRAVITY_BRIDGE_PAR,
+			),
 		);
 	});
 
@@ -67,10 +81,10 @@ describe("antigravity-paths", () => {
 		process.env.HOME = "/home/test";
 		process.env.USERPROFILE = "/home/test";
 		expect(getAntigravityAcpSettingsPath()).toBe(
-			"/home/test/.gemini/antigravity-acp/settings.json",
+			hostPath("/home/test", ".gemini", "antigravity-acp", "settings.json"),
 		);
 		expect(getAntigravityAcpTokenPath()).toBe(
-			"/home/test/.gemini/antigravity-acp/acp_token.json",
+			hostPath("/home/test", ".gemini", "antigravity-acp", "acp_token.json"),
 		);
 	});
 
@@ -87,7 +101,9 @@ describe("antigravity-paths", () => {
 		vi.spyOn(Platform, "isWin", "get").mockReturnValue(false);
 		process.env.HOME = "/home/test";
 		const candidates = getAntigravityBridgeCandidates();
-		expect(candidates.some((p) => p.includes(".local/bin"))).toBe(true);
+		expect(candidates.some((p) => p.includes(join(".local", "bin")))).toBe(
+			true,
+		);
 	});
 
 	it("placeholder default path matches first candidate", () => {
@@ -108,11 +124,13 @@ describe("antigravity-paths", () => {
 		delete process.env.ANTIGRAVITY_HARNESS_PATH;
 		process.env.HOME = "/home/test";
 		const candidates = getAntigravityCompanionCandidates(
-			`/opt/agy/${ANTIGRAVITY_BRIDGE_FILENAME}`,
+			hostPath("/opt/agy", ANTIGRAVITY_BRIDGE_FILENAME),
 		);
-		expect(candidates[0]).toBe(`/opt/agy/${ANTIGRAVITY_HARNESS_FILENAME}`);
+		expect(candidates[0]).toBe(
+			hostPath("/opt/agy", ANTIGRAVITY_HARNESS_FILENAME),
+		);
 		expect(candidates).toContain(
-			`/home/test/.local/bin/${ANTIGRAVITY_HARNESS_FILENAME}`,
+			hostPath("/home/test", ".local", "bin", ANTIGRAVITY_HARNESS_FILENAME),
 		);
 	});
 

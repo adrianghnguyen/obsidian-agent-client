@@ -113,6 +113,27 @@ export function showFloatingNoteContextControl(
 	return variant === "floating";
 }
 
+/**
+ * Floating-only: keep a standalone mode glyph in the row while the merged
+ * `@Note` chip is hidden (off mode, first mode after the first send, or no
+ * active note). When the chip is visible the glyph lives inside it instead.
+ */
+export function shouldShowStandaloneNoteContextGlyph(input: {
+	variant: ChatContextVariant;
+	hasActiveNote: boolean;
+	floatingNoteContextMode: FloatingNoteContextMode;
+	messageCount: number;
+}): boolean {
+	if (!showFloatingNoteContextControl(input.variant)) {
+		return false;
+	}
+	return !composerShowsFloatingNoteChip({
+		hasActiveNote: input.hasActiveNote,
+		floatingNoteContextMode: input.floatingNoteContextMode,
+		messageCount: input.messageCount,
+	});
+}
+
 /** @ chip label for a manually attached file (same `@name` pattern as auto-mention). */
 export function composerAttachedFileChipLabel(file: AttachedFile): string {
 	const name = file.name ?? "file";
