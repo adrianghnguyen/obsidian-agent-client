@@ -35,6 +35,7 @@ import {
 	showFloatingNoteContextControl,
 	composerShowsFloatingNoteChip,
 	shouldShowStandaloneNoteContextGlyph,
+	selectionForcesAttach,
 	floatingNoteContextIcon,
 	floatingNoteContextTooltip,
 	type ChatContextVariant,
@@ -341,18 +342,21 @@ export function InputArea({
 	const { mentions, commands: slashCommands } = suggestions;
 
 	const sessionMessageCount = messages.length;
+	const selectionForces = selectionForcesAttach(mentions.activeNote);
 	const showFloatingContextControl =
 		showFloatingNoteContextControl(chatVariant);
 	const showFloatingNoteChip = composerShowsFloatingNoteChip({
 		hasActiveNote: !!mentions.activeNote,
 		floatingNoteContextMode,
 		messageCount: sessionMessageCount,
+		hasSelection: selectionForces,
 	});
 	const showStandaloneNoteContextGlyph = shouldShowStandaloneNoteContextGlyph({
 		variant: chatVariant,
 		hasActiveNote: !!mentions.activeNote,
 		floatingNoteContextMode,
 		messageCount: sessionMessageCount,
+		hasSelection: selectionForces,
 	});
 	const willAttachActiveNote = shouldAttachActiveNote({
 		variant: chatVariant,
@@ -360,7 +364,11 @@ export function InputArea({
 		floatingNoteContextMode,
 		messageCount: sessionMessageCount,
 		isAutoMentionDisabled: mentions.isAutoMentionDisabled,
+		hasSelection: selectionForces,
 	});
+	// A selection forces attach, so the chip must not read as dismissed.
+	const showChipDisabled =
+		mentions.isAutoMentionDisabled && !selectionForces;
 
 	const logger = getLogger();
 	const settings = useSettings(plugin);
@@ -1267,13 +1275,15 @@ export function InputArea({
 								)
 							}
 							title={
-								mentions.isAutoMentionDisabled
-									? "Enable auto-mention"
-									: "Temporarily disable auto-mention"
+								selectionForces
+									? "The selected text is attached as context. This toggle applies to sends without a selection."
+									: mentions.isAutoMentionDisabled
+										? "Enable auto-mention"
+										: "Temporarily disable auto-mention"
 							}
 						>
 							<span
-								className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
+								className={`agent-client-mention-badge ${showChipDisabled ? "agent-client-disabled" : ""}`}
 							>
 								@{mentions.activeNote.name}
 								{mentions.activeNote.selection && (
@@ -1291,10 +1301,9 @@ export function InputArea({
 								className="agent-client-auto-mention-toggle-icon"
 								ref={(el) => {
 									if (el) {
-										const iconName =
-											mentions.isAutoMentionDisabled
-												? "plus"
-												: "x";
+										const iconName = showChipDisabled
+											? "plus"
+											: "x";
 										setIcon(el, iconName);
 									}
 								}}
@@ -1341,9 +1350,11 @@ export function InputArea({
 									type="button"
 									className="agent-client-mention-toggle"
 									title={
-										mentions.isAutoMentionDisabled
-											? "Enable auto-mention"
-											: "Temporarily disable auto-mention"
+										selectionForces
+											? "The selected text is attached as context. This toggle applies to sends without a selection."
+											: mentions.isAutoMentionDisabled
+												? "Enable auto-mention"
+												: "Temporarily disable auto-mention"
 									}
 									onClick={() =>
 										mentions.toggleAutoMention(
@@ -1352,7 +1363,7 @@ export function InputArea({
 									}
 								>
 									<span
-										className={`agent-client-mention-badge ${mentions.isAutoMentionDisabled ? "agent-client-disabled" : ""}`}
+										className={`agent-client-mention-badge ${showChipDisabled ? "agent-client-disabled" : ""}`}
 									>
 										@{mentions.activeNote.name}
 										{mentions.activeNote.selection && (
@@ -1372,7 +1383,7 @@ export function InputArea({
 											if (el) {
 												setIcon(
 													el,
-													mentions.isAutoMentionDisabled
+													showChipDisabled
 														? "plus"
 														: "x",
 												);

@@ -26,6 +26,8 @@ You can temporarily disable auto-mention for a single message by clicking the **
 
 If you select text in your note, the selected lines are passed as context to the agent. The badge will show the line range (e.g., `@My Note:5-10`), and the agent receives both the file path and the selected content.
 
+A live selection always attaches, even when auto-mention or the floating attach control is turned off. It keeps attaching on every send until you collapse the selection, and it survives clicking into the chat composer.
+
 <p align="center">
   <img src="/images/selection-context.gif" alt="Selection context feature" />
 </p>

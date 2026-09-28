@@ -21,6 +21,12 @@ export interface ActiveNoteAttachInput {
 	messageCount: number;
 	/** User dismissed auto-mention for the current send via the @ badge × control. */
 	isAutoMentionDisabled: boolean;
+	/**
+	 * The active note has a live editor text selection. A selection is explicit
+	 * user intent, so it attaches as context regardless of the mode icon or an
+	 * explicit dismiss. It keeps attaching until the selection is collapsed.
+	 */
+	hasSelection?: boolean;
 }
 
 export function cycleFloatingNoteContextMode(
@@ -65,6 +71,8 @@ export function composerShowsFloatingNoteChip(input: {
 	hasActiveNote: boolean;
 	floatingNoteContextMode: FloatingNoteContextMode;
 	messageCount: number;
+	/** A live selection forces the chip visible even in "don't attach". */
+	hasSelection?: boolean;
 }): boolean {
 	if (!input.hasActiveNote) {
 		return false;
@@ -75,6 +83,7 @@ export function composerShowsFloatingNoteChip(input: {
 		floatingNoteContextMode: input.floatingNoteContextMode,
 		messageCount: input.messageCount,
 		isAutoMentionDisabled: false,
+		hasSelection: input.hasSelection,
 	});
 }
 
@@ -92,6 +101,12 @@ export function floatingNoteContextTooltip(
 
 /** True when the next send should include activeNote in preparePrompt. */
 export function shouldAttachActiveNote(input: ActiveNoteAttachInput): boolean {
+	// A live selection is explicit user intent and overrides the attach icon:
+	// the temporary @ dismiss, floating "don't attach", and sidebar auto-mention
+	// off all still attach while the user has text selected in the note.
+	if (input.hasSelection) {
+		return true;
+	}
 	if (input.isAutoMentionDisabled) {
 		return false;
 	}
@@ -105,6 +120,16 @@ export function shouldAttachActiveNote(input: ActiveNoteAttachInput): boolean {
 		return true;
 	}
 	return input.globalAutoMention;
+}
+
+/**
+ * Single source of truth for "the composer chip must read as active": a live
+ * selection forces attach, so the UI must not strike the chip through.
+ */
+export function selectionForcesAttach(
+	note: { selection?: unknown } | null | undefined,
+): boolean {
+	return !!note?.selection;
 }
 
 export function showFloatingNoteContextControl(
@@ -123,6 +148,7 @@ export function shouldShowStandaloneNoteContextGlyph(input: {
 	hasActiveNote: boolean;
 	floatingNoteContextMode: FloatingNoteContextMode;
 	messageCount: number;
+	hasSelection?: boolean;
 }): boolean {
 	if (!showFloatingNoteContextControl(input.variant)) {
 		return false;
@@ -131,6 +157,7 @@ export function shouldShowStandaloneNoteContextGlyph(input: {
 		hasActiveNote: input.hasActiveNote,
 		floatingNoteContextMode: input.floatingNoteContextMode,
 		messageCount: input.messageCount,
+		hasSelection: input.hasSelection,
 	});
 }
 

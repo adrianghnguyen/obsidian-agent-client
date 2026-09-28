@@ -27,6 +27,7 @@ import { buildFileUri } from "../utils/paths";
 import { convertWindowsPathToWsl } from "../utils/platform";
 import {
 	shouldAttachActiveNote,
+	selectionForcesAttach,
 	type ChatContextVariant,
 	type FloatingNoteContextMode,
 } from "../services/floating-note-context";
@@ -202,6 +203,9 @@ export function useChatActions(
 				messageCount: messages.length,
 				isAutoMentionDisabled:
 					suggestions.mentions.isAutoMentionDisabled,
+				hasSelection: selectionForcesAttach(
+					suggestions.mentions.activeNote,
+				),
 			});
 
 			await agent.sendMessage(content, {

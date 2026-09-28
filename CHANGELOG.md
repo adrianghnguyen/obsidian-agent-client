@@ -8,6 +8,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Jump to top of response** — Hover an assistant reply to reveal a jump-to-top control above Copy; it scrolls that streamed response to the top of the chat.
 
 ### Fixed
+- **Selection always attaches as context** — Selected text in a note now attaches on send even when auto-mention is off, the floating attach control is set to **Don't attach**, or the badge was dismissed with ×. It keeps attaching until the selection is collapsed, and it survives clicking into the chat composer (focus fallback to the note that owns the selection).
 - **Floating chat context chips** — Attach-mode control and `@` note/file chips share one horizontal row (chips no longer stretch full width). The mode control lines up with the mic below and matches the chip hit-target height.
 
 ### Changed

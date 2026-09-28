@@ -132,6 +132,21 @@ function normalizeFrontmatterAliases(value: unknown): string[] {
 }
 
 /**
+ * Pick the note to treat as "active" for auto-mention.
+ *
+ * The active editor file wins when present. When focus has left the note
+ * (clicking into the chat composer clears `getActiveFile()`), fall back to the
+ * file that owns the stored selection so an in-progress selection keeps
+ * attaching as context.
+ */
+export function resolveActiveNotePath(
+	activeFilePath: string | null | undefined,
+	storedSelectionFilePath: string | null | undefined,
+): string | null {
+	return activeFilePath || storedSelectionFilePath || null;
+}
+
+/**
  * Unified vault service for note access, fuzzy search, and selection tracking.
  *
  * Implements IVaultAccess port by wrapping Obsidian's Vault API,
@@ -288,14 +303,25 @@ export class VaultService implements IVaultAccess, IWikilinkResolver {
 	 */
 	getActiveNote(): Promise<NoteMetadata | null> {
 		const activeFile = this.plugin.app.workspace.getActiveFile();
-		if (!activeFile) return Promise.resolve(null);
 
-		const metadata = this.convertToMetadata(activeFile);
+		// Focus can leave the note (clicking into the chat composer clears the
+		// active file). Fall back to the file that owns the stored selection so
+		// an in-progress text selection keeps attaching as context.
+		const notePath = resolveActiveNotePath(
+			activeFile?.path,
+			this.currentSelection?.filePath,
+		);
+		if (!notePath) return Promise.resolve(null);
+
+		const file = activeFile ?? this.getFileByPath(notePath);
+		if (!file) return Promise.resolve(null);
+
+		const metadata = this.convertToMetadata(file);
 
 		// Add selection if we have it stored for this file
 		if (
 			this.currentSelection &&
-			this.currentSelection.filePath === activeFile.path
+			this.currentSelection.filePath === file.path
 		) {
 			metadata.selection = this.currentSelection.selection;
 		}
@@ -366,7 +392,14 @@ export class VaultService implements IVaultAccess, IWikilinkResolver {
 						: this.plugin.app.workspace.getActiveViewOfType(
 								MarkdownView,
 							);
-				this.attachToView(nextView ?? null);
+				// Do not detach when focus leaves the note (e.g. the chat
+				// composer or another non-markdown leaf). Keeping the CM listener
+				// alive preserves the stored selection so it still attaches as
+				// context; tracking resumes when focus returns to the note.
+				if (!nextView) {
+					return;
+				}
+				this.attachToView(nextView);
 			},
 		);
 	}

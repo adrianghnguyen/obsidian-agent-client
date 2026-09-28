@@ -8,6 +8,7 @@ import {
 	shouldShowStandaloneNoteContextGlyph,
 	floatingNoteContextIcon,
 	composerShowsFloatingNoteChip,
+	selectionForcesAttach,
 	floatingComposerContextChipLabels,
 } from "../src/services/floating-note-context";
 
@@ -219,6 +220,98 @@ describe("shouldShowStandaloneNoteContextGlyph", () => {
 				messageCount: 0,
 			}),
 		).toBe(false);
+	});
+});
+
+describe("selection forces attach regardless of the icon (new contract)", () => {
+	it("badge dismiss does not override a live selection", () => {
+		expect(
+			shouldAttachActiveNote({
+				...base,
+				variant: "floating",
+				floatingNoteContextMode: "always",
+				isAutoMentionDisabled: true,
+				hasSelection: true,
+			}),
+		).toBe(true);
+	});
+
+	it("floating don't-attach does not override a live selection", () => {
+		expect(
+			shouldAttachActiveNote({
+				...base,
+				variant: "floating",
+				floatingNoteContextMode: "off",
+				hasSelection: true,
+			}),
+		).toBe(true);
+	});
+
+	it("sidebar auto-mention off does not override a live selection", () => {
+		expect(
+			shouldAttachActiveNote({
+				...base,
+				variant: "sidebar",
+				globalAutoMention: false,
+				hasSelection: true,
+			}),
+		).toBe(true);
+	});
+
+	it("don't-attach shows the chip while a selection is live", () => {
+		expect(
+			composerShowsFloatingNoteChip({
+				hasActiveNote: true,
+				floatingNoteContextMode: "off",
+				messageCount: 0,
+				hasSelection: true,
+			}),
+		).toBe(true);
+	});
+
+	it("don't-attach hides the standalone glyph while a selection is live", () => {
+		expect(
+			shouldShowStandaloneNoteContextGlyph({
+				variant: "floating",
+				hasActiveNote: true,
+				floatingNoteContextMode: "off",
+				messageCount: 0,
+				hasSelection: true,
+			}),
+		).toBe(false);
+	});
+
+	it("without a selection the icon still decides", () => {
+		expect(
+			shouldAttachActiveNote({
+				...base,
+				variant: "floating",
+				floatingNoteContextMode: "off",
+				hasSelection: false,
+			}),
+		).toBe(false);
+		expect(
+			shouldAttachActiveNote({
+				...base,
+				variant: "floating",
+				floatingNoteContextMode: "always",
+				isAutoMentionDisabled: true,
+				hasSelection: false,
+			}),
+		).toBe(false);
+	});
+});
+
+describe("selectionForcesAttach", () => {
+	it("is true only when the note has a selection", () => {
+		expect(
+			selectionForcesAttach({
+				selection: { from: { line: 1, ch: 0 }, to: { line: 2, ch: 0 } },
+			}),
+		).toBe(true);
+		expect(selectionForcesAttach({})).toBe(false);
+		expect(selectionForcesAttach(null)).toBe(false);
+		expect(selectionForcesAttach(undefined)).toBe(false);
 	});
 });
 
