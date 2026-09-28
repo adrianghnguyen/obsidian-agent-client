@@ -25,14 +25,13 @@ export function JumpToTopButton() {
 				const delta =
 					target.getBoundingClientRect().top -
 					container.getBoundingClientRect().top;
-				container.scrollTo({
-					top: container.scrollTop + delta,
-					behavior: "smooth",
-				});
+				// Electron often no-ops scrollTo({ behavior: "smooth" }) on this
+				// overflow scroller; assign scrollTop (instant) instead.
+				container.scrollTop = container.scrollTop + delta;
 				return;
 			}
 
-			target.scrollIntoView({ behavior: "smooth", block: "start" });
+			target.scrollIntoView({ block: "start" });
 		},
 		[],
 	);
