@@ -5,6 +5,10 @@ import { setIcon } from "obsidian";
 /**
  * Scrolls the hovered assistant response to the top of the message list.
  * Uses the same action-button styling as CopyButton (fade-in via parent).
+ *
+ * Prefer scrolling `.agent-client-chat-view-messages` directly: Electron’s
+ * scrollIntoView({ behavior: "smooth" }) often no-ops on this virtualized
+ * overflow container.
  */
 export function JumpToTopButton() {
 	const handleJump = useCallback(
@@ -12,7 +16,23 @@ export function JumpToTopButton() {
 			const target =
 				event.currentTarget.closest(".agent-client-virtual-item") ??
 				event.currentTarget.closest(".agent-client-message-renderer");
-			target?.scrollIntoView({ behavior: "smooth", block: "start" });
+			if (!target) return;
+
+			const container = event.currentTarget.closest(
+				".agent-client-chat-view-messages",
+			);
+			if (container instanceof HTMLElement) {
+				const delta =
+					target.getBoundingClientRect().top -
+					container.getBoundingClientRect().top;
+				container.scrollTo({
+					top: container.scrollTop + delta,
+					behavior: "smooth",
+				});
+				return;
+			}
+
+			target.scrollIntoView({ behavior: "smooth", block: "start" });
 		},
 		[],
 	);
