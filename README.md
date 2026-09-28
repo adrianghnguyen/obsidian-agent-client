@@ -47,12 +47,16 @@ Built on the [Agent Client Protocol (ACP)](https://github.com/agentclientprotoco
 - **Slash Commands**: Your agent's `/` commands, with inline argument hints
 - **Images & Files**: Paste or drag-and-drop into the chat
 - **Modes, Models & Config**: Switch them mid-session from the input toolbar, with a context-usage indicator
-- **Visible Edits**: Note edits show up as word-level diffs in the chat — you see exactly what changed
+- **Verbosity**: Hidden, Compact (default), or Full in the toolbar — fold noisy tools and thoughts without changing the agent's thought level
+- **Composer send buffer**: Send or Enter while a harness is connecting or finishing a turn queues the message; cancellable chips sit above the composer until it flushes
+- **Visible Edits**: Note edits show up as word-level diffs in the chat — you see exactly what changed. Subagent / Task work stays visible instead of disappearing
 - **Permission Prompts**: Approve or reject each agent action — from the banner or with a hotkey. Auto-allow is opt-in
-- **Session History**: Conversations are saved locally — resume or fork past sessions (agent-dependent)
+- **Session History**: Local chats across every harness — filter by agent, clear older sessions, resume or fork (agent-dependent)
 - **Chat Export**: Save conversations as Markdown notes with frontmatter, manually or automatically
 - **Terminal Integration**: Agents run commands with live output in the chat
-- **Floating Chat**: Draggable chat windows independent of the workspace — they remember their size and position
+- **Voice Input**: Dictate into the composer via Gemini Live — mic beside the textarea, with optional vocabulary and speech-detection tuning in Settings
+- **Floating Chat**: Draggable windows (optional tabs), idle transparency with a lock, and last size/position remembered per device
+- **Per-device paths**: Cursor and Antigravity Path stay on this computer; default agent can sync or stay device-only. Settings includes **Check setup** health probes and a version / recent-changes banner
 - **WSL Mode**: Run agents inside WSL on Windows
 
 ## Installation
@@ -69,7 +73,7 @@ See [docs/getting-started/index.md](docs/getting-started/index.md) for BRAT, man
 
    [Claude Code](docs/agent-setup/claude-code.md) · [Codex](docs/agent-setup/codex.md) · [Cursor](docs/agent-setup/cursor.md) · [Antigravity](docs/agent-setup/antigravity.md) · [Custom agents](docs/agent-setup/custom-agents.md)
 
-2. Open **Settings → Agent Client** and check the agent's path — **Auto-detect** usually finds it
+2. Open **Settings → Agent Client → Agents**, enable the agent, and confirm its path — **Auto-detect** and **Check setup** usually cover it (Cursor / Antigravity paths stay on this device)
 3. Click the robot icon in the ribbon and start chatting
 
 **Documentation:** [Docs index](docs/README.md) · [Getting started](docs/getting-started/index.md) · [Agent setup](docs/agent-setup/index.md) · [Usage](docs/usage/index.md) · [FAQ](docs/help/faq.md) · [Troubleshooting](docs/help/troubleshooting.md)
