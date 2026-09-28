@@ -11,6 +11,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Floating chat context chips** — Attach-mode control and `@` note/file chips share one horizontal row (chips no longer stretch full width). The mode control lines up with the mic below and matches the chip hit-target height.
 
 ### Changed
+- **Scroll to bottom** — When you scroll up in sidebar or floating chat, a small chevron sits at the bottom of the scrollbar track so you can jump back to the latest messages.
 - **Floating chat attach chip** — The active-note mode glyph now sits inside the `@Note` chip on its left instead of as a separate icon. Click the glyph to cycle mode, the label or × to drop the note for the next send. When no note will attach (don't attach, after the first send, or no note open), the glyph shows on its own so mode is still changeable.
 
 ## 0.24.0

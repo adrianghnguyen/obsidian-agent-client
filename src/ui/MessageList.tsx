@@ -247,15 +247,17 @@ export function MessageList({
 	// Empty state
 	if (displayItems.length === 0) {
 		return (
-			<div ref={containerRef} className="agent-client-chat-view-messages">
-				<div className="agent-client-chat-empty-state">
-					{isRestoringSession
-						? "Restoring session..."
-						: !isSessionReady
-							? agentId === ANTIGRAVITY_PRESET_ID
-								? ANTIGRAVITY_CONNECTING_COPY
-								: `Connecting to ${agentLabel}...`
-							: `Start a conversation with ${agentLabel}...`}
+			<div className="agent-client-messages-shell">
+				<div ref={containerRef} className="agent-client-chat-view-messages">
+					<div className="agent-client-chat-empty-state">
+						{isRestoringSession
+							? "Restoring session..."
+							: !isSessionReady
+								? agentId === ANTIGRAVITY_PRESET_ID
+									? ANTIGRAVITY_CONNECTING_COPY
+									: `Connecting to ${agentLabel}...`
+								: `Start a conversation with ${agentLabel}...`}
+					</div>
 				</div>
 			</div>
 		);
@@ -264,83 +266,88 @@ export function MessageList({
 	const virtualItems = virtualizer.getVirtualItems();
 
 	return (
-		<div ref={containerRef} className="agent-client-chat-view-messages">
-			{/* Virtualized message list */}
-			<div
-				className="agent-client-virtual-list-inner"
-				style={{
-					height: virtualizer.getTotalSize(),
-					position: "relative",
-				}}
-			>
-				{virtualItems.map((virtualItem) => {
-					const displayItem = displayItems[virtualItem.index];
-					return (
-						<div
-							key={displayItem.key}
-							ref={virtualizer.measureElement}
-							data-index={virtualItem.index}
-							data-msg-id={displayItem.key}
-							className="agent-client-virtual-item"
-							style={{
-								position: "absolute",
-								top: 0,
-								left: 0,
-								width: "100%",
-								transform: `translateY(${virtualItem.start}px)`,
-							}}
-						>
-							{displayItem.type === "turn" ? (
-								<TurnTraceRenderer
-									segment={displayItem.segment}
-									messages={messages}
-									plugin={plugin}
-									terminalClient={terminalClient}
-									sessionId={sessionId}
-									traceVerbosity={traceVerbosity}
-									onApprovePermission={onApprovePermission}
-								/>
-							) : (
-								<MessageBubble
-									message={displayItem.message}
-									plugin={plugin}
-									terminalClient={terminalClient}
-									sessionId={sessionId}
-									traceVerbosity={traceVerbosity}
-									onApprovePermission={onApprovePermission}
-								/>
-							)}
-						</div>
-					);
-				})}
-			</div>
-
-			{/* Loading indicator — outside virtualizer */}
-			<div
-				className={`agent-client-loading-indicator ${!isSending ? "agent-client-hidden" : ""}`}
-			>
-				<div className="agent-client-loading-dots">
-					<div className="agent-client-loading-dot"></div>
-					<div className="agent-client-loading-dot"></div>
-					<div className="agent-client-loading-dot"></div>
-					<div className="agent-client-loading-dot"></div>
-					<div className="agent-client-loading-dot"></div>
-					<div className="agent-client-loading-dot"></div>
-					<div className="agent-client-loading-dot"></div>
-					<div className="agent-client-loading-dot"></div>
-					<div className="agent-client-loading-dot"></div>
+		<div className="agent-client-messages-shell">
+			<div ref={containerRef} className="agent-client-chat-view-messages">
+				{/* Virtualized message list */}
+				<div
+					className="agent-client-virtual-list-inner"
+					style={{
+						height: virtualizer.getTotalSize(),
+						position: "relative",
+					}}
+				>
+					{virtualItems.map((virtualItem) => {
+						const displayItem = displayItems[virtualItem.index];
+						return (
+							<div
+								key={displayItem.key}
+								ref={virtualizer.measureElement}
+								data-index={virtualItem.index}
+								data-msg-id={displayItem.key}
+								className="agent-client-virtual-item"
+								style={{
+									position: "absolute",
+									top: 0,
+									left: 0,
+									width: "100%",
+									transform: `translateY(${virtualItem.start}px)`,
+								}}
+							>
+								{displayItem.type === "turn" ? (
+									<TurnTraceRenderer
+										segment={displayItem.segment}
+										messages={messages}
+										plugin={plugin}
+										terminalClient={terminalClient}
+										sessionId={sessionId}
+										traceVerbosity={traceVerbosity}
+										onApprovePermission={onApprovePermission}
+									/>
+								) : (
+									<MessageBubble
+										message={displayItem.message}
+										plugin={plugin}
+										terminalClient={terminalClient}
+										sessionId={sessionId}
+										traceVerbosity={traceVerbosity}
+										onApprovePermission={onApprovePermission}
+									/>
+								)}
+							</div>
+						);
+					})}
 				</div>
-				{hasActivePermission && (
-					<span className="agent-client-loading-status">
-						Waiting for permission...
-					</span>
-				)}
+
+				{/* Loading indicator — outside virtualizer */}
+				<div
+					className={`agent-client-loading-indicator ${!isSending ? "agent-client-hidden" : ""}`}
+				>
+					<div className="agent-client-loading-dots">
+						<div className="agent-client-loading-dot"></div>
+						<div className="agent-client-loading-dot"></div>
+						<div className="agent-client-loading-dot"></div>
+						<div className="agent-client-loading-dot"></div>
+						<div className="agent-client-loading-dot"></div>
+						<div className="agent-client-loading-dot"></div>
+						<div className="agent-client-loading-dot"></div>
+						<div className="agent-client-loading-dot"></div>
+						<div className="agent-client-loading-dot"></div>
+					</div>
+					{hasActivePermission && (
+						<span className="agent-client-loading-status">
+							Waiting for permission...
+						</span>
+					)}
+				</div>
 			</div>
 
-			{/* Scroll to bottom button */}
+			{/* Scroll to bottom — pinned to bottom of scrollbar track */}
 			{!isAtBottom && (
 				<button
+					type="button"
 					className="agent-client-scroll-to-bottom"
+					aria-label="Scroll to bottom"
+					title="Scroll to bottom"
 					onClick={() => {
 						virtualizer.scrollToIndex(displayItems.length - 1, {
 							align: "end",

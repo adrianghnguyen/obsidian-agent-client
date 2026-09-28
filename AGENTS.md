@@ -169,6 +169,8 @@ Thin wrappers that:
 
 FloatingChatView uses `onRegisterExpanded` callback (not CustomEvent) for expand/collapse.
 
+**UX parity:** Sidebar chat view and floating chat view must behave the same for user experience (scroll, composer, context chips, permissions, message actions, jump controls, etc.). Layout chrome may differ (header, window chrome, density); interaction and feature behavior must not. Implement shared behavior in `ChatPanel` / shared children (`MessageList`, `InputArea`, …), not as floating-only or sidebar-only forks, unless the difference is unavoidable chrome.
+
 ### Hooks (`hooks/`)
 
 **useAgent** (facade): Comp훈oses useAgentSession + useAgentMessages
@@ -295,6 +297,7 @@ interface ISettingsAccess {
 4. **Types have zero deps**: No `obsidian`, no SDK, no React in `types/`
 5. **Single event channel**: All agent events (messages, session updates, permissions, errors) flow through `onSessionUpdate`. No special callback paths.
 6. **Context for services**: plugin, acpClient, vaultService, settingsService via ChatContext
+7. **Sidebar ↔ floating UX parity**: Chat view and floating chat view must offer the same user-facing behaviors. Prefer shared components/hooks; do not ship a feature or control in only one variant.
 
 ### Performance Patterns
 1. **useMemo for return stability**: useAgent, useSuggestions, useSessionHistory wrap return objects in useMemo to prevent cascading re-renders

@@ -466,16 +466,26 @@ If your plugin does not need CSS, delete this file.
 	min-width: 0;
 }
 
-/* ===== Scroll to Bottom Button ===== */
+/* Messages shell: flex child that hosts scroller + scroll-to-bottom overlay */
+.agent-client-messages-shell {
+	flex: 1;
+	min-height: 0;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+
+/* ===== Scroll to Bottom Button (bottom of scrollbar track) ===== */
 .agent-client-scroll-to-bottom {
-	position: sticky;
-	bottom: 4px;
-	left: 50%;
-	transform: translateX(-50%);
-	padding: 6px !important;
+	position: absolute;
+	bottom: 2px;
+	right: 0;
+	width: 18px;
+	height: 18px;
+	padding: 2px !important;
 	margin: 0 !important;
-	border: none !important;
-	border-radius: 50%;
+	border: 1px solid var(--background-modifier-border) !important;
+	border-radius: 4px;
 	background-color: var(--background-primary) !important;
 	color: var(--text-muted);
 	cursor: pointer;
@@ -484,19 +494,22 @@ If your plugin does not need CSS, delete this file.
 	justify-content: center;
 	outline: none !important;
 	appearance: none;
-	box-shadow: none !important;
+	box-shadow: var(--shadow-s) !important;
 	min-width: unset !important;
 	min-height: unset !important;
 	z-index: 10;
 }
 
 .agent-client-scroll-to-bottom svg {
+	width: 14px;
+	height: 14px;
 	color: var(--text-muted);
-	transition: color 0.2s ease;
+	transition: color 0.15s ease;
 }
 
 .agent-client-scroll-to-bottom:hover {
-	background-color: var(--background-primary) !important;
+	background-color: var(--background-modifier-hover) !important;
+	border-color: var(--interactive-accent) !important;
 }
 
 .agent-client-scroll-to-bottom:hover svg {
@@ -3096,6 +3109,12 @@ If your plugin does not need CSS, delete this file.
 	min-height: 0;
 }
 
+/* Pin jump-to-bottom to the floating chat scrollbar track corner */
+.agent-client-floating-messages-container .agent-client-scroll-to-bottom {
+	bottom: 0;
+	right: 0;
+}
+
 /* ===== Floating chat tabs ===== */
 .agent-client-floating-tab-bar {
 	display: flex;
@@ -3544,6 +3563,11 @@ If your plugin does not need CSS, delete this file.
 	flex-direction: column;
 	min-height: 0;
 	overflow: hidden;
+}
+
+.agent-client-embedded-messages-container .agent-client-messages-shell {
+	flex: 1 1 auto;
+	min-height: 0;
 }
 
 .agent-client-embedded-messages-container .agent-client-chat-view-messages {
