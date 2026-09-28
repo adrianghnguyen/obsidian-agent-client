@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Jump to top of response** — Hover an assistant reply to reveal a jump-to-top control above Copy; it scrolls that streamed response to the top of the chat.
+
 ## 0.24.0
 
 ### Added

@@ -2088,7 +2088,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-client-message-renderer.agent-client-message-has-copy.agent-client-message-assistant {
-	padding-bottom: 22px;
+	padding-bottom: 44px;
 }
 
 .agent-client-message-renderer.agent-client-message-assistant
@@ -2101,6 +2101,7 @@ If your plugin does not need CSS, delete this file.
 	bottom: 4px;
 	right: 8px;
 	display: flex;
+	flex-direction: column;
 	gap: 2px;
 	opacity: 0;
 	pointer-events: none;

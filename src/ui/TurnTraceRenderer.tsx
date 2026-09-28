@@ -18,6 +18,7 @@ import { PlanBlock } from "./PlanBlock";
 import { LucideIcon } from "./shared/IconButton";
 import { MarkdownRenderer } from "./shared/MarkdownRenderer";
 import { CopyButton } from "./shared/CopyButton";
+import { JumpToTopButton } from "./shared/JumpToTopButton";
 import { hasCopyableText } from "../utils/message-copy";
 
 interface TurnTraceRendererProps {
@@ -497,6 +498,7 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 			})}
 			{canCopy && (
 				<div className="agent-client-message-actions">
+					<JumpToTopButton />
 					<CopyButton contents={answerContents} />
 				</div>
 			)}

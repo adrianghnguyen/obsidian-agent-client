@@ -23,6 +23,7 @@ import { ToolCallBlock } from "./ToolCallBlock";
 import { PlanBlock } from "./PlanBlock";
 import { LucideIcon } from "./shared/IconButton";
 import { CopyButton } from "./shared/CopyButton";
+import { JumpToTopButton } from "./shared/JumpToTopButton";
 import { hasCopyableText } from "../utils/message-copy";
 
 // ---------------------------------------------------------------------------
@@ -627,6 +628,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 			})}
 			{canCopy && (
 				<div className="agent-client-message-actions">
+					{message.role === "assistant" && <JumpToTopButton />}
 					<CopyButton contents={message.content} />
 				</div>
 			)}
