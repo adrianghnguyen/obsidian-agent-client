@@ -1057,6 +1057,24 @@ If your plugin does not need CSS, delete this file.
 	white-space: nowrap;
 }
 
+/* Sidebar header reuses the floating agent selector; let it grow so the
+   action buttons stay pinned to the right like the plain title did. */
+.agent-client-chat-view-header .agent-client-agent-selector {
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: none;
+	margin-left: var(--size-4-1);
+}
+
+.agent-client-chat-view-header .agent-client-agent-selector select.dropdown {
+	max-width: 100%;
+}
+
+.agent-client-chat-view-header .agent-client-agent-label {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
 .agent-client-chat-view-header-update {
 	flex: 0 1 auto;
 	padding: 2px 8px;

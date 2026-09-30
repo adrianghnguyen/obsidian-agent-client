@@ -1,42 +1,12 @@
 import * as React from "react";
-const { useRef, useEffect, useMemo } = React;
-import { setIcon, DropdownComponent } from "obsidian";
+import { setIcon } from "obsidian";
+
 import { HeaderButton } from "./shared/IconButton";
 import { FloatingTransparencyLockButton } from "./shared/FloatingTransparencyLockButton";
 import { useChatContext } from "./ChatContext";
 import { WindowMinimizeCloseButton } from "./shared/WindowMinimizeCloseButton";
+import { AgentSelector } from "./shared/AgentSelector";
 import type { AgentDisplayInfo } from "../services/session-helpers";
-
-/** Stable empty list for the pinned-agent case (no switchable agents). */
-const EMPTY_AGENTS: AgentDisplayInfo[] = [];
-
-/**
- * Selector options = enabled agents, plus the active agent appended as an
- * explicit "(disabled)" option when it is not in the enabled enumeration
- * (kept session or pinned block on a disabled agent). Without it the
- * dropdown's setValue silently no-ops and the selector renders blank.
- * Returns `availableAgents` by reference when no append is needed, so the
- * dropdown-rebuild effect doesn't re-run on ordinary agent switches.
- */
-function useSelectorAgents(
-	availableAgents: AgentDisplayInfo[] | undefined,
-	currentAgentId: string | undefined,
-	agentLabel: string,
-): AgentDisplayInfo[] {
-	return useMemo(() => {
-		if (!availableAgents) return EMPTY_AGENTS;
-		if (
-			!currentAgentId ||
-			availableAgents.some((agent) => agent.id === currentAgentId)
-		) {
-			return availableAgents;
-		}
-		return [
-			...availableAgents,
-			{ id: currentAgentId, displayName: `${agentLabel} (disabled)` },
-		];
-	}, [availableAgents, currentAgentId, agentLabel]);
-}
 
 // ============================================================================
 // Props Types
@@ -49,6 +19,12 @@ export interface SidebarHeaderProps {
 	variant: "sidebar";
 	/** Display name of the active agent */
 	agentLabel: string;
+	/** Available agents for switching (same enumeration as floating chat) */
+	availableAgents?: AgentDisplayInfo[];
+	/** Current agent ID */
+	currentAgentId?: string;
+	/** Callback to switch agent */
+	onAgentChange?: (agentId: string) => void;
 	/** Whether a plugin update is available */
 	isUpdateAvailable: boolean;
 	/** Callback to create a new chat session */
@@ -135,9 +111,9 @@ function NavActionButton({
 	label: string;
 	onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
 }) {
-	const ref = useRef<HTMLDivElement>(null);
+	const ref = React.useRef<HTMLDivElement>(null);
 
-	useEffect(() => {
+	React.useEffect(() => {
 		if (ref.current) {
 			setIcon(ref.current, icon);
 		}
@@ -162,9 +138,14 @@ function NavActionButton({
  *
  * Uses Obsidian's native .nav-header + .nav-buttons-container pattern
  * to match the look of File Explorer, Bookmarks, and other sidebar panes.
+ * The agent label is presented by the view's own tab header, so this row only
+ * carries actions; switching agents lives in the More menu.
  */
 function SidebarHeader({
 	agentLabel,
+	availableAgents,
+	currentAgentId,
+	onAgentChange,
 	isUpdateAvailable,
 	onNewChat,
 	onExportChat,
@@ -174,9 +155,18 @@ function SidebarHeader({
 	return (
 		<div className="nav-header agent-client-chat-view-header">
 			<div className="nav-buttons-container">
-				<span className="agent-client-chat-view-header-title">
-					{agentLabel}
-				</span>
+				{onAgentChange ? (
+					<AgentSelector
+						availableAgents={availableAgents}
+						currentAgentId={currentAgentId}
+						agentLabel={agentLabel}
+						onAgentChange={onAgentChange}
+					/>
+				) : (
+					<span className="agent-client-chat-view-header-title">
+						{agentLabel}
+					</span>
+				)}
 				{isUpdateAvailable && (
 					<span className="agent-client-chat-view-header-update">
 						Plugin update available!
@@ -234,91 +224,18 @@ function FloatingHeader({
 	hideWindowControls,
 }: FloatingHeaderProps) {
 	const { plugin } = useChatContext();
-	// Refs for agent dropdown
-	const agentDropdownRef = useRef<HTMLDivElement>(null);
-	const agentDropdownInstance = useRef<DropdownComponent | null>(null);
-
-	// Stable ref for onAgentChange callback
-	const onAgentChangeRef = useRef(onAgentChange);
-	onAgentChangeRef.current = onAgentChange;
-
-	const selectorAgents = useSelectorAgents(
-		availableAgents,
-		currentAgentId,
-		agentLabel,
-	);
-
-	// Initialize agent dropdown
-	useEffect(() => {
-		const containerEl = agentDropdownRef.current;
-		if (!containerEl) return;
-
-		// Only show dropdown if there are multiple agents
-		if (selectorAgents.length <= 1) {
-			if (agentDropdownInstance.current) {
-				containerEl.empty();
-				agentDropdownInstance.current = null;
-			}
-			return;
-		}
-
-		// Create dropdown if not exists
-		if (!agentDropdownInstance.current) {
-			const dropdown = new DropdownComponent(containerEl);
-			agentDropdownInstance.current = dropdown;
-
-			// Add options
-			for (const agent of selectorAgents) {
-				dropdown.addOption(agent.id, agent.displayName);
-			}
-
-			// Set initial value
-			if (currentAgentId) {
-				dropdown.setValue(currentAgentId);
-			}
-
-			// Handle change
-			dropdown.onChange((value) => {
-				onAgentChangeRef.current?.(value);
-			});
-		}
-
-		// Cleanup on unmount or when the selector options change
-		return () => {
-			if (agentDropdownInstance.current) {
-				containerEl.empty();
-				agentDropdownInstance.current = null;
-			}
-		};
-	}, [selectorAgents]);
-
-	// Update dropdown value when currentAgentId changes
-	useEffect(() => {
-		if (agentDropdownInstance.current && currentAgentId) {
-			agentDropdownInstance.current.setValue(currentAgentId);
-		}
-	}, [currentAgentId]);
 
 	return (
 		<div
 			className={`agent-client-inline-header agent-client-inline-header-floating`}
 		>
 			<div className="agent-client-inline-header-main">
-				{selectorAgents.length > 1 ? (
-					<div className="agent-client-agent-selector">
-						<div ref={agentDropdownRef} />
-						<span
-							className="agent-client-agent-selector-icon"
-							ref={(el) => {
-								if (el) setIcon(el, "chevron-down");
-							}}
-						/>
-					</div>
-				) : (
-					<span className="agent-client-agent-label">
-						{agentLabel}
-					</span>
-				)}
+				<AgentSelector
+					availableAgents={availableAgents}
+					currentAgentId={currentAgentId}
+					agentLabel={agentLabel}
+					onAgentChange={onAgentChange}
+				/>
 			</div>
 			{isUpdateAvailable && (
 				<p className="agent-client-chat-view-header-update">
@@ -367,85 +284,15 @@ function EmbeddedHeader({
 	onAgentChange,
 	onShowMenu,
 }: EmbeddedHeaderProps) {
-	// Refs for agent dropdown
-	const agentDropdownRef = useRef<HTMLDivElement>(null);
-	const agentDropdownInstance = useRef<DropdownComponent | null>(null);
-
-	// Stable ref for onAgentChange callback
-	const onAgentChangeRef = useRef(onAgentChange);
-	onAgentChangeRef.current = onAgentChange;
-
-	const selectorAgents = useSelectorAgents(
-		availableAgents,
-		currentAgentId,
-		agentLabel,
-	);
-
-	// Initialize agent dropdown (only when multiple switchable agents exist)
-	useEffect(() => {
-		const containerEl = agentDropdownRef.current;
-		if (!containerEl) return;
-
-		if (selectorAgents.length <= 1) {
-			if (agentDropdownInstance.current) {
-				containerEl.empty();
-				agentDropdownInstance.current = null;
-			}
-			return;
-		}
-
-		if (!agentDropdownInstance.current) {
-			const dropdown = new DropdownComponent(containerEl);
-			agentDropdownInstance.current = dropdown;
-
-			for (const agent of selectorAgents) {
-				dropdown.addOption(agent.id, agent.displayName);
-			}
-
-			if (currentAgentId) {
-				dropdown.setValue(currentAgentId);
-			}
-
-			dropdown.onChange((value) => {
-				onAgentChangeRef.current?.(value);
-			});
-		}
-
-		return () => {
-			if (agentDropdownInstance.current) {
-				containerEl.empty();
-				agentDropdownInstance.current = null;
-			}
-		};
-	}, [selectorAgents]);
-
-	// Keep dropdown value in sync with currentAgentId
-	useEffect(() => {
-		if (agentDropdownInstance.current && currentAgentId) {
-			agentDropdownInstance.current.setValue(currentAgentId);
-		}
-	}, [currentAgentId]);
-
-	const hasSelector = selectorAgents.length > 1;
-
 	return (
 		<div className="agent-client-inline-header agent-client-inline-header-embedded">
 			<div className="agent-client-inline-header-main">
-				{hasSelector ? (
-					<div className="agent-client-agent-selector">
-						<div ref={agentDropdownRef} />
-						<span
-							className="agent-client-agent-selector-icon"
-							ref={(el) => {
-								if (el) setIcon(el, "chevron-down");
-							}}
-						/>
-					</div>
-				) : (
-					<span className="agent-client-agent-label">
-						{agentLabel}
-					</span>
-				)}
+				<AgentSelector
+					availableAgents={availableAgents}
+					currentAgentId={currentAgentId}
+					agentLabel={agentLabel}
+					onAgentChange={(agentId) => onAgentChange?.(agentId)}
+				/>
 			</div>
 			{isUpdateAvailable && (
 				<p className="agent-client-chat-view-header-update">

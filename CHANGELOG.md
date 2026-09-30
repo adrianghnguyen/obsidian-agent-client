@@ -9,6 +9,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Fixed
 - **Sidebar auto-mention chip stays visible when dismissed** — Clicking the sidebar `@Note` chip's × keeps the chip in place with a struck-through label and a `+` to re-enable, matching floating chat. Previously the chip vanished, leaving the command palette as the only way back.
+- **Sidebar uses the shared agent selector** — The sidebar header now offers the same agent dropdown as floating chat (reusing one `AgentSelector` component), and its More menu carries the same New chat / Session history / Export items.
 
 ## 0.25.0
 
