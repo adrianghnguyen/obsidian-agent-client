@@ -9,6 +9,7 @@ import {
 	buildHarnessSessionOpenEnv,
 	isAgentEnabled,
 	firstEnabledAgentId,
+	nextEnabledAgentId,
 	repairNoEnabledAgents,
 } from "../src/services/session-helpers";
 import type { AgentClientPluginSettings } from "../src/types/settings";
@@ -167,6 +168,58 @@ describe("enabled helpers", () => {
 		const repaired = repairNoEnabledAgents(broken);
 		expect(repaired?.["claude-code-acp"].enabled).toBe(false);
 		expect(repaired?.cursor.enabled).toBe(true);
+	});
+});
+
+describe("nextEnabledAgentId", () => {
+	it("advances in registry order, then customs", () => {
+		const settings = makeSettings({
+			customAgents: [custom("my-custom", "My Custom")],
+		});
+		expect(nextEnabledAgentId(settings, "claude-code-acp")).toBe(
+			"codex-acp",
+		);
+		expect(nextEnabledAgentId(settings, "codex-acp")).toBe("cursor");
+		expect(nextEnabledAgentId(settings, "my-custom")).toBe(
+			"claude-code-acp",
+		);
+	});
+
+	it("wraps last to first", () => {
+		const settings = makeSettings();
+		expect(nextEnabledAgentId(settings, "antigravity")).toBe(
+			"claude-code-acp",
+		);
+	});
+
+	it("skips disabled agents", () => {
+		const settings = makeSettings({
+			customAgents: [
+				custom("my-custom", "My Custom"),
+				{ ...custom("off-custom", "Off Custom"), enabled: false },
+			],
+		});
+		settings.presetAgents["codex-acp"].enabled = false;
+		expect(nextEnabledAgentId(settings, "claude-code-acp")).toBe("cursor");
+		// A disabled current id starts from the first enabled agent.
+		expect(nextEnabledAgentId(settings, "codex-acp")).toBe(
+			"claude-code-acp",
+		);
+	});
+
+	it("starts from the first enabled agent for an unknown current id", () => {
+		const settings = makeSettings();
+		expect(nextEnabledAgentId(settings, "ghost")).toBe("claude-code-acp");
+	});
+
+	it("returns the same id when fewer than two agents are enabled", () => {
+		const settings = makeSettings();
+		for (const id of ["codex-acp", "cursor", "antigravity"] as const) {
+			settings.presetAgents[id].enabled = false;
+		}
+		expect(nextEnabledAgentId(settings, "claude-code-acp")).toBe(
+			"claude-code-acp",
+		);
 	});
 });
 

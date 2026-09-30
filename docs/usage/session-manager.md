@@ -74,7 +74,7 @@ Renaming is also available from the chat header (**⋮** menu → **Rename sessi
 
 ## Empty State
 
-If no chat views are open, the Session Manager shows **"No active sessions"**. Open a chat view (ribbon icon or the **"Open chat view"** command) to populate the list.
+If no chat views are open, the Session Manager shows **"No active sessions"**. Open a chat view (the **"Open chat view"** command) to populate the list.
 
 ## See Also
 

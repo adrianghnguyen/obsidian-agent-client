@@ -64,6 +64,27 @@ export function firstEnabledAgentId(
 }
 
 /**
+ * Next enabled agent after `currentId` in enumeration order (registry-ordered
+ * presets first, then customs), wrapping last → first. An unknown or disabled
+ * `currentId` starts from the first enabled agent. Returns `currentId` when
+ * fewer than two agents are enabled (caller decides the notice).
+ */
+export function nextEnabledAgentId(
+	settings: AgentClientPluginSettings,
+	currentId: string,
+): string {
+	const enabled = getAvailableAgentsFromSettings(settings);
+	if (enabled.length < 2) {
+		return enabled[0]?.id ?? currentId;
+	}
+	const index = enabled.findIndex((agent) => agent.id === currentId);
+	if (index < 0) {
+		return enabled[0].id;
+	}
+	return enabled[(index + 1) % enabled.length].id;
+}
+
+/**
  * Repair for the "everything disabled" state: returns a presetAgents record
  * with the first preset re-enabled, or null when no repair is needed.
  * Callers write the repaired record back (plugin.ensureAtLeastOneEnabled).
