@@ -10,7 +10,8 @@ const HOVER_HIDE_DELAY_MS = 175;
 
 /**
  * Status-bar entry for floating chat when floatingChatEntry === "status-bar".
- * Click toggles floating chat; hover shows a Session Manager popover.
+ * Plain click cycles the default agent; Ctrl/Cmd-click toggles floating chat.
+ * Hover shows a Session Manager popover.
  */
 export class FloatingChatStatusBar {
 	private statusBarEl: HTMLElement | null = null;
@@ -39,8 +40,14 @@ export class FloatingChatStatusBar {
 	mount(): void {
 		this.statusBarEl = this.plugin.addStatusBarItem();
 		this.statusBarEl.addClass("agent-client-floating-status-bar");
-		this.statusBarEl.setAttr("aria-label", "Agent floating chat");
-		this.statusBarEl.setAttr("title", "Agent floating chat");
+		this.statusBarEl.setAttr(
+			"aria-label",
+			"Agent floating chat (click to cycle default agent, Ctrl/Cmd-click to toggle)",
+		);
+		this.statusBarEl.setAttr(
+			"title",
+			"Agent floating chat (click to cycle default agent, Ctrl/Cmd-click to toggle)",
+		);
 
 		const iconEl = this.statusBarEl.createSpan({
 			cls: "agent-client-floating-status-bar-icon",
@@ -50,7 +57,13 @@ export class FloatingChatStatusBar {
 		this.statusBarEl.addEventListener("click", (e) => {
 			e.preventDefault();
 			this.hidePopover();
-			this.plugin.toggleFloatingChat();
+			// Plain click cycles the default agent (same as the ribbon);
+			// Ctrl/Cmd-click keeps the historical toggle. FAB is unchanged.
+			if (e.ctrlKey || e.metaKey) {
+				this.plugin.toggleFloatingChat();
+			} else {
+				this.plugin.cycleDefaultAgent();
+			}
 		});
 		this.statusBarEl.addEventListener("mouseenter", () => {
 			this.cancelHide();

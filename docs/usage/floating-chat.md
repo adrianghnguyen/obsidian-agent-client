@@ -46,7 +46,7 @@ Default: **Off**.
 
 1. Set **Floating chat** to **Status bar**
 2. A bot icon appears in Obsidian’s status bar
-3. **Click** the icon to toggle floating chat (same one-key open/minimize behavior as the Toggle command)
+3. **Click** the icon to cycle the default agent (same as clicking the robot ribbon icon); **Ctrl/Cmd-click** to toggle floating chat (same one-key open/minimize behavior as the Toggle command)
 4. **Hover** the icon to open a Session Manager popover listing active sessions — click a row to focus that session
 
 ### Commands only
