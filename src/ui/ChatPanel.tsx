@@ -666,20 +666,29 @@ export const ChatPanel = React.memo(function ChatPanel({
 		(e: React.MouseEvent<HTMLDivElement>) => {
 			const menu = new Menu();
 
-			// -- Switch agent section --
 			menu.addItem((item: MenuItem) => {
-				item.setTitle("Switch agent").setIsLabel(true);
+				item.setTitle("New chat")
+					.setIcon("plus")
+					.onClick(() => {
+						void handleNewChatWithPersist();
+					});
 			});
 
-			for (const agent of availableAgents) {
-				menu.addItem((item: MenuItem) => {
-					item.setTitle(agent.displayName)
-						.setChecked(agent.id === (session.agentId || ""))
-						.onClick(() => {
-							void handleNewChatWithPersist(agent.id);
-						});
-				});
-			}
+			menu.addItem((item: MenuItem) => {
+				item.setTitle("Session history")
+					.setIcon("history")
+					.onClick(() => {
+						void handleOpenHistory();
+					});
+			});
+
+			menu.addItem((item: MenuItem) => {
+				item.setTitle("Export chat to Markdown")
+					.setIcon("save")
+					.onClick(() => {
+						void handleExportChat();
+					});
+			});
 
 			menu.addSeparator();
 
@@ -748,9 +757,10 @@ export const ChatPanel = React.memo(function ChatPanel({
 			menu.showAtMouseEvent(e.nativeEvent);
 		},
 		[
-			availableAgents,
-			session.agentId,
+			session.sessionId,
 			handleNewChatWithPersist,
+			handleOpenHistory,
+			handleExportChat,
 			plugin,
 			handleRestartAgent,
 			agentCwd,
@@ -1645,6 +1655,11 @@ export const ChatPanel = React.memo(function ChatPanel({
 			<ChatHeader
 				variant="sidebar"
 				agentLabel={activeAgentLabel}
+				availableAgents={availableAgents}
+				currentAgentId={session.agentId}
+				onAgentChange={(agentId) =>
+					void handleNewChatWithPersist(agentId)
+				}
 				isUpdateAvailable={isUpdateAvailable}
 				onNewChat={() => void handleNewChatWithPersist()}
 				onExportChat={() => void handleExportChat()}
