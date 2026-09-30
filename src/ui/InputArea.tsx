@@ -1,6 +1,6 @@
 import * as React from "react";
 const { useRef, useState, useEffect, useCallback, useMemo } = React;
-import { setIcon, Notice } from "obsidian";
+import { Notice } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
 import type { IChatViewHost } from "./view-host";
@@ -26,18 +26,10 @@ import type { TranscriptSink } from "../voice-input/types";
 import { VoiceTranscriptAccumulator } from "../voice-input/transcript-accumulation";
 import { captureVoiceMessageForSend } from "../voice-input/format-voice-duration";
 import { composerEnterShouldSend } from "../voice-input/composer-enter";
+import { ComposerContextRow } from "./ComposerContextRow";
 import {
-	FloatingNoteContextButton,
-	FloatingNoteContextGlyph,
-} from "./FloatingNoteContextButton";
-import {
-	shouldAttachActiveNote,
-	showFloatingNoteContextControl,
-	composerShowsFloatingNoteChip,
-	shouldShowStandaloneNoteContextGlyph,
+	composerShowsActiveNoteChip,
 	selectionForcesAttach,
-	floatingNoteContextIcon,
-	floatingNoteContextTooltip,
 	type ChatContextVariant,
 	type FloatingNoteContextMode,
 } from "../services/floating-note-context";
@@ -343,32 +335,14 @@ export function InputArea({
 
 	const sessionMessageCount = messages.length;
 	const selectionForces = selectionForcesAttach(mentions.activeNote);
-	const showFloatingContextControl =
-		showFloatingNoteContextControl(chatVariant);
-	const showFloatingNoteChip = composerShowsFloatingNoteChip({
-		hasActiveNote: !!mentions.activeNote,
-		floatingNoteContextMode,
-		messageCount: sessionMessageCount,
-		hasSelection: selectionForces,
-	});
-	const showStandaloneNoteContextGlyph = shouldShowStandaloneNoteContextGlyph({
+	const showActiveNoteChip = composerShowsActiveNoteChip({
 		variant: chatVariant,
 		hasActiveNote: !!mentions.activeNote,
-		floatingNoteContextMode,
-		messageCount: sessionMessageCount,
-		hasSelection: selectionForces,
-	});
-	const willAttachActiveNote = shouldAttachActiveNote({
-		variant: chatVariant,
 		globalAutoMention: autoMentionEnabled,
 		floatingNoteContextMode,
 		messageCount: sessionMessageCount,
-		isAutoMentionDisabled: mentions.isAutoMentionDisabled,
 		hasSelection: selectionForces,
 	});
-	// A selection forces attach, so the chip must not read as dismissed.
-	const showChipDisabled =
-		mentions.isAutoMentionDisabled && !selectionForces;
 
 	const logger = getLogger();
 	const settings = useSettings(plugin);
@@ -1263,161 +1237,22 @@ export function InputArea({
 				onDragLeave={handleDragLeave}
 				onDrop={(e) => void handleDrop(e)}
 			>
-				{chatVariant !== "floating" &&
-					mentions.activeNote &&
-					willAttachActiveNote && (
-						<button
-							type="button"
-							className="agent-client-auto-mention-inline"
-							onClick={() =>
-								mentions.toggleAutoMention(
-									!mentions.isAutoMentionDisabled,
-								)
-							}
-							title={
-								selectionForces
-									? "The selected text is attached as context. This toggle applies to sends without a selection."
-									: mentions.isAutoMentionDisabled
-										? "Enable auto-mention"
-										: "Temporarily disable auto-mention"
-							}
-						>
-							<span
-								className={`agent-client-mention-badge ${showChipDisabled ? "agent-client-disabled" : ""}`}
-							>
-								@{mentions.activeNote.name}
-								{mentions.activeNote.selection && (
-									<span className="agent-client-selection-indicator">
-										{":"}
-										{mentions.activeNote.selection.from
-											.line + 1}
-										-
-										{mentions.activeNote.selection.to.line +
-											1}
-									</span>
-								)}
-							</span>
-							<span
-								className="agent-client-auto-mention-toggle-icon"
-								ref={(el) => {
-									if (el) {
-										const iconName = showChipDisabled
-											? "plus"
-											: "x";
-										setIcon(el, iconName);
-									}
-								}}
-							/>
-						</button>
-					)}
-
-				{showFloatingContextControl && (
-					<div className="agent-client-composer-context-row">
-						{showStandaloneNoteContextGlyph && (
-							<FloatingNoteContextButton
-								iconId={floatingNoteContextIcon(
-									floatingNoteContextMode,
-								)}
-								mode={floatingNoteContextMode}
-								tooltip={floatingNoteContextTooltip(
-									floatingNoteContextMode,
-								)}
-								onClick={() => onFloatingNoteContextCycle?.()}
-							/>
-						)}
-						{showFloatingNoteChip && mentions.activeNote && (
-							<div className="agent-client-auto-mention-inline agent-client-auto-mention-merged">
-								<button
-									type="button"
-									className={`clickable-icon agent-client-floating-note-context-cycle is-${floatingNoteContextMode}`}
-									title={floatingNoteContextTooltip(
-										floatingNoteContextMode,
-									)}
-									aria-label={floatingNoteContextTooltip(
-										floatingNoteContextMode,
-									)}
-									onClick={() =>
-										onFloatingNoteContextCycle?.()
-									}
-								>
-									<FloatingNoteContextGlyph
-										id={floatingNoteContextIcon(
-											floatingNoteContextMode,
-										)}
-									/>
-								</button>
-								<button
-									type="button"
-									className="agent-client-mention-toggle"
-									title={
-										selectionForces
-											? "The selected text is attached as context. This toggle applies to sends without a selection."
-											: mentions.isAutoMentionDisabled
-												? "Enable auto-mention"
-												: "Temporarily disable auto-mention"
-									}
-									onClick={() =>
-										mentions.toggleAutoMention(
-											!mentions.isAutoMentionDisabled,
-										)
-									}
-								>
-									<span
-										className={`agent-client-mention-badge ${showChipDisabled ? "agent-client-disabled" : ""}`}
-									>
-										@{mentions.activeNote.name}
-										{mentions.activeNote.selection && (
-											<span className="agent-client-selection-indicator">
-												{":"}
-												{mentions.activeNote.selection.from
-													.line + 1}
-												-
-												{mentions.activeNote.selection.to
-													.line + 1}
-											</span>
-										)}
-									</span>
-									<span
-										className="agent-client-auto-mention-toggle-icon"
-										ref={(el) => {
-											if (el) {
-												setIcon(
-													el,
-													showChipDisabled
-														? "plus"
-														: "x",
-												);
-											}
-										}}
-									/>
-								</button>
-							</div>
-						)}
-						{attachedFiles
-							.filter((file) => file.kind === "file")
-							.map((file) => (
-								<button
-									key={file.id}
-									type="button"
-									className="agent-client-auto-mention-inline"
-									onClick={() => removeFile(file.id)}
-									title="Remove attachment"
-								>
-									<span className="agent-client-mention-badge">
-										@{file.name ?? "file"}
-									</span>
-									<span
-										className="agent-client-auto-mention-toggle-icon"
-										ref={(el) => {
-											if (el) {
-												setIcon(el, "x");
-											}
-										}}
-									/>
-								</button>
-							))}
-					</div>
-				)}
+				<ComposerContextRow
+					variant={chatVariant}
+					activeNote={mentions.activeNote}
+					showActiveNoteChip={showActiveNoteChip}
+					isAutoMentionDisabled={mentions.isAutoMentionDisabled}
+					selectionForces={selectionForces}
+					floatingNoteContextMode={floatingNoteContextMode}
+					onCycleNoteContextMode={() =>
+						onFloatingNoteContextCycle?.()
+					}
+					onToggleAutoMention={(disabled) =>
+						mentions.toggleAutoMention(disabled)
+					}
+					attachedFiles={attachedFiles}
+					onRemoveFile={removeFile}
+				/>
 
 				{/* Inline voice controls + textarea with Hint Overlay */}
 				<div className="agent-client-input-main-row">

@@ -5,7 +5,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## [Unreleased]
 
 ### Changed
-- **Ribbon icon cycles the default agent** — Clicking the robot icon in the ribbon now advances the default agent through all enabled agents (presets then customs, wrapping around) and shows a notice with the new name, instead of opening the chat. The pick follows **Settings → Agents → Default agent scope** (this device only, or synced). Open the chat with the **Open chat view** command; the same cycle is exposed as the **Cycle default agent** command.
+- **Chat variants share the composer context row** — One component now renders the active-note `@` chip (with its dismiss/re-enable toggle) and the `@` chips for manually attached files in every chat variant, so chip behaviour, tooltips, and hit targets no longer drift apart. The floating attach-mode glyph stays floating-only.
+
+### Fixed
+- **Sidebar auto-mention chip stays visible when dismissed** — Clicking the sidebar `@Note` chip's × keeps the chip in place with a struck-through label and a `+` to re-enable, matching floating chat. Previously the chip vanished, leaving the command palette as the only way back.
 
 ## 0.25.0
 

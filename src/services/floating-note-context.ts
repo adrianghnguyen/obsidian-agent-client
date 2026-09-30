@@ -11,8 +11,11 @@ export type ChatContextVariant = "sidebar" | "floating" | "embedded";
 /** first = only the first message; always = every message; off = never. */
 export type FloatingNoteContextMode = "first" | "always" | "off";
 
-export const FLOATING_NOTE_CONTEXT_CYCLE: readonly FloatingNoteContextMode[] =
-	["first", "always", "off"];
+export const FLOATING_NOTE_CONTEXT_CYCLE: readonly FloatingNoteContextMode[] = [
+	"first",
+	"always",
+	"off",
+];
 
 export interface ActiveNoteAttachInput {
 	variant: ChatContextVariant;
@@ -33,7 +36,10 @@ export function cycleFloatingNoteContextMode(
 	mode: FloatingNoteContextMode,
 ): FloatingNoteContextMode {
 	const index = FLOATING_NOTE_CONTEXT_CYCLE.indexOf(mode);
-	const next = FLOATING_NOTE_CONTEXT_CYCLE[(index + 1) % FLOATING_NOTE_CONTEXT_CYCLE.length];
+	const next =
+		FLOATING_NOTE_CONTEXT_CYCLE[
+			(index + 1) % FLOATING_NOTE_CONTEXT_CYCLE.length
+		];
 	return next ?? "first";
 }
 
@@ -62,13 +68,19 @@ export function floatingNoteContextIcon(
 }
 
 /**
- * Floating composer shows the active-note chip when that note will be
- * attached (first message of a "first" session, or every message in "always").
- * Temporary chip dismiss does not hide the chip; the badge stays so it can
- * be turned back on.
+ * Composer shows the active-note chip when that note *would* attach on the
+ * next send (first message of a "first" session, every message in "always",
+ * or the sidebar's global auto-mention). A temporary dismiss does not hide
+ * the chip; the badge stays (struck through) so it can be turned back on.
+ *
+ * Shared by every chat variant so the chip appears and behaves the same way
+ * in sidebar, floating, and embedded composers.
  */
-export function composerShowsFloatingNoteChip(input: {
+export function composerShowsActiveNoteChip(input: {
+	variant: ChatContextVariant;
 	hasActiveNote: boolean;
+	/** Sidebar/embedded global auto-mention setting (unused when floating). */
+	globalAutoMention: boolean;
 	floatingNoteContextMode: FloatingNoteContextMode;
 	messageCount: number;
 	/** A live selection forces the chip visible even in "don't attach". */
@@ -78,8 +90,8 @@ export function composerShowsFloatingNoteChip(input: {
 		return false;
 	}
 	return shouldAttachActiveNote({
-		variant: "floating",
-		globalAutoMention: false,
+		variant: input.variant,
+		globalAutoMention: input.globalAutoMention,
 		floatingNoteContextMode: input.floatingNoteContextMode,
 		messageCount: input.messageCount,
 		isAutoMentionDisabled: false,
@@ -153,8 +165,10 @@ export function shouldShowStandaloneNoteContextGlyph(input: {
 	if (!showFloatingNoteContextControl(input.variant)) {
 		return false;
 	}
-	return !composerShowsFloatingNoteChip({
+	return !composerShowsActiveNoteChip({
+		variant: input.variant,
 		hasActiveNote: input.hasActiveNote,
+		globalAutoMention: false,
 		floatingNoteContextMode: input.floatingNoteContextMode,
 		messageCount: input.messageCount,
 		hasSelection: input.hasSelection,
@@ -177,9 +191,7 @@ export function composerAttachedFileChipLabels(
 }
 
 /** Active-note @ chip label (matches sidebar auto-mention badge text). */
-export function composerActiveNoteChipLabel(
-	note: NoteMetadata,
-): string {
+export function composerActiveNoteChipLabel(note: NoteMetadata): string {
 	let label = `@${note.name}`;
 	if (note.selection) {
 		const from = note.selection.from.line + 1;

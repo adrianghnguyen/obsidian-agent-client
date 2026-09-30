@@ -16,7 +16,7 @@ When auto-mention is active, a badge appears above the input field showing the c
 
 ### Temporary Disable
 
-You can temporarily disable auto-mention for a single message by clicking the **×** button next to the badge. Click the **+** button to re-enable it. This toggle only affects the current message—auto-mention will be active again for subsequent messages.
+You can temporarily disable auto-mention for a single message by clicking the **×** on the badge. The chip stays in place with a struck-through label and a **+** to turn auto-mention back on, in both sidebar and floating chat. This toggle only affects the current message—auto-mention will be active again for subsequent messages.
 
 <p align="center">
   <img src="/images/temporary-disable.gif" alt="Temporarily disabling auto-mention" />
@@ -33,6 +33,8 @@ A live selection always attaches, even when auto-mention or the floating attach 
 </p>
 
 ### Floating chat active note
+
+The active-note `@` chip and the `@` chips for manually attached files render from one shared composer row in every chat variant, so the chip, its toggle, and the file chips look and behave the same in sidebar, floating, and embedded chat. Only the floating attach-mode glyph is floating-specific.
 
 When floating chat will attach the active note, the composer shows one `@Note` chip. The mode glyph sits inside the chip on the **left**; click it to cycle:
 
