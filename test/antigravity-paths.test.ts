@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Platform } from "obsidian";
-import { dirname, join } from "path";import {
+import { join } from "path";
+import {
 	ANTIGRAVITY_BRIDGE_EXE,
 	ANTIGRAVITY_BRIDGE_FILENAME,
 	ANTIGRAVITY_BRIDGE_PAR,
