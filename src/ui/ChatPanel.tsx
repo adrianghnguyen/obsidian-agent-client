@@ -92,6 +92,8 @@ import type { IChatViewHost } from "./view-host";
 export interface ChatPanelCallbacks {
 	getDisplayName: () => string;
 	getSessionStatus: () => SessionStatus;
+	/** True when the turn is finished and the session is idle awaiting the next prompt. */
+	isAwaitingReply: () => boolean;
 	getSessionTitle: () => string;
 	getSessionId: () => string | null;
 	getInputState: () => ChatInputState | null;
@@ -1590,6 +1592,12 @@ export const ChatPanel = React.memo(function ChatPanel({
 				if (state === "ready") return "ready";
 				return "busy";
 			},
+			isAwaitingReply: () =>
+				sessionStateRef.current === "ready" &&
+				messagesRef.current.length > 0 &&
+				!isSendingRef.current &&
+				!hasActivePermissionRef.current &&
+				!sessionHistoryLoadingRef.current,
 			getSessionTitle: () =>
 				computeSessionTitle(
 					sessionIdRef.current,

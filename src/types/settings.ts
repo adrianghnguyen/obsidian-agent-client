@@ -79,6 +79,11 @@ export interface AgentClientPluginSettings {
 	expandWikilinkContext: boolean;
 	/** Show OS system notifications on response completion and permission requests */
 	enableSystemNotifications: boolean;
+	/**
+	 * Show a subtle status-bar counter of sessions that have finished their
+	 * turn and are idle awaiting the user's next prompt. Hidden when 0.
+	 */
+	showAwaitingStatusBar: boolean;
 	/** Prompt injection settings for Obsidian-flavored Markdown guidance */
 	promptInjection: {
 		/** Master toggle for prompt injection */

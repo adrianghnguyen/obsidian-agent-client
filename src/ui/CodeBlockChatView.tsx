@@ -181,6 +181,10 @@ export class EmbeddedChatViewContainer implements IChatViewContainer {
 		return this.panelDelegate.getSessionStatus();
 	}
 
+	isAwaitingReply(): boolean {
+		return this.panelDelegate.isAwaitingReply();
+	}
+
 	getSessionTitle(): string {
 		return this.panelDelegate.getSessionTitle();
 	}

@@ -288,6 +288,10 @@ export class FloatingViewContainer implements IChatViewContainer {
 		return this.panelDelegate.getSessionStatus();
 	}
 
+	isAwaitingReply(): boolean {
+		return this.panelDelegate.isAwaitingReply();
+	}
+
 	getSessionTitle(): string {
 		return this.panelDelegate.getSessionTitle();
 	}
@@ -421,6 +425,10 @@ export class FloatingTabContainer implements IChatViewContainer {
 
 	getSessionStatus(): SessionStatus {
 		return this.panelDelegate.getSessionStatus();
+	}
+
+	isAwaitingReply(): boolean {
+		return this.panelDelegate.isAwaitingReply();
 	}
 
 	getSessionTitle(): string {

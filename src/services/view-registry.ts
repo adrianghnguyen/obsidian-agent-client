@@ -179,6 +179,14 @@ export interface IChatViewContainer {
 	getSessionStatus(): SessionStatus;
 
 	/**
+	 * Whether this session has finished its turn and is idle, awaiting the
+	 * user's next prompt. True when the session is ready, has at least one
+	 * message, is not currently sending, and has no pending permission.
+	 * Used by the status-bar awaiting-reply counter.
+	 */
+	isAwaitingReply(): boolean;
+
+	/**
 	 * Get the session title for display in session lists.
 	 * Returns "New session" before the first message, then the first user message (truncated).
 	 */
@@ -213,6 +221,20 @@ export interface IChatViewContainer {
 	 * Used for focus detection and DOM queries.
 	 */
 	getContainerEl(): HTMLElement;
+}
+
+/**
+ * Pure helper: number of views that have finished a turn and are idle
+ * awaiting the user's next prompt. Shared by the status-bar counter.
+ */
+export function countAwaitingSessions(
+	views: readonly IChatViewContainer[],
+): number {
+	let count = 0;
+	for (const view of views) {
+		if (view.isAwaitingReply()) count++;
+	}
+	return count;
 }
 
 export class ChatViewRegistry {

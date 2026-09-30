@@ -24,6 +24,10 @@ export class ChatPanelDelegate {
 		return this.callbacks?.getSessionStatus() ?? "disconnected";
 	}
 
+	isAwaitingReply(): boolean {
+		return this.callbacks?.isAwaitingReply() ?? false;
+	}
+
 	getSessionTitle(): string {
 		return this.callbacks?.getSessionTitle() ?? "New session";
 	}

@@ -27,6 +27,7 @@ function makeView(
 		sendMessage: vi.fn(async () => false),
 		cancelOperation: vi.fn(async () => {}),
 		getSessionStatus: vi.fn(() => "disconnected" as const),
+		isAwaitingReply: vi.fn(() => false),
 		getSessionTitle: vi.fn(() => "New session"),
 		getSessionId: vi.fn(() => null),
 		closeContainer: vi.fn(),

@@ -1866,6 +1866,25 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								);
 							}),
 					);
+
+				new Setting(bodyEl)
+					.setName("Show awaiting-reply counter in status bar")
+					.setDesc(
+						"Show a subtle count of sessions that finished their turn and are waiting for your next prompt. Hidden when the count is 0.",
+					)
+					.addToggle((toggle) =>
+						toggle
+							.setValue(
+								this.plugin.settings.showAwaitingStatusBar,
+							)
+							.onChange(async (value) => {
+								await this.plugin.settingsService.updateSettings(
+									{
+										showAwaitingStatusBar: value,
+									},
+								);
+							}),
+					);
 			},
 			{ trailing },
 		);
