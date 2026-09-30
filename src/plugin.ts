@@ -8,7 +8,6 @@ import {
 import { FloatingTabbedShell } from "./ui/FloatingChatView";
 import { FloatingButtonContainer } from "./ui/FloatingButton";
 import { FloatingChatStatusBar } from "./ui/FloatingChatStatusBar";
-import { AwaitingStatusBar } from "./ui/AwaitingStatusBar";
 import {
 	ChatViewRegistry,
 	type IChatViewContainer,
@@ -145,8 +144,6 @@ export default class AgentClientPlugin extends Plugin {
 	private floatingButton: FloatingButtonContainer | null = null;
 	/** Status-bar entry for floating chat (Session Manager hover popover) */
 	private floatingChatStatusBar: FloatingChatStatusBar | null = null;
-	/** Status-bar counter for sessions idle awaiting the next prompt */
-	private awaitingStatusBar: AwaitingStatusBar | null = null;
 	/** Voice Input module (Gemini Live). */
 	voiceInput: VoiceInputModule | null = null;
 	/** Device-local floating window layout (size/position after drag/resize). */
@@ -338,10 +335,6 @@ export default class AgentClientPlugin extends Plugin {
 		this.floatingChatStatusBar = new FloatingChatStatusBar(this);
 		this.floatingChatStatusBar.mount();
 
-		// Awaiting-reply counter (independent of the floating chat entry)
-		this.awaitingStatusBar = new AwaitingStatusBar(this);
-		this.awaitingStatusBar.mount();
-
 		// Mount initial floating chat instance only if enabled
 		if (this.isFloatingChatEnabled()) {
 			this.openNewFloatingChat();
@@ -397,9 +390,6 @@ export default class AgentClientPlugin extends Plugin {
 
 		this.floatingChatStatusBar?.unmount();
 		this.floatingChatStatusBar = null;
-
-		this.awaitingStatusBar?.unmount();
-		this.awaitingStatusBar = null;
 
 		this.floatingChatHost.unmountAll();
 

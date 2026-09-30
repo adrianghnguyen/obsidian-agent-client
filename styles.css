@@ -3409,6 +3409,25 @@ If your plugin does not need CSS, delete this file.
 	height: 16px;
 }
 
+/* Awaiting-reply number: fixed-width slot between icon and label, always
+   reserved (holds a non-breaking space at 0) so the pill never changes width. */
+.agent-client-floating-status-bar-count {
+	min-width: 1.2em;
+	text-align: center;
+	font-size: var(--font-ui-smaller, 12px);
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+}
+
+/* Soft-blue icon and number while sessions are idle awaiting a reply. */
+.agent-client-floating-status-bar.is-awaiting,
+.agent-client-floating-status-bar.is-awaiting
+	.agent-client-floating-status-bar-icon,
+.agent-client-floating-status-bar.is-awaiting
+	.agent-client-floating-status-bar-count {
+	color: var(--color-blue, var(--text-accent));
+}
+
 .agent-client-floating-status-bar-label {
 	font-size: var(--font-ui-smaller, 12px);
 	max-width: 16em;
@@ -3431,37 +3450,6 @@ If your plugin does not need CSS, delete this file.
 
 .agent-client-status-bar-session-popover .agent-client-session-manager-empty {
 	padding: 12px 16px;
-}
-
-/* ===== Awaiting-reply status bar counter ===== */
-
-.agent-client-awaiting-status-bar {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	/* Non-interactive: no pointer cursor, no hover affordance. */
-	color: var(--text-faint);
-	font-size: var(--font-ui-smaller, 12px);
-	user-select: none;
-}
-
-.agent-client-awaiting-status-bar.is-hidden {
-	display: none;
-}
-
-.agent-client-awaiting-status-bar-icon {
-	display: flex;
-	align-items: center;
-}
-
-.agent-client-awaiting-status-bar-icon svg {
-	width: 14px;
-	height: 14px;
-}
-
-.agent-client-awaiting-status-bar-count {
-	font-variant-numeric: tabular-nums;
-	line-height: 1;
 }
 
 /* ===== Agent Selector (InlineHeader) ===== */
