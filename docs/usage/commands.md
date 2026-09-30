@@ -12,6 +12,7 @@ Most commands operate on the **last focused chat view**. **Cycle/Switch session 
 |---------|-------------|
 | **Open chat view** | Open the chat panel |
 | **Open new chat view** | Open an additional chat view |
+| **Cycle default agent** | Advance the default agent (all enabled agents, wrapping) and show a notice. Same action as clicking the robot ribbon icon |
 | **New chat** | Start a fresh conversation |
 | **Cancel current message** | Stop the agent's current response |
 | **Export chat** | Export the current conversation to a note |

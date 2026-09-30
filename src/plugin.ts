@@ -62,8 +62,10 @@ import type { VoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import { normalizeVoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import {
 	getAvailableAgentsFromSettings,
+	getCurrentAgent,
 	getDefaultAgentId,
 	firstEnabledAgentId,
+	nextEnabledAgentId,
 	repairNoEnabledAgents,
 } from "./services/session-helpers";
 import {
@@ -198,9 +200,9 @@ export default class AgentClientPlugin extends Plugin {
 
 		const ribbonIconEl = this.addRibbonIcon(
 			"bot-message-square",
-			"Open agent client",
+			"Cycle default agent",
 			(_evt: MouseEvent) => {
-				void this.activateView();
+				this.cycleDefaultAgent();
 			},
 		);
 		ribbonIconEl.addClass("agent-client-ribbon-icon");
@@ -210,6 +212,14 @@ export default class AgentClientPlugin extends Plugin {
 			name: "Open chat view",
 			callback: () => {
 				void this.activateView();
+			},
+		});
+
+		this.addCommand({
+			id: "cycle-default-agent",
+			name: "Cycle default agent",
+			callback: () => {
+				this.cycleDefaultAgent();
 			},
 		});
 
@@ -1063,6 +1073,27 @@ export default class AgentClientPlugin extends Plugin {
 		if (!availableIds.includes(this.settings.defaultAgentId)) {
 			this.settings.defaultAgentId = firstEnabledAgentId(this.settings);
 		}
+	}
+
+	/**
+	 * Advance the default agent to the next enabled agent (ribbon click /
+	 * command). Persists through the current Default agent scope: "This device
+	 * only" writes to device-local storage, otherwise data.json. Already-open
+	 * views keep their session; the new default applies to the next new view.
+	 */
+	cycleDefaultAgent(): void {
+		const current = getDefaultAgentId(this.settings);
+		const next = nextEnabledAgentId(this.settings, current);
+		if (next === current) {
+			new Notice("[Agent Client] Only one agent is enabled.");
+			return;
+		}
+		const displayName = getCurrentAgent(this.settings, next).displayName;
+		void this.saveSettingsAndNotify({
+			...this.settings,
+			defaultAgentId: next,
+		});
+		new Notice(`[Agent Client] Default agent: ${displayName}`);
 	}
 
 	private applyDefaultAgentOverlay(): void {

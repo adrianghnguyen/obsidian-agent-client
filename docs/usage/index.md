@@ -2,17 +2,13 @@
 
 ## Opening the Chat Panel
 
-You can open the Agent Client chat panel in two ways:
-
-- **Ribbon Icon**: Click the robot icon in the left ribbon
-
-<p align="center">
-  <img src="/images/ribbon-icon.webp" alt="Ribbon Icon" />
-</p>
-
-- **Command Palette**: Open the command palette (`Cmd/Ctrl + P`) and search for **"Open chat view"**
+Use the command palette (`Cmd/Ctrl + P`) and search for **"Open chat view"**.
 
 The chat panel opens in the right sidebar.
+
+::: tip
+The robot icon in the left ribbon cycles the **default agent** (presets then custom agents, wrapping around) and shows a notice with the new name. Open the chat with **Open chat view** instead. To change how the cycled default is stored, see **Settings → Agents → Default agent scope**.
+:::
 
 ## Sending Messages
 

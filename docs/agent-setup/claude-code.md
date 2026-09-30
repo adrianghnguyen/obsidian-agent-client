@@ -93,7 +93,7 @@ The Claude Desktop app uses a different authentication system. Having Claude Des
 
 ## Verify Setup
 
-1. Click the robot icon in the ribbon or use the command palette: **"Open chat view"**
+1. Open the command palette and run **"Open chat view"**
 2. You should see the chat panel open and connect to Claude Code
 3. Try sending a message to verify the connection
 

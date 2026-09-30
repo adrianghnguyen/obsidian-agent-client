@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Changed
+- **Ribbon icon cycles the default agent** — Clicking the robot icon in the ribbon now advances the default agent through all enabled agents (presets then customs, wrapping around) and shows a notice with the new name, instead of opening the chat. The pick follows **Settings → Agents → Default agent scope** (this device only, or synced). Open the chat with the **Open chat view** command; the same cycle is exposed as the **Cycle default agent** command.
+
 ## 0.25.0
 
 ### Added
