@@ -3433,6 +3433,37 @@ If your plugin does not need CSS, delete this file.
 	padding: 12px 16px;
 }
 
+/* ===== Awaiting-reply status bar counter ===== */
+
+.agent-client-awaiting-status-bar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	/* Non-interactive: no pointer cursor, no hover affordance. */
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller, 12px);
+	user-select: none;
+}
+
+.agent-client-awaiting-status-bar.is-hidden {
+	display: none;
+}
+
+.agent-client-awaiting-status-bar-icon {
+	display: flex;
+	align-items: center;
+}
+
+.agent-client-awaiting-status-bar-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.agent-client-awaiting-status-bar-count {
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+}
+
 /* ===== Agent Selector (InlineHeader) ===== */
 .agent-client-agent-selector {
 	display: inline-flex;

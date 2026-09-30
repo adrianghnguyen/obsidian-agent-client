@@ -9,6 +9,7 @@ function makeCallbacks(
 	return {
 		getDisplayName: vi.fn(() => "Agent"),
 		getSessionStatus: vi.fn(() => "ready" as const),
+		isAwaitingReply: vi.fn(() => false),
 		getSessionTitle: vi.fn(() => "Title"),
 		getSessionId: vi.fn(() => "sess-1"),
 		getInputState: vi.fn(
@@ -32,6 +33,7 @@ describe("ChatPanelDelegate", () => {
 	it("uses fallbacks before callbacks are registered", async () => {
 		expect(delegate.getDisplayName()).toBe("Chat");
 		expect(delegate.getSessionStatus()).toBe("disconnected");
+		expect(delegate.isAwaitingReply()).toBe(false);
 		expect(delegate.getSessionTitle()).toBe("New session");
 		expect(delegate.getSessionId()).toBeNull();
 		expect(delegate.getInputState()).toBeNull();
@@ -42,10 +44,11 @@ describe("ChatPanelDelegate", () => {
 	});
 
 	it("forwards each method after setCallbacks", async () => {
-		const cbs = makeCallbacks();
+		const cbs = makeCallbacks({ isAwaitingReply: vi.fn(() => true) });
 		delegate.setCallbacks(cbs);
 		expect(delegate.getDisplayName()).toBe("Agent");
 		expect(delegate.getSessionStatus()).toBe("ready");
+		expect(delegate.isAwaitingReply()).toBe(true);
 		expect(delegate.getSessionTitle()).toBe("Title");
 		expect(delegate.getSessionId()).toBe("sess-1");
 		expect(delegate.getInputState()).toEqual({ text: "hi", files: [] });

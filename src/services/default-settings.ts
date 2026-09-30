@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	floatingNoteContextMode: "first",
 	expandWikilinkContext: true,
 	enableSystemNotifications: true,
+	showAwaitingStatusBar: true,
 	promptInjection: {
 		enabled: true,
 		latex: true,

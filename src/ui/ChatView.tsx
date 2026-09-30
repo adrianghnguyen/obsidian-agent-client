@@ -190,6 +190,10 @@ export class ChatView extends ItemView implements IChatViewContainer {
 		return this.panelDelegate.getSessionStatus();
 	}
 
+	isAwaitingReply(): boolean {
+		return this.panelDelegate.isAwaitingReply();
+	}
+
 	getSessionTitle(): string {
 		return this.panelDelegate.getSessionTitle();
 	}
