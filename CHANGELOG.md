@@ -4,6 +4,11 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.26.1
+
+### Changed
+- **Awaiting-reply counter folded into the status bar pill** — The separate awaiting-reply status-bar entry is gone. The number now sits inside the existing floating-chat status-bar pill, beside the robot icon, and both the icon and number turn soft blue when one or more sessions are idle awaiting your reply. The pill keeps a fixed width, reserving the number's slot even at 0, so the label never shifts. Still toggled by **Settings → Advanced → Show awaiting-reply number in the status bar pill**, and only visible when **Floating chat → Status bar** is selected.
+
 ## 0.26.0
 
 ### Added
