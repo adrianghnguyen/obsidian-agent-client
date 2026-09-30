@@ -4,17 +4,19 @@ import { setIcon } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
 import { SessionManagerComponent } from "./SessionManagerView";
+import { getCurrentAgent } from "../services/session-helpers";
 
 const HOVER_SHOW_DELAY_MS = 175;
 const HOVER_HIDE_DELAY_MS = 175;
 
 /**
  * Status-bar entry for floating chat when floatingChatEntry === "status-bar".
- * Plain click cycles the default agent; Ctrl/Cmd-click toggles floating chat.
- * Hover shows a Session Manager popover.
+ * Shows the current default agent name; plain click cycles the default agent,
+ * Ctrl/Cmd-click toggles floating chat. Hover shows a Session Manager popover.
  */
 export class FloatingChatStatusBar {
 	private statusBarEl: HTMLElement | null = null;
+	private labelEl: HTMLElement | null = null;
 	private popoverEl: HTMLElement | null = null;
 	private popoverRoot: Root | null = null;
 	private unsubscribe: (() => void) | null = null;
@@ -54,6 +56,11 @@ export class FloatingChatStatusBar {
 		});
 		setIcon(iconEl, "bot-message-square");
 
+		this.labelEl = this.statusBarEl.createSpan({
+			cls: "agent-client-floating-status-bar-label",
+		});
+		this.syncLabel();
+
 		this.statusBarEl.addEventListener("click", (e) => {
 			e.preventDefault();
 			this.hidePopover();
@@ -76,6 +83,7 @@ export class FloatingChatStatusBar {
 
 		this.unsubscribe = this.plugin.settingsService.subscribe(() => {
 			this.syncVisibility();
+			this.syncLabel();
 		});
 		this.syncVisibility();
 	}
@@ -87,12 +95,22 @@ export class FloatingChatStatusBar {
 		this.hidePopover();
 		this.statusBarEl?.remove();
 		this.statusBarEl = null;
+		this.labelEl = null;
 	}
 
 	private syncVisibility(): void {
 		const visible = this.plugin.settings.floatingChatEntry === "status-bar";
 		this.statusBarEl?.toggleClass("is-hidden", !visible);
 		if (!visible) this.hidePopover();
+	}
+
+	/** Reflect the current default agent name next to the icon. */
+	private syncLabel(): void {
+		if (!this.labelEl) return;
+		const displayName = getCurrentAgent(
+			this.plugin.settings,
+		).displayName;
+		this.labelEl.setText(displayName);
 	}
 
 	private scheduleShow(): void {

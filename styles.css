@@ -3391,6 +3391,7 @@ If your plugin does not need CSS, delete this file.
 .agent-client-floating-status-bar {
 	display: flex;
 	align-items: center;
+	gap: 6px;
 	cursor: pointer;
 }
 
@@ -3406,6 +3407,14 @@ If your plugin does not need CSS, delete this file.
 .agent-client-floating-status-bar-icon svg {
 	width: 16px;
 	height: 16px;
+}
+
+.agent-client-floating-status-bar-label {
+	font-size: var(--font-ui-smaller, 12px);
+	max-width: 16em;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 .agent-client-status-bar-session-popover {
