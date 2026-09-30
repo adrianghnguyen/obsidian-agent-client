@@ -7,7 +7,7 @@ import {
 	showFloatingNoteContextControl,
 	shouldShowStandaloneNoteContextGlyph,
 	floatingNoteContextIcon,
-	composerShowsFloatingNoteChip,
+	composerShowsActiveNoteChip,
 	selectionForcesAttach,
 	floatingComposerContextChipLabels,
 } from "../src/services/floating-note-context";
@@ -114,43 +114,87 @@ describe("floatingNoteContextIcon", () => {
 	});
 });
 
-describe("composerShowsFloatingNoteChip", () => {
-	it("shows the active note while first or always will attach it", () => {
+describe("composerShowsActiveNoteChip", () => {
+	it("floating: shows the active note while first or always will attach it", () => {
 		expect(
-			composerShowsFloatingNoteChip({
+			composerShowsActiveNoteChip({
+				variant: "floating",
 				hasActiveNote: true,
+				globalAutoMention: false,
 				floatingNoteContextMode: "first",
 				messageCount: 0,
 			}),
 		).toBe(true);
 		expect(
-			composerShowsFloatingNoteChip({
+			composerShowsActiveNoteChip({
+				variant: "floating",
 				hasActiveNote: true,
+				globalAutoMention: false,
 				floatingNoteContextMode: "first",
 				messageCount: 2,
 			}),
 		).toBe(false);
 		expect(
-			composerShowsFloatingNoteChip({
+			composerShowsActiveNoteChip({
+				variant: "floating",
 				hasActiveNote: true,
+				globalAutoMention: false,
 				floatingNoteContextMode: "always",
 				messageCount: 4,
 			}),
 		).toBe(true);
 		expect(
-			composerShowsFloatingNoteChip({
+			composerShowsActiveNoteChip({
+				variant: "floating",
 				hasActiveNote: true,
+				globalAutoMention: false,
 				floatingNoteContextMode: "off",
 				messageCount: 0,
 			}),
 		).toBe(false);
 		expect(
-			composerShowsFloatingNoteChip({
+			composerShowsActiveNoteChip({
+				variant: "floating",
 				hasActiveNote: false,
+				globalAutoMention: false,
 				floatingNoteContextMode: "always",
 				messageCount: 0,
 			}),
 		).toBe(false);
+	});
+
+	it("sidebar: follows global auto-mention, like the send path", () => {
+		expect(
+			composerShowsActiveNoteChip({
+				variant: "sidebar",
+				hasActiveNote: true,
+				globalAutoMention: true,
+				floatingNoteContextMode: "off",
+				messageCount: 5,
+			}),
+		).toBe(true);
+		expect(
+			composerShowsActiveNoteChip({
+				variant: "sidebar",
+				hasActiveNote: true,
+				globalAutoMention: false,
+				floatingNoteContextMode: "always",
+				messageCount: 0,
+			}),
+		).toBe(false);
+	});
+
+	it("sidebar: a live selection shows the chip even when auto-mention is off", () => {
+		expect(
+			composerShowsActiveNoteChip({
+				variant: "sidebar",
+				hasActiveNote: true,
+				globalAutoMention: false,
+				floatingNoteContextMode: "off",
+				messageCount: 3,
+				hasSelection: true,
+			}),
+		).toBe(true);
 	});
 });
 
@@ -174,8 +218,10 @@ describe("shouldShowStandaloneNoteContextGlyph", () => {
 						messageCount,
 					}),
 				).toBe(
-					!composerShowsFloatingNoteChip({
+					!composerShowsActiveNoteChip({
+						variant: "floating",
 						hasActiveNote,
+						globalAutoMention: false,
 						floatingNoteContextMode: mode,
 						messageCount,
 					}),
@@ -260,8 +306,10 @@ describe("selection forces attach regardless of the icon (new contract)", () => 
 
 	it("don't-attach shows the chip while a selection is live", () => {
 		expect(
-			composerShowsFloatingNoteChip({
+			composerShowsActiveNoteChip({
+				variant: "floating",
 				hasActiveNote: true,
+				globalAutoMention: false,
 				floatingNoteContextMode: "off",
 				messageCount: 0,
 				hasSelection: true,
