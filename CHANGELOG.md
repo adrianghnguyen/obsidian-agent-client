@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.26.0
+
 ### Added
 - **Awaiting-reply status bar counter** — A subtle, non-interactive status-bar counter shows how many open chat sessions have finished their turn and are idle waiting for your next prompt. The count is live (goes up when an agent completes and down when you send or a permission appears) and covers sidebar, floating, and embedded chats. It hides at 0 and can be turned off in **Settings → Advanced → Show awaiting-reply counter in status bar**.
 
