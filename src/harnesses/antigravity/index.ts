@@ -51,6 +51,15 @@ export {
 	mapAntigravityMessageError,
 	enrichAntigravityErrorInfo,
 } from "./errors";
+export {
+	ANTIGRAVITY_SLOW_BOOT_WARN_MS,
+	ANTIGRAVITY_COLD_START_ISSUE_URL,
+	ANTIGRAVITY_CONNECTING_COPY,
+	ANTIGRAVITY_SLOW_BOOT_COPY,
+	ANTIGRAVITY_SLOW_BOOT_LINK_TEXT,
+	resolveConnectingCopy,
+	type ConnectingCopy,
+} from "./cold-start";
 
 async function healthCheck(ctx: HealthContext): Promise<HealthReport> {
 	const report = await checkAntigravityHealth(ctx.command ?? "", {
@@ -97,8 +106,8 @@ function mapConnectionError(
 }
 
 /** Empty-state copy while the ACP bridge finishes a cold initialize. */
-export const ANTIGRAVITY_CONNECTING_COPY =
-	"Starting ACP bridge… first initialize can take about 30 seconds";
+// (ANTIGRAVITY_CONNECTING_COPY + the slow-boot copy/thresholds are re-exported
+// from ./cold-start in the export block above.)
 
 export const antigravityHarness = defineHarness(antigravityPreset, {
 	healthCheck,

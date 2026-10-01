@@ -1339,6 +1339,19 @@ If your plugin does not need CSS, delete this file.
 	margin-top: 20px;
 }
 
+/* Slow-boot note link (Antigravity cold start) */
+.agent-client-chat-empty-state-link {
+	display: block;
+	margin-top: 8px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-accent);
+	text-decoration: none;
+}
+
+.agent-client-chat-empty-state-link:hover {
+	text-decoration: underline;
+}
+
 /* Input area */
 .agent-client-chat-input-container {
 	flex-shrink: 0;

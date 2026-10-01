@@ -11,10 +11,7 @@ import { buildDisplayListItems } from "../services/trace-turn";
 import { MessageBubble } from "./MessageBubble";
 import { TurnTraceRenderer } from "./TurnTraceRenderer";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-	ANTIGRAVITY_CONNECTING_COPY,
-	ANTIGRAVITY_PRESET_ID,
-} from "../harnesses/antigravity";
+import { resolveConnectingCopy } from "../harnesses/antigravity";
 
 // How long (ms) after a tab is re-shown we refuse to shrink measured item
 // sizes. Right after re-show the items briefly re-measure small while their
@@ -88,6 +85,23 @@ export function MessageList({
 	const [isAtBottom, setIsAtBottom] = useState(true);
 	const isAtBottomRef = useRef(true);
 	const prevIsSendingRef = useRef(false);
+	// Elapsed time (ms) since the connecting state began. Drives the escalating
+	// slow-boot copy for Antigravity; stays 0 once the session is ready.
+	const [connectElapsedMs, setConnectElapsedMs] = useState(0);
+
+	// Tick while not ready so the connecting copy can escalate. Cleared on ready
+	// and on unmount so no timer survives a mounted list.
+	useEffect(() => {
+		if (isSessionReady || isRestoringSession) {
+			setConnectElapsedMs(0);
+			return;
+		}
+		const startedAt = Date.now();
+		const id = window.setInterval(() => {
+			setConnectElapsedMs(Date.now() - startedAt);
+		}, 1000);
+		return () => window.clearInterval(id);
+	}, [isSessionReady, isRestoringSession, agentId]);
 	// Last measured height per message id. Used to keep the virtualizer's total
 	// size stable while the tab is hidden (display:none) so scrollTop isn't
 	// clamped to 0 and the position survives a tab switch. (#321)
@@ -246,17 +260,34 @@ export function MessageList({
 
 	// Empty state
 	if (displayItems.length === 0) {
+		const connecting = resolveConnectingCopy({
+			agentId,
+			agentLabel,
+			elapsedMs: connectElapsedMs,
+		});
 		return (
 			<div className="agent-client-messages-shell">
 				<div ref={containerRef} className="agent-client-chat-view-messages">
 					<div className="agent-client-chat-empty-state">
-						{isRestoringSession
-							? "Restoring session..."
-							: !isSessionReady
-								? agentId === ANTIGRAVITY_PRESET_ID
-									? ANTIGRAVITY_CONNECTING_COPY
-									: `Connecting to ${agentLabel}...`
-								: `Start a conversation with ${agentLabel}...`}
+						{isRestoringSession ? (
+							"Restoring session..."
+						) : !isSessionReady ? (
+							<>
+								{connecting.text}
+								{connecting.link && (
+									<a
+										className="agent-client-chat-empty-state-link"
+										href={connecting.link.url}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										{connecting.link.text}
+									</a>
+								)}
+							</>
+						) : (
+							`Start a conversation with ${agentLabel}...`
+						)}
 					</div>
 				</div>
 			</div>
