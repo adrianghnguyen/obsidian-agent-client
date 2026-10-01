@@ -4,6 +4,11 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.26.2
+
+### Fixed
+- **Unread status across every chat surface** — A finished response now stays blue until you read it. The status-bar pill, the robot icon (soft glow), the per-session symbol in the Session Manager, and floating chat tabs all share one unread state: they light up blue when a turn completes while that chat is not focused, and clear the moment you focus that chat. The status-bar number now counts unread sessions, and the Advanced setting copy matches.
+
 ## 0.26.1
 
 ### Changed
