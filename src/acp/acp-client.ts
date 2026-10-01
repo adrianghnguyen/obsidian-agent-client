@@ -12,6 +12,11 @@ import type {
 import type { PromptContent } from "../types/chat";
 import type { ProcessError } from "../types/errors";
 import { applyHarnessConnectionError } from "../harnesses";
+import {
+	ANTIGRAVITY_COLD_START_ISSUE_URL,
+	ANTIGRAVITY_PRESET_ID,
+	ANTIGRAVITY_SLOW_BOOT_WARN_MS,
+} from "../harnesses/antigravity";
 import { AcpTypeConverter } from "./type-converter";
 import { TerminalManager } from "./terminal-handler";
 import { PermissionManager } from "./permission-handler";
@@ -510,6 +515,7 @@ export class AcpClient {
 		try {
 			this.logger.log("[AcpClient] Starting ACP initialization...");
 
+			const initializeStartedAt = Date.now();
 			const initResult = await this.connection.agent.request(
 				"initialize",
 				{
@@ -539,6 +545,11 @@ export class AcpClient {
 
 			this.logger.log(
 				`[AcpClient] ✅ Connected to agent (protocol v${initResult.protocolVersion})`,
+			);
+			this.logInitializeDuration(
+				config,
+				agentLabel,
+				Date.now() - initializeStartedAt,
 			);
 			// Adapters differ in the name/version they report (e.g. the
 			// codex-acp package move kept the bin name) — surface it so
@@ -579,6 +590,35 @@ export class AcpClient {
 			// Log env var name only — never the secret ID or value
 			apiKeyEnvVar: config.apiKey?.envVarName,
 		};
+	}
+
+	/**
+	 * Debug-only diagnostic for how long the ACP `initialize` handshake took.
+	 *
+	 * On Antigravity the first initialize is dominated by the PyInstaller
+	 * onefile unpack inside agy_acp_server (~15-20 s, ~312 MB into %TEMP%\_MEI*).
+	 * When that shows up, point at the optional one-time fix. Gated on
+	 * `debugMode` by the Logger, so it is silent in normal use.
+	 */
+	private logInitializeDuration(
+		config: AgentConfig,
+		agentLabel: string,
+		elapsedMs: number,
+	): void {
+		this.logger.log(
+			`[AcpClient] ${agentLabel} initialize completed in ${elapsedMs} ms`,
+		);
+		if (config.id !== ANTIGRAVITY_PRESET_ID) return;
+		if (elapsedMs < ANTIGRAVITY_SLOW_BOOT_WARN_MS) return;
+		this.logger.log(
+			`[AcpClient] Antigravity initialize took ${elapsedMs} ms — this is the known agy_acp_server onefile cold start (unpacks ~312 MB to %TEMP%\\_MEI* on every spawn), not your configuration.`,
+		);
+		this.logger.log(
+			"[AcpClient] Optional one-time fix (removes the unpack; initialize drops to ~4 s): scripts/antigravity/convert-onedir.mjs --inspect then --convert. Re-run after every bridge update.",
+		);
+		this.logger.log(
+			`[AcpClient] RCA + procedure: scripts/antigravity/README.md  |  upstream thread: ${ANTIGRAVITY_COLD_START_ISSUE_URL}`,
+		);
 	}
 
 	/**
