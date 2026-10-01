@@ -1868,9 +1868,9 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					);
 
 				new Setting(bodyEl)
-					.setName("Show awaiting-reply number in the status bar pill")
+					.setName("Show unread-session number in the status bar pill")
 					.setDesc(
-						"Show the count of sessions that finished their turn and are waiting for your next prompt beside the robot icon in the status bar pill (Floating chat → Status bar). Hidden when the count is 0.",
+						"Show the count of sessions with an unread response (a finished turn you have not opened yet) beside the robot icon in the status bar pill (Floating chat → Status bar). The pill glows blue until you open each session. Hidden when the count is 0.",
 					)
 					.addToggle((toggle) =>
 						toggle

@@ -5,7 +5,6 @@ import { setIcon } from "obsidian";
 import type AgentClientPlugin from "../plugin";
 import { SessionManagerComponent } from "./SessionManagerView";
 import { getCurrentAgent } from "../services/session-helpers";
-import { countAwaitingSessions } from "../services/view-registry";
 
 const HOVER_SHOW_DELAY_MS = 175;
 const HOVER_HIDE_DELAY_MS = 175;
@@ -52,7 +51,7 @@ export class FloatingChatStatusBar {
 		});
 		setIcon(iconEl, "bot-message-square");
 
-		// Fixed-width awaiting-reply slot between the icon and the agent name.
+		// Fixed-width unread-count slot between the icon and the agent name.
 		// Always present (never collapsed) so the pill's width stays constant
 		// whether or not a count is displayed.
 		this.countEl = this.statusBarEl.createSpan({
@@ -89,14 +88,14 @@ export class FloatingChatStatusBar {
 			this.plugin.settingsService.subscribe(() => {
 				this.syncVisibility();
 				this.syncLabel();
-				this.syncAwaiting();
+				this.syncUnread();
 			}),
 		);
 		this.unsubscribers.push(
-			this.plugin.viewRegistry.subscribe(() => this.syncAwaiting()),
+			this.plugin.viewRegistry.subscribe(() => this.syncUnread()),
 		);
 		this.syncVisibility();
-		this.syncAwaiting();
+		this.syncUnread();
 	}
 
 	unmount(): void {
@@ -117,29 +116,29 @@ export class FloatingChatStatusBar {
 	}
 
 	/**
-	 * Reflect how many open sessions have finished their turn and are idle
-	 * awaiting the user's next prompt. The count slot is always reserved, so
-	 * this only toggles the soft-blue `is-awaiting` tint and the text.
+	 * Reflect how many open sessions have an unread (finished but not yet
+	 * read) turn. The count slot is always reserved, so this only toggles the
+	 * soft-blue `is-unread` tint and the text.
 	 */
-	private syncAwaiting(): void {
+	private syncUnread(): void {
 		if (!this.statusBarEl) return;
-		const count = countAwaitingSessions(this.plugin.viewRegistry.getAll());
+		const count = this.plugin.viewRegistry.countUnread();
 		const show = this.plugin.settings.showAwaitingStatusBar && count > 0;
 
-		this.statusBarEl.toggleClass("is-awaiting", show);
+		this.statusBarEl.toggleClass("is-unread", show);
 		if (count === this.lastCount && show === this.lastShow) return;
 		this.lastCount = count;
 		this.lastShow = show;
 
 		this.countEl?.setText(show ? String(count) : "\u00A0");
 
-		const awaiting =
+		const unread =
 			count === 0
 				? ""
 				: count === 1
-					? " · 1 session awaiting your reply"
-					: ` · ${count} sessions awaiting your reply`;
-		const label = `Agent floating chat (click to cycle default agent, Ctrl/Cmd-click to toggle)${awaiting}`;
+					? " · 1 unread session"
+					: ` · ${count} unread sessions`;
+		const label = `Agent floating chat (click to cycle default agent, Ctrl/Cmd-click to toggle)${unread}`;
 		this.statusBarEl.setAttr("aria-label", label);
 		this.statusBarEl.setAttr("title", label);
 	}

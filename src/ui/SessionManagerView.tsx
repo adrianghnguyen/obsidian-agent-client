@@ -26,6 +26,7 @@ const SessionItem = React.memo(function SessionItem({
 	status,
 	title,
 	agentName,
+	unread,
 	onSelect,
 }: {
 	view: IChatViewContainer;
@@ -34,6 +35,7 @@ const SessionItem = React.memo(function SessionItem({
 	status: SessionStatus;
 	title: string;
 	agentName: string;
+	unread: boolean;
 	onSelect?: (viewId: string) => void;
 }) {
 	const moreRef = useRef<HTMLButtonElement>(null);
@@ -102,7 +104,7 @@ const SessionItem = React.memo(function SessionItem({
 				onClick={handleClick}
 				onContextMenu={handleContextMenu}
 			>
-				<SessionStatusIcon status={status} />
+				<SessionStatusIcon status={status} unread={unread} />
 				<div className="tree-item-inner agent-client-session-item-text">
 					<div
 						className="agent-client-session-item-title"
@@ -169,6 +171,7 @@ export function SessionManagerComponent({
 					status={view.getSessionStatus()}
 					title={view.getSessionTitle()}
 					agentName={view.getDisplayName()}
+					unread={plugin.viewRegistry.isUnread(view.viewId)}
 					onSelect={onSessionSelect}
 				/>
 			))}

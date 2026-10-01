@@ -8,7 +8,13 @@ import type { SessionStatus } from "../../services/view-registry";
  * Shared session status icon used by Session Manager and floating chat tabs.
  * CSS: `.agent-client-session-status-icon` + `.agent-client-session-status-${status}`
  */
-export function SessionStatusIcon({ status }: { status: SessionStatus }) {
+export function SessionStatusIcon({
+	status,
+	unread = false,
+}: {
+	status: SessionStatus;
+	unread?: boolean;
+}) {
 	const iconRef = useRef<HTMLSpanElement>(null);
 
 	const iconName = ((s: SessionStatus): string => {
@@ -33,7 +39,9 @@ export function SessionStatusIcon({ status }: { status: SessionStatus }) {
 	return (
 		<span
 			ref={iconRef}
-			className={`agent-client-session-status-icon agent-client-session-status-${status}`}
+			className={`agent-client-session-status-icon agent-client-session-status-${status}${
+				unread ? " is-unread" : ""
+			}`}
 		/>
 	);
 }
