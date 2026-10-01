@@ -120,6 +120,22 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-faint);
 }
 
+/* Unread (finished but not yet read) turn: soft blue glow on the per-session
+   symbol, shared by the Session Manager list and the floating chat tabs. */
+.agent-client-session-status-icon.is-unread svg {
+	color: var(--color-blue, var(--text-accent));
+	filter: drop-shadow(
+		0 0 4px color-mix(in srgb, var(--color-blue, var(--text-accent)) 70%, transparent)
+	);
+	animation: agent-client-unread-glow 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.agent-client-session-status-icon.is-unread svg {
+		animation: none;
+	}
+}
+
 @keyframes agent-client-spin {
 	from {
 		transform: rotate(0deg);
@@ -3187,6 +3203,11 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-normal);
 }
 
+/* Unread turn: tint the tab label blue to match the glowing status symbol. */
+.agent-client-floating-tab.is-unread {
+	color: var(--color-blue, var(--text-accent));
+}
+
 .agent-client-floating-tab-label {
 	flex: 1;
 	min-width: 0;
@@ -3419,13 +3440,46 @@ If your plugin does not need CSS, delete this file.
 	line-height: 1;
 }
 
-/* Soft-blue icon and number while sessions are idle awaiting a reply. */
-.agent-client-floating-status-bar.is-awaiting,
-.agent-client-floating-status-bar.is-awaiting
+/* Soft-blue icon and number while sessions have an unread (finished but not
+   yet read) turn. The robot icon also gets a soft glow so the state reads at
+   a glance even before the count is parsed. */
+.agent-client-floating-status-bar.is-unread,
+.agent-client-floating-status-bar.is-unread
 	.agent-client-floating-status-bar-icon,
-.agent-client-floating-status-bar.is-awaiting
+.agent-client-floating-status-bar.is-unread
 	.agent-client-floating-status-bar-count {
 	color: var(--color-blue, var(--text-accent));
+}
+
+.agent-client-floating-status-bar.is-unread
+	.agent-client-floating-status-bar-icon
+	svg {
+	filter: drop-shadow(
+		0 0 4px color-mix(in srgb, var(--color-blue, var(--text-accent)) 70%, transparent)
+	);
+	animation: agent-client-unread-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes agent-client-unread-glow {
+	0%,
+	100% {
+		filter: drop-shadow(
+			0 0 2px color-mix(in srgb, var(--color-blue, var(--text-accent)) 45%, transparent)
+		);
+	}
+	50% {
+		filter: drop-shadow(
+			0 0 6px color-mix(in srgb, var(--color-blue, var(--text-accent)) 85%, transparent)
+		);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.agent-client-floating-status-bar.is-unread
+		.agent-client-floating-status-bar-icon
+		svg {
+		animation: none;
+	}
 }
 
 .agent-client-floating-status-bar-label {

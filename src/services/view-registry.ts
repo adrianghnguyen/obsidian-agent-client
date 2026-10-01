@@ -182,7 +182,7 @@ export interface IChatViewContainer {
 	 * Whether this session has finished its turn and is idle, awaiting the
 	 * user's next prompt. True when the session is ready, has at least one
 	 * message, is not currently sending, and has no pending permission.
-	 * Used by the status-bar awaiting-reply counter.
+	 * Used by the status-bar unread counter and the unread blue tint.
 	 */
 	isAwaitingReply(): boolean;
 
@@ -223,23 +223,17 @@ export interface IChatViewContainer {
 	getContainerEl(): HTMLElement;
 }
 
-/**
- * Pure helper: number of views that have finished a turn and are idle
- * awaiting the user's next prompt. Shared by the status-bar counter.
- */
-export function countAwaitingSessions(
-	views: readonly IChatViewContainer[],
-): number {
-	let count = 0;
-	for (const view of views) {
-		if (view.isAwaitingReply()) count++;
-	}
-	return count;
-}
-
 export class ChatViewRegistry {
 	private views = new Map<string, IChatViewContainer>();
 	private focusedViewId: string | null = null;
+	/**
+	 * Views whose latest finished turn has not been read yet. A session is
+	 * marked unread when its turn completes while the view is not focused,
+	 * and marked read as soon as the view is focused. Drives the blue status
+	 * tint across every surface (status-bar pill, robot icon, session list,
+	 * floating tabs).
+	 */
+	private unreadViewIds = new Set<string>();
 	private logger = getLogger();
 	private changeListeners = new Set<() => void>();
 	private snapshotCache: ViewRegistrySnapshot | null = null;
@@ -279,6 +273,7 @@ export class ChatViewRegistry {
 			view.onDeactivate();
 		}
 		this.views.delete(viewId);
+		this.unreadViewIds.delete(viewId);
 
 		// Move focus if this was the focused view
 		if (this.focusedViewId === viewId) {
@@ -303,6 +298,7 @@ export class ChatViewRegistry {
 		}
 		this.views.clear();
 		this.focusedViewId = null;
+		this.unreadViewIds.clear();
 		this.changeListeners.clear();
 		this.snapshotCache = null;
 	}
@@ -331,8 +327,12 @@ export class ChatViewRegistry {
 	 * Set a view as focused.
 	 */
 	setFocused(viewId: string): void {
-		if (this.focusedViewId === viewId) return;
 		if (!this.views.has(viewId)) return;
+		if (this.focusedViewId === viewId) {
+			// Re-focusing the already-active chat still counts as reading it.
+			this.markRead(viewId);
+			return;
+		}
 
 		// Deactivate previous
 		if (this.focusedViewId) {
@@ -342,8 +342,45 @@ export class ChatViewRegistry {
 		// Activate new
 		this.focusedViewId = viewId;
 		this.views.get(viewId)?.onActivate();
+		// Focusing a chat reads its latest finished turn, clearing the blue
+		// unread tint on every surface.
+		this.markRead(viewId);
 		this.logger.log(`[ChatViewRegistry] Focus changed to: ${viewId}`);
 		this.notifyChange();
+	}
+
+	// ============================================================
+	// Unread State
+	// ============================================================
+
+	/**
+	 * Mark a view as having an unread (finished but not yet read) turn.
+	 * No-op for unknown views or views already marked unread.
+	 */
+	markUnread(viewId: string): void {
+		if (!this.views.has(viewId)) return;
+		if (this.unreadViewIds.has(viewId)) return;
+		this.unreadViewIds.add(viewId);
+		this.notifyChange();
+	}
+
+	/**
+	 * Mark a view's latest turn as read, clearing its blue tint.
+	 * No-op for unknown views or views not currently unread.
+	 */
+	markRead(viewId: string): void {
+		if (!this.unreadViewIds.delete(viewId)) return;
+		this.notifyChange();
+	}
+
+	/** Whether the view currently has an unread (finished) turn. */
+	isUnread(viewId: string): boolean {
+		return this.unreadViewIds.has(viewId);
+	}
+
+	/** Number of views with an unread (finished) turn. */
+	countUnread(): number {
+		return this.unreadViewIds.size;
 	}
 
 	/**

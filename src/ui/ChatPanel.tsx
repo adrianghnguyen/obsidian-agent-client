@@ -1179,6 +1179,17 @@ export const ChatPanel = React.memo(function ChatPanel({
 					body: `${activeAgentLabel} has completed the response.`,
 				});
 			}
+
+			// Mark the finished turn unread unless this view is already the
+			// active chat in an OS-focused window. Focusing the view (or
+			// opening it) clears the flag again.
+			const registry = plugin.viewRegistry;
+			const isActiveAndForeground =
+				registry.getFocusedId() === viewId &&
+				activeDocument.hasFocus();
+			if (!isActiveAndForeground) {
+				registry.markUnread(viewId);
+			}
 		}
 	}, [
 		isSending,
@@ -1187,6 +1198,8 @@ export const ChatPanel = React.memo(function ChatPanel({
 		sessionHistory.saveSessionMessages,
 		settings.enableSystemNotifications,
 		activeAgentLabel,
+		plugin.viewRegistry,
+		viewId,
 		logger,
 	]);
 

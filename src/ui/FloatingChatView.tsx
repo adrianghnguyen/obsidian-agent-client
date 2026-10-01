@@ -1357,21 +1357,24 @@ function FloatingTabbedShellComponent({
 							const status =
 								container?.getSessionStatus() ?? "disconnected";
 							const isActive = tab.viewId === activeTabId;
+							const unread =
+								plugin.viewRegistry.isUnread(tab.viewId);
 							return (
 								<div
 									key={tab.viewId}
-									className={
-										isActive
-											? "agent-client-floating-tab is-active"
-											: "agent-client-floating-tab"
-									}
+									className={`agent-client-floating-tab${
+										isActive ? " is-active" : ""
+									}${unread ? " is-unread" : ""}`}
 									onClick={() => handleSelectTab(tab.viewId)}
 									onMouseDown={(e) =>
 										handleTabMouseDown(e, tab.viewId)
 									}
 									title={`${label} — ${sessionStatusLabel(status)}`}
 								>
-									<SessionStatusIcon status={status} />
+									<SessionStatusIcon
+										status={status}
+										unread={unread}
+									/>
 									<span className="agent-client-floating-tab-label">
 										{label}
 									</span>
