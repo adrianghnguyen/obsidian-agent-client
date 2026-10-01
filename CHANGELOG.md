@@ -4,6 +4,12 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Antigravity slow-boot notice** — While an Antigravity session is still connecting, the chat empty state now escalates past ~15 s to a short note (with a "Why this is slow" link) explaining the `agy_acp_server` cold start, so a long first connect no longer looks like a hang or a misconfiguration.
+
+### Fixed
+- **Faster Antigravity ACP bridge startup** — The bridge was re-laid-out once from PyInstaller **onefile** to an on-dir build (`scripts/antigravity/convert-onedir.mjs`), removing the ~312 MB per-spawn unpack. Session startup dropped from ~23 s to ~7–8 s (ACP `initialize` ~19 s → ~4 s) on Windows. Re-run the conversion after each bridge update (see **Debug mode** hints or `.cursor/skills/antigravity-cold-start/SKILL.md`).
+
 ## 0.26.0
 
 ### Added
