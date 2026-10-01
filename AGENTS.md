@@ -19,6 +19,8 @@ Upstream sync: merge on `sync/upstream-<version>` (not rebase) from `upstream/ma
 
 Vault catalog: `Notes/obsidian plugin tweaks.md`. Fork/deploy workflow: plugin skill `obsidian-plugin-tweaks` (Obsidian Plugin Development).
 
+**Antigravity cold start:** the `agy_acp_server` bridge is a PyInstaller onefile that unpacks ~312 MB on every spawn (~20-25 s to a ready session; removing it drops `initialize` to ~4 s). Diagnosis + the repeatable `scripts/antigravity/convert-onedir.mjs` workflow after a bridge update: repo skill `.cursor/skills/antigravity-cold-start/SKILL.md`. Registry lookup: `.cursor/skills/acp-registry/SKILL.md`. Debug traces: enable **Debug mode** and watch `[AcpClient] ... initialize completed in ... ms`.
+
 ### Versioning and changelog
 
 User-facing changes: log under `CHANGELOG.md` `[Unreleased]` when ready; version bump on `main` only — see plugin skill `obsidian-plugin-dev` (Obsidian Plugin Development) — Release notes and semantic versioning. This repo also syncs `package.json` and `versions.json` at release (or via `npm version` / release script).
