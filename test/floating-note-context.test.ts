@@ -4,6 +4,7 @@ import {
 	cycleFloatingNoteContextMode,
 	parseFloatingNoteContextMode,
 	shouldAttachActiveNote,
+	resolveActiveNoteAttach,
 	showFloatingNoteContextControl,
 	shouldShowStandaloneNoteContextGlyph,
 	floatingNoteContextIcon,
@@ -16,10 +17,9 @@ const base = {
 	globalAutoMention: true,
 	floatingNoteContextMode: "first" as const,
 	messageCount: 0,
-	isAutoMentionDisabled: false,
 };
 
-describe("shouldAttachActiveNote", () => {
+describe("shouldAttachActiveNote (mode/selection default layer)", () => {
 	it("sidebar follows global auto-mention on every message", () => {
 		expect(
 			shouldAttachActiveNote({
@@ -76,17 +76,6 @@ describe("shouldAttachActiveNote", () => {
 			}),
 		).toBe(false);
 	});
-
-	it("badge dismiss disables attach for the current send", () => {
-		expect(
-			shouldAttachActiveNote({
-				...base,
-				variant: "floating",
-				floatingNoteContextMode: "always",
-				isAutoMentionDisabled: true,
-			}),
-		).toBe(false);
-	});
 });
 
 describe("cycleFloatingNoteContextMode", () => {
@@ -114,87 +103,75 @@ describe("floatingNoteContextIcon", () => {
 	});
 });
 
-describe("composerShowsActiveNoteChip", () => {
-	it("floating: shows the active note while first or always will attach it", () => {
+describe("resolveActiveNoteAttach (chip override always wins)", () => {
+	it("default falls through to the mode decision", () => {
 		expect(
-			composerShowsActiveNoteChip({
+			resolveActiveNoteAttach({
+				...base,
+				override: "default",
 				variant: "floating",
-				hasActiveNote: true,
-				globalAutoMention: false,
-				floatingNoteContextMode: "first",
-				messageCount: 0,
-			}),
-		).toBe(true);
-		expect(
-			composerShowsActiveNoteChip({
-				variant: "floating",
-				hasActiveNote: true,
-				globalAutoMention: false,
-				floatingNoteContextMode: "first",
-				messageCount: 2,
-			}),
-		).toBe(false);
-		expect(
-			composerShowsActiveNoteChip({
-				variant: "floating",
-				hasActiveNote: true,
-				globalAutoMention: false,
-				floatingNoteContextMode: "always",
-				messageCount: 4,
-			}),
-		).toBe(true);
-		expect(
-			composerShowsActiveNoteChip({
-				variant: "floating",
-				hasActiveNote: true,
-				globalAutoMention: false,
 				floatingNoteContextMode: "off",
-				messageCount: 0,
 			}),
 		).toBe(false);
 		expect(
-			composerShowsActiveNoteChip({
+			resolveActiveNoteAttach({
+				...base,
+				override: "default",
 				variant: "floating",
-				hasActiveNote: false,
-				globalAutoMention: false,
 				floatingNoteContextMode: "always",
-				messageCount: 0,
+				messageCount: 9,
+				globalAutoMention: false,
 			}),
-		).toBe(false);
+		).toBe(true);
 	});
 
-	it("sidebar: follows global auto-mention, like the send path", () => {
+	it("remove wins over the mode and a live selection", () => {
 		expect(
-			composerShowsActiveNoteChip({
-				variant: "sidebar",
-				hasActiveNote: true,
-				globalAutoMention: true,
-				floatingNoteContextMode: "off",
-				messageCount: 5,
-			}),
-		).toBe(true);
-		expect(
-			composerShowsActiveNoteChip({
-				variant: "sidebar",
-				hasActiveNote: true,
-				globalAutoMention: false,
+			resolveActiveNoteAttach({
+				...base,
+				override: "remove",
+				variant: "floating",
 				floatingNoteContextMode: "always",
-				messageCount: 0,
-			}),
-		).toBe(false);
-	});
-
-	it("sidebar: a live selection shows the chip even when auto-mention is off", () => {
-		expect(
-			composerShowsActiveNoteChip({
-				variant: "sidebar",
-				hasActiveNote: true,
-				globalAutoMention: false,
-				floatingNoteContextMode: "off",
-				messageCount: 3,
 				hasSelection: true,
 			}),
+		).toBe(false);
+		expect(
+			resolveActiveNoteAttach({
+				...base,
+				override: "remove",
+				variant: "sidebar",
+				globalAutoMention: true,
+				hasSelection: true,
+			}),
+		).toBe(false);
+	});
+
+	it("attach forces the note on even in don't-attach modes", () => {
+		expect(
+			resolveActiveNoteAttach({
+				...base,
+				override: "attach",
+				variant: "floating",
+				floatingNoteContextMode: "off",
+			}),
 		).toBe(true);
+		expect(
+			resolveActiveNoteAttach({
+				...base,
+				override: "attach",
+				variant: "sidebar",
+				globalAutoMention: false,
+			}),
+		).toBe(true);
+	});
+});
+
+describe("composerShowsActiveNoteChip", () => {
+	it("shows the chip whenever a note is open, in every mode", () => {
+		expect(composerShowsActiveNoteChip({ hasActiveNote: true })).toBe(true);
+		expect(composerShowsActiveNoteChip({ hasActiveNote: false })).toBe(
+			false,
+		);
 	});
 });
 
@@ -206,145 +183,26 @@ describe("showFloatingNoteContextControl", () => {
 });
 
 describe("shouldShowStandaloneNoteContextGlyph", () => {
-	it("hides the standalone glyph while the merged chip shows", () => {
-		for (const mode of ["first", "always"] as const) {
-			for (const messageCount of [0, 3]) {
-				const hasActiveNote = true;
-				expect(
-					shouldShowStandaloneNoteContextGlyph({
-						variant: "floating",
-						hasActiveNote,
-						floatingNoteContextMode: mode,
-						messageCount,
-					}),
-				).toBe(
-					!composerShowsActiveNoteChip({
-						variant: "floating",
-						hasActiveNote,
-						globalAutoMention: false,
-						floatingNoteContextMode: mode,
-						messageCount,
-					}),
-				);
-			}
-		}
-	});
-
-	it("shows the standalone glyph when no note will attach", () => {
-		expect(
-			shouldShowStandaloneNoteContextGlyph({
-				variant: "floating",
-				hasActiveNote: true,
-				floatingNoteContextMode: "off",
-				messageCount: 0,
-			}),
-		).toBe(true);
-		expect(
-			shouldShowStandaloneNoteContextGlyph({
-				variant: "floating",
-				hasActiveNote: true,
-				floatingNoteContextMode: "first",
-				messageCount: 2,
-			}),
-		).toBe(true);
+	it("shows the standalone glyph only when no note is open", () => {
 		expect(
 			shouldShowStandaloneNoteContextGlyph({
 				variant: "floating",
 				hasActiveNote: false,
-				floatingNoteContextMode: "always",
-				messageCount: 0,
 			}),
 		).toBe(true);
+		expect(
+			shouldShowStandaloneNoteContextGlyph({
+				variant: "floating",
+				hasActiveNote: true,
+			}),
+		).toBe(false);
 	});
 
 	it("never shows the glyph outside floating chat", () => {
 		expect(
 			shouldShowStandaloneNoteContextGlyph({
 				variant: "sidebar",
-				hasActiveNote: true,
-				floatingNoteContextMode: "off",
-				messageCount: 0,
-			}),
-		).toBe(false);
-	});
-});
-
-describe("selection forces attach regardless of the icon (new contract)", () => {
-	it("badge dismiss does not override a live selection", () => {
-		expect(
-			shouldAttachActiveNote({
-				...base,
-				variant: "floating",
-				floatingNoteContextMode: "always",
-				isAutoMentionDisabled: true,
-				hasSelection: true,
-			}),
-		).toBe(true);
-	});
-
-	it("floating don't-attach does not override a live selection", () => {
-		expect(
-			shouldAttachActiveNote({
-				...base,
-				variant: "floating",
-				floatingNoteContextMode: "off",
-				hasSelection: true,
-			}),
-		).toBe(true);
-	});
-
-	it("sidebar auto-mention off does not override a live selection", () => {
-		expect(
-			shouldAttachActiveNote({
-				...base,
-				variant: "sidebar",
-				globalAutoMention: false,
-				hasSelection: true,
-			}),
-		).toBe(true);
-	});
-
-	it("don't-attach shows the chip while a selection is live", () => {
-		expect(
-			composerShowsActiveNoteChip({
-				variant: "floating",
-				hasActiveNote: true,
-				globalAutoMention: false,
-				floatingNoteContextMode: "off",
-				messageCount: 0,
-				hasSelection: true,
-			}),
-		).toBe(true);
-	});
-
-	it("don't-attach hides the standalone glyph while a selection is live", () => {
-		expect(
-			shouldShowStandaloneNoteContextGlyph({
-				variant: "floating",
-				hasActiveNote: true,
-				floatingNoteContextMode: "off",
-				messageCount: 0,
-				hasSelection: true,
-			}),
-		).toBe(false);
-	});
-
-	it("without a selection the icon still decides", () => {
-		expect(
-			shouldAttachActiveNote({
-				...base,
-				variant: "floating",
-				floatingNoteContextMode: "off",
-				hasSelection: false,
-			}),
-		).toBe(false);
-		expect(
-			shouldAttachActiveNote({
-				...base,
-				variant: "floating",
-				floatingNoteContextMode: "always",
-				isAutoMentionDisabled: true,
-				hasSelection: false,
+				hasActiveNote: false,
 			}),
 		).toBe(false);
 	});
@@ -404,7 +262,7 @@ describe("floatingComposerContextChipLabels", () => {
 		).toEqual(["@file-A", "@file-C"]);
 	});
 
-	it("omits the active note in don't-attach mode but keeps attached files", () => {
+	it("keeps attached files when there is no active note", () => {
 		expect(
 			floatingComposerContextChipLabels({
 				showActiveNoteChip: false,
@@ -423,7 +281,7 @@ describe("floatingComposerContextChipLabels", () => {
 		).toEqual(["@file-A", "@file-B"]);
 	});
 
-	it("includes the active note chip when first-message mode will attach it", () => {
+	it("includes the active note chip with its selection range", () => {
 		expect(
 			floatingComposerContextChipLabels({
 				showActiveNoteChip: true,

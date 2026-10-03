@@ -25,12 +25,6 @@ import { ChatExporter } from "../services/chat-exporter";
 import { getLogger } from "../utils/logger";
 import { buildFileUri } from "../utils/paths";
 import { convertWindowsPathToWsl } from "../utils/platform";
-import {
-	shouldAttachActiveNote,
-	selectionForcesAttach,
-	type ChatContextVariant,
-	type FloatingNoteContextMode,
-} from "../services/floating-note-context";
 
 // ============================================================================
 // Types
@@ -83,16 +77,13 @@ export function useChatActions(
 	messages: ChatMessage[],
 	// Only windowsWslMode is read reactively here; exportSettings are read
 	// live from plugin.settings. Narrow so ChatPanel can pass a settings slice.
-	settings: Pick<
-		AgentClientPluginSettings,
-		"windowsWslMode" | "autoMentionActiveNote"
-	>,
+	settings: Pick<AgentClientPluginSettings, "windowsWslMode">,
 	vaultPath: string,
 	persistentEmbedId?: string,
 	/** Skip putting the cancelled prompt back in the composer (queued follow-up). */
 	shouldSkipCancelledDraftRestore?: () => boolean,
-	chatVariant: ChatContextVariant = "sidebar",
-	floatingNoteContextMode: FloatingNoteContextMode = "first",
+	/** Whether the next send attaches the active note (resolved in ChatPanel). */
+	attachActiveNote: boolean = false,
 ): UseChatActionsReturn {
 	const logger = getLogger();
 
@@ -196,18 +187,6 @@ export function useChatActions(
 				}
 			}
 
-			const attachActiveNote = shouldAttachActiveNote({
-				variant: chatVariant,
-				globalAutoMention: settings.autoMentionActiveNote,
-				floatingNoteContextMode,
-				messageCount: messages.length,
-				isAutoMentionDisabled:
-					suggestions.mentions.isAutoMentionDisabled,
-				hasSelection: selectionForcesAttach(
-					suggestions.mentions.activeNote,
-				),
-			});
-
 			await agent.sendMessage(content, {
 				activeNote: attachActiveNote
 					? suggestions.mentions.activeNote
@@ -219,6 +198,9 @@ export function useChatActions(
 					resourceLinks.length > 0 ? resourceLinks : undefined,
 				isFirstMessage,
 			});
+
+			// The chip override is per-send: return to the mode default.
+			suggestions.mentions.resetActiveNoteOverride();
 
 			// Save session metadata locally on first message
 			if (isFirstMessage && session.sessionId) {
@@ -241,12 +223,10 @@ export function useChatActions(
 			persistentEmbedId,
 			logger,
 			suggestions.mentions.activeNote,
-			suggestions.mentions.isAutoMentionDisabled,
+			suggestions.mentions.resetActiveNoteOverride,
 			shouldConvertToWsl,
 			vaultPath,
-			chatVariant,
-			floatingNoteContextMode,
-			settings.autoMentionActiveNote,
+			attachActiveNote,
 		],
 	);
 
@@ -284,7 +264,7 @@ export function useChatActions(
 				await autoExportIfEnabled("newChat", messages, session);
 			}
 
-			suggestions.mentions.toggleAutoMention(false);
+			suggestions.mentions.resetActiveNoteOverride();
 			agent.clearMessages();
 
 			const newAgentId = isAgentSwitch
@@ -304,7 +284,7 @@ export function useChatActions(
 			agent.cancelOperation,
 			agent.clearMessages,
 			agent.restartSession,
-			suggestions.mentions.toggleAutoMention,
+			suggestions.mentions.resetActiveNoteOverride,
 			sessionHistory.invalidateCache,
 		],
 	);

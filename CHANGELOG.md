@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Fixed
+- **Context chip × always removes the active note** — The composer's active-note chip is now shown whenever a note is open, in every mode, and its × always drops the note (and any selected text) from the next send, even while a text selection is live or the floating mode is Don't attach. When the note would not attach, the chip reads struck-through with a + to re-attach it. The change applies to the next message only and then returns to the mode default.
+
 ## 0.26.2
 
 ### Fixed

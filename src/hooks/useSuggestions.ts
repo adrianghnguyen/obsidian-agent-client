@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { NoteMetadata, IVaultAccess } from "../services/vault-service";
 import {
 	detectMention,
@@ -6,6 +6,7 @@ import {
 	type MentionContext,
 } from "../utils/mention-parser";
 import type { SlashCommand } from "../types/session";
+import type { ActiveNoteOverride } from "../services/floating-note-context";
 import type AgentClientPlugin from "../plugin";
 
 // ============================================================================
@@ -33,10 +34,15 @@ export interface MentionsState {
 
 	/** Currently active note for auto-mention */
 	activeNote: NoteMetadata | null;
-	/** Whether auto-mention is temporarily disabled */
-	isAutoMentionDisabled: boolean;
-	/** Toggle auto-mention enabled/disabled state */
-	toggleAutoMention: (disabled?: boolean) => void;
+	/**
+	 * Per-send attach override set from the composer chip: "default" follows
+	 * the mode, "attach" / "remove" force the next send. Reset after a send.
+	 */
+	activeNoteOverride: ActiveNoteOverride;
+	/** Set the per-send attach override */
+	setActiveNoteOverride: (next: ActiveNoteOverride) => void;
+	/** Return the override to the mode default */
+	resetActiveNoteOverride: () => void;
 	/** Update the active note from the vault */
 	updateActiveNote: () => Promise<void>;
 }
@@ -90,7 +96,6 @@ export function useSuggestions(
 	vaultAccess: IVaultAccess,
 	plugin: AgentClientPlugin,
 	availableCommands: SlashCommand[],
-	autoMentionDefault: boolean,
 	pinnedActiveNote?: NoteMetadata | null,
 ): UseSuggestionsReturn {
 	// ============================================================
@@ -107,14 +112,8 @@ export function useSuggestions(
 	const [activeNote, setActiveNote] = useState<NoteMetadata | null>(
 		pinnedActiveNote ?? null,
 	);
-	const [isAutoMentionDisabled, setIsAutoMentionDisabled] = useState(
-		!autoMentionDefault,
-	);
-
-	// Sync toggle when the setting changes at runtime (e.g. from plugin settings)
-	useEffect(() => {
-		setIsAutoMentionDisabled(!autoMentionDefault);
-	}, [autoMentionDefault]);
+	const [activeNoteOverride, setActiveNoteOverrideState] =
+		useState<ActiveNoteOverride>("default");
 
 	const mentionIsOpen =
 		mentionSuggestions.length > 0 && mentionContext !== null;
@@ -134,12 +133,12 @@ export function useSuggestions(
 	// Auto-mention toggle (shared between mentions and commands)
 	// ============================================================
 
-	const toggleAutoMention = useCallback((disabled?: boolean) => {
-		if (disabled === undefined) {
-			setIsAutoMentionDisabled((prev) => !prev);
-		} else {
-			setIsAutoMentionDisabled(disabled);
-		}
+	const setActiveNoteOverride = useCallback((next: ActiveNoteOverride) => {
+		setActiveNoteOverrideState(next);
+	}, []);
+
+	const resetActiveNoteOverride = useCallback(() => {
+		setActiveNoteOverrideState("default");
 	}, []);
 
 	// ============================================================
@@ -302,8 +301,9 @@ export function useSuggestions(
 			navigate: mentionNavigate,
 			close: mentionClose,
 			activeNote,
-			isAutoMentionDisabled,
-			toggleAutoMention,
+			activeNoteOverride,
+			setActiveNoteOverride,
+			resetActiveNoteOverride,
 			updateActiveNote,
 		}),
 		[
@@ -316,8 +316,9 @@ export function useSuggestions(
 			mentionNavigate,
 			mentionClose,
 			activeNote,
-			isAutoMentionDisabled,
-			toggleAutoMention,
+			activeNoteOverride,
+			setActiveNoteOverride,
+			resetActiveNoteOverride,
 			updateActiveNote,
 		],
 	);

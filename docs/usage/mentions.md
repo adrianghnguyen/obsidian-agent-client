@@ -16,7 +16,7 @@ When auto-mention is active, a badge appears above the input field showing the c
 
 ### Temporary Disable
 
-You can temporarily disable auto-mention for a single message by clicking the **×** on the badge. The chip stays in place with a struck-through label and a **+** to turn auto-mention back on, in both sidebar and floating chat. This toggle only affects the current message—auto-mention will be active again for subsequent messages.
+The active-note chip is always shown whenever a note is open, in every mode, and its **×** always drops the note (and any selected text) from the next message—even when a selection is live or the mode is "don't attach". When the note would not attach, the chip shows with a struck-through label and a **+** to attach it again. Either way the change only affects the next message; after you send, the chip returns to the current mode's default.
 
 <p align="center">
   <img src="/images/temporary-disable.gif" alt="Temporarily disabling auto-mention" />
@@ -26,7 +26,7 @@ You can temporarily disable auto-mention for a single message by clicking the **
 
 If you select text in your note, the selected lines are passed as context to the agent. The badge will show the line range (e.g., `@My Note:5-10`), and the agent receives both the file path and the selected content.
 
-A live selection always attaches, even when auto-mention or the floating attach control is turned off. It keeps attaching on every send until you collapse the selection, and it survives clicking into the chat composer.
+A live selection attaches even when auto-mention or the floating attach control is turned off. It keeps attaching on every send until you collapse the selection, and it survives clicking into the chat composer. To drop a selection for one message, click the chip's **×** (the **+** brings it back).
 
 <p align="center">
   <img src="/images/selection-context.gif" alt="Selection context feature" />
@@ -38,11 +38,11 @@ The active-note `@` chip and the `@` chips for manually attached files render fr
 
 When floating chat will attach the active note, the composer shows one `@Note` chip. The mode glyph sits inside the chip on the **left**; click it to cycle:
 
-1. **First message only** (file with +1) — attach the active note on the first message of that window. The chip shows that note, then goes away after the first send.
+1. **First message only** (file with +1) — attach the active note on the first message of that window.
 2. **Keep active note** (file with ∞) — the chip follows whichever note is active, and that note is attached on every message.
-3. **Don't attach** (×) — no chip; use `@` mentions yourself.
+3. **Don't attach** (×) — no note is attached; use `@` mentions yourself.
 
-Click the `@Note` label or its × to temporarily drop that note for the next send. When the chip is hidden (don't attach, after the first send, or no note open) the mode glyph shows on its own so you can still change the mode.
+The `@Note` chip is always shown while a note is open. Click the `@Note` label or its **×** to drop that note for the next send; when the note would not attach, the chip shows struck-through with a **+** to attach it. The mode glyph shows on its own only when no note is open.
 
 Set the default in **Settings → Agent Client → Composer → Mentions & context → Floating chat active note**. The composer button only changes the current floating session. This is independent of global **Auto-mention active note** (sidebar and embedded chat still follow that setting).
 
