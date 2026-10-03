@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.27.0
+
 ### Added
 - **Voice input microphone picker** — **Settings → Voice input → Microphone** now lists your audio inputs and saves the pick for this device only (device ids are machine-specific, so the choice stays local instead of syncing through your vault). A mic icon beside the dropdown tests the selection with a live level meter. Previously the plugin always used whatever input Chromium treated as the system default.
 
