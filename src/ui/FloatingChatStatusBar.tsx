@@ -16,6 +16,7 @@ const HOVER_HIDE_DELAY_MS = 175;
  */
 export class FloatingChatStatusBar {
 	private statusBarEl: HTMLElement | null = null;
+	private iconEl: HTMLElement | null = null;
 	private labelEl: HTMLElement | null = null;
 	private countEl: HTMLElement | null = null;
 	private popoverEl: HTMLElement | null = null;
@@ -23,6 +24,7 @@ export class FloatingChatStatusBar {
 	private unsubscribers: Array<() => void> = [];
 	private lastCount = -1;
 	private lastShow = false;
+	private lastBusy: boolean | null = null;
 	private showTimer: number | null = null;
 	private hideTimer: number | null = null;
 	private readonly onDocMouseDown: (e: MouseEvent) => void;
@@ -46,10 +48,10 @@ export class FloatingChatStatusBar {
 		this.statusBarEl = this.plugin.addStatusBarItem();
 		this.statusBarEl.addClass("agent-client-floating-status-bar");
 
-		const iconEl = this.statusBarEl.createSpan({
+		this.iconEl = this.statusBarEl.createSpan({
 			cls: "agent-client-floating-status-bar-icon",
 		});
-		setIcon(iconEl, "bot-message-square");
+		setIcon(this.iconEl, "bot-message-square");
 
 		// Fixed-width unread-count slot between the icon and the agent name.
 		// Always present (never collapsed) so the pill's width stays constant
@@ -92,9 +94,13 @@ export class FloatingChatStatusBar {
 			}),
 		);
 		this.unsubscribers.push(
-			this.plugin.viewRegistry.subscribe(() => this.syncUnread()),
+			this.plugin.viewRegistry.subscribe(() => {
+				this.syncWorking();
+				this.syncUnread();
+			}),
 		);
 		this.syncVisibility();
+		this.syncWorking();
 		this.syncUnread();
 	}
 
@@ -105,6 +111,7 @@ export class FloatingChatStatusBar {
 		this.hidePopover();
 		this.statusBarEl?.remove();
 		this.statusBarEl = null;
+		this.iconEl = null;
 		this.labelEl = null;
 		this.countEl = null;
 	}
@@ -141,6 +148,24 @@ export class FloatingChatStatusBar {
 		const label = `Agent floating chat (click to cycle default agent, Ctrl/Cmd-click to toggle)${unread}`;
 		this.statusBarEl.setAttr("aria-label", label);
 		this.statusBarEl.setAttr("title", label);
+	}
+
+	/**
+	 * Swap the robot icon for a spinning loader while any session's agent is
+	 * busy (sending a prompt or loading history). Uses the same `busy`
+	 * definition as the session lists. Distinct from the `is-unread` tint:
+	 * `is-working` means the agent is processing right now.
+	 */
+	private syncWorking(): void {
+		if (!this.statusBarEl) return;
+		const busy = this.plugin.viewRegistry.countBusy() > 0;
+		if (busy === this.lastBusy) return;
+		this.lastBusy = busy;
+
+		if (this.iconEl) {
+			setIcon(this.iconEl, busy ? "loader" : "bot-message-square");
+		}
+		this.statusBarEl.toggleClass("is-working", busy);
 	}
 
 	/** Reflect the current default agent name next to the icon. */

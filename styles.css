@@ -3572,6 +3572,14 @@ If your plugin does not need CSS, delete this file.
 	height: 16px;
 }
 
+/* While any session's agent is busy, the robot icon is replaced with a
+   spinning loader so work in progress reads at a glance. */
+.agent-client-floating-status-bar.is-working
+	.agent-client-floating-status-bar-icon
+	svg {
+	animation: agent-client-spin 1.5s linear infinite;
+}
+
 /* Awaiting-reply number: fixed-width slot between icon and label, always
    reserved (holds a non-breaking space at 0) so the pill never changes width. */
 .agent-client-floating-status-bar-count {
@@ -3618,6 +3626,9 @@ If your plugin does not need CSS, delete this file.
 
 @media (prefers-reduced-motion: reduce) {
 	.agent-client-floating-status-bar.is-unread
+		.agent-client-floating-status-bar-icon
+		svg,
+	.agent-client-floating-status-bar.is-working
 		.agent-client-floating-status-bar-icon
 		svg {
 		animation: none;

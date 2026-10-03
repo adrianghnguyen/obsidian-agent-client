@@ -383,6 +383,15 @@ export class ChatViewRegistry {
 		return this.unreadViewIds.size;
 	}
 
+	/** Number of views whose agent is currently busy (processing a turn). */
+	countBusy(): number {
+		let count = 0;
+		for (const view of this.views.values()) {
+			if (view.getSessionStatus() === "busy") count++;
+		}
+		return count;
+	}
+
 	/**
 	 * Focus the next view in the list (cyclic).
 	 * Order is based on registration order (Map insertion order).
