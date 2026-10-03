@@ -19,7 +19,10 @@ import type {
 	AgentEnvVar,
 	ChatViewLocation,
 } from "../plugin";
-import type { TraceVerbosity } from "../types/settings";
+import type {
+	ToolCallFailureAnalysis,
+	TraceVerbosity,
+} from "../types/settings";
 import {
 	TRACE_VERBOSITY_LABELS,
 	TRACE_VERBOSITY_SUMMARY,
@@ -830,6 +833,33 @@ export class AgentClientSettingTab extends PluginSettingTab {
 													.displaySettings,
 												traceVerbosity:
 													value as TraceVerbosity,
+											},
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
+						.setName("Failed tool call analysis")
+						.setDesc(
+							"Lenient treats a failed tool call with no error detail as Not run and hides it from the N failed count (Antigravity reports aborted calls this way). Strict counts every ACP failure.",
+						)
+						.addDropdown((dropdown) =>
+							dropdown
+								.addOption("lenient", "Lenient")
+								.addOption("strict", "Strict")
+								.setValue(
+									this.plugin.settings.displaySettings
+										.toolCallFailureAnalysis,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											displaySettings: {
+												...this.plugin.settings
+													.displaySettings,
+												toolCallFailureAnalysis:
+													value as ToolCallFailureAnalysis,
 											},
 										},
 									);

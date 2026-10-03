@@ -76,6 +76,10 @@ The agent requires authentication before processing requests.
 
 Chat banners name specific failure modes (auth, missing bridge, unreachable endpoint, timeout, process exit). Run the **Health check** in Settings and follow the banner's next step. See [Antigravity Setup — Chat error messages](/agent-setup/antigravity#chat-error-messages).
 
+### Tool calls shown as failed when nothing errored
+
+The Antigravity bridge can report aborted tool calls (`view_file` reads, `Run create_file?` prompts the agent never ran) as `failed`. This is a known bridge behavior, not a plugin bug. With **Settings → Agent Client → Chat display → Failed tool call analysis** on **Lenient** (default), those show as **Not run** and stay out of the "N failed" count; real failures still show the red X. Set it to **Strict** to count every ACP failure. See [Antigravity Setup — Known upstream issue](/agent-setup/antigravity#known-upstream-issue-aborted-tool-calls-shown-as-failures).
+
 ### "No Authentication Methods" error
 
 The agent didn't provide authentication options.

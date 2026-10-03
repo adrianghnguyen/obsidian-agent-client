@@ -196,6 +196,8 @@ function selectChatPanelSettings(s: AgentClientPluginSettings) {
 		displaySettings: {
 			fontSize: s.displaySettings.fontSize,
 			traceVerbosity: s.displaySettings.traceVerbosity,
+			toolCallFailureAnalysis:
+				s.displaySettings.toolCallFailureAnalysis,
 		},
 	};
 }
@@ -220,7 +222,9 @@ function chatPanelSettingsEqual(
 		a.presetAgents === b.presetAgents &&
 		a.customAgents === b.customAgents &&
 		a.displaySettings.fontSize === b.displaySettings.fontSize &&
-		a.displaySettings.traceVerbosity === b.displaySettings.traceVerbosity
+		a.displaySettings.traceVerbosity === b.displaySettings.traceVerbosity &&
+		a.displaySettings.toolCallFailureAnalysis ===
+			b.displaySettings.toolCallFailureAnalysis
 	);
 }
 
@@ -1747,6 +1751,9 @@ export const ChatPanel = React.memo(function ChatPanel({
 			terminalClient={terminalClientRef.current}
 			sessionId={session.sessionId}
 			traceVerbosity={settings.displaySettings.traceVerbosity}
+			toolCallFailureAnalysis={
+				settings.displaySettings.toolCallFailureAnalysis
+			}
 			onApprovePermission={agent.approvePermission}
 			hasActivePermission={agent.hasActivePermission}
 		/>
