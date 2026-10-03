@@ -5,6 +5,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## [Unreleased]
 
 ### Added
+- **Settings search** — A search box in the Agent Client settings header filters the plugin's own settings as you type. Pick a result to expand its section, scroll to the row, and flash it. Keyboard: Enter jumps to the top match, Escape clears.
 - **Failed tool call analysis setting** — **Settings → Agent Client → Chat display** gains a Failed tool call analysis dropdown. Lenient (default) treats a failed tool call with no error detail as Not run and leaves it out of the "N failed" count; Strict counts every ACP failure. This keeps the Antigravity bridge's aborted/dropped calls from reading as errors.
 
 ### Fixed
