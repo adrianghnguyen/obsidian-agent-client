@@ -22,15 +22,21 @@ export interface ActiveNoteAttachInput {
 	globalAutoMention: boolean;
 	floatingNoteContextMode: FloatingNoteContextMode;
 	messageCount: number;
-	/** User dismissed auto-mention for the current send via the @ badge × control. */
-	isAutoMentionDisabled: boolean;
 	/**
 	 * The active note has a live editor text selection. A selection is explicit
-	 * user intent, so it attaches as context regardless of the mode icon or an
-	 * explicit dismiss. It keeps attaching until the selection is collapsed.
+	 * user intent, so it attaches as context regardless of the mode icon. It
+	 * keeps attaching until the selection is collapsed.
 	 */
 	hasSelection?: boolean;
 }
+
+/**
+ * Per-send override of the active-note attach decision, driven by the composer
+ * chip. "default" follows the mode (and selection); "attach" and "remove" win
+ * over both, so the chip's + / × always works, even in don't-attach modes or
+ * while a selection is live. Reset to "default" after each send.
+ */
+export type ActiveNoteOverride = "default" | "attach" | "remove";
 
 export function cycleFloatingNoteContextMode(
 	mode: FloatingNoteContextMode,
@@ -68,35 +74,16 @@ export function floatingNoteContextIcon(
 }
 
 /**
- * Composer shows the active-note chip when that note *would* attach on the
- * next send (first message of a "first" session, every message in "always",
- * or the sidebar's global auto-mention). A temporary dismiss does not hide
- * the chip; the badge stays (struck through) so it can be turned back on.
- *
- * Shared by every chat variant so the chip appears and behaves the same way
- * in sidebar, floating, and embedded composers.
+ * The composer always shows the active-note chip whenever a note is open, in
+ * every mode and chat variant, so its + / × context toggle is always
+ * reachable. Whether the note actually attaches is a separate decision
+ * (resolveActiveNoteAttach); the chip renders active (×) or struck (+)
+ * accordingly.
  */
 export function composerShowsActiveNoteChip(input: {
-	variant: ChatContextVariant;
 	hasActiveNote: boolean;
-	/** Sidebar/embedded global auto-mention setting (unused when floating). */
-	globalAutoMention: boolean;
-	floatingNoteContextMode: FloatingNoteContextMode;
-	messageCount: number;
-	/** A live selection forces the chip visible even in "don't attach". */
-	hasSelection?: boolean;
 }): boolean {
-	if (!input.hasActiveNote) {
-		return false;
-	}
-	return shouldAttachActiveNote({
-		variant: input.variant,
-		globalAutoMention: input.globalAutoMention,
-		floatingNoteContextMode: input.floatingNoteContextMode,
-		messageCount: input.messageCount,
-		isAutoMentionDisabled: false,
-		hasSelection: input.hasSelection,
-	});
+	return input.hasActiveNote;
 }
 
 export function floatingNoteContextTooltip(
@@ -111,16 +98,14 @@ export function floatingNoteContextTooltip(
 	return "Don't attach the active note. Click for first message only.";
 }
 
-/** True when the next send should include activeNote in preparePrompt. */
+/**
+ * Mode/selection decision when no chip override is active (override =
+ * "default"). A live selection is explicit user intent and attaches even when
+ * the floating mode is "don't attach" or sidebar auto-mention is off.
+ */
 export function shouldAttachActiveNote(input: ActiveNoteAttachInput): boolean {
-	// A live selection is explicit user intent and overrides the attach icon:
-	// the temporary @ dismiss, floating "don't attach", and sidebar auto-mention
-	// off all still attach while the user has text selected in the note.
 	if (input.hasSelection) {
 		return true;
-	}
-	if (input.isAutoMentionDisabled) {
-		return false;
 	}
 	if (input.variant === "floating") {
 		if (input.floatingNoteContextMode === "off") {
@@ -132,6 +117,28 @@ export function shouldAttachActiveNote(input: ActiveNoteAttachInput): boolean {
 		return true;
 	}
 	return input.globalAutoMention;
+}
+
+export interface ActiveNoteResolveInput extends ActiveNoteAttachInput {
+	override: ActiveNoteOverride;
+}
+
+/**
+ * The single attach decision for the next send. A chip override ("attach" /
+ * "remove") beats both the live selection and the mode, so the composer chip's
+ * + / × always has an effect. "default" falls through to the mode/selection
+ * logic in shouldAttachActiveNote.
+ */
+export function resolveActiveNoteAttach(
+	input: ActiveNoteResolveInput,
+): boolean {
+	if (input.override === "attach") {
+		return true;
+	}
+	if (input.override === "remove") {
+		return false;
+	}
+	return shouldAttachActiveNote(input);
 }
 
 /**
@@ -151,28 +158,17 @@ export function showFloatingNoteContextControl(
 }
 
 /**
- * Floating-only: keep a standalone mode glyph in the row while the merged
- * `@Note` chip is hidden (off mode, first mode after the first send, or no
- * active note). When the chip is visible the glyph lives inside it instead.
+ * Floating-only: the mode glyph lives inside the merged `@Note` chip whenever
+ * a note is open; it stands alone only when no note is open.
  */
 export function shouldShowStandaloneNoteContextGlyph(input: {
 	variant: ChatContextVariant;
 	hasActiveNote: boolean;
-	floatingNoteContextMode: FloatingNoteContextMode;
-	messageCount: number;
-	hasSelection?: boolean;
 }): boolean {
 	if (!showFloatingNoteContextControl(input.variant)) {
 		return false;
 	}
-	return !composerShowsActiveNoteChip({
-		variant: input.variant,
-		hasActiveNote: input.hasActiveNote,
-		globalAutoMention: false,
-		floatingNoteContextMode: input.floatingNoteContextMode,
-		messageCount: input.messageCount,
-		hasSelection: input.hasSelection,
-	});
+	return !composerShowsActiveNoteChip({ hasActiveNote: input.hasActiveNote });
 }
 
 /** @ chip label for a manually attached file (same `@name` pattern as auto-mention). */

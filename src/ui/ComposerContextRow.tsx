@@ -22,13 +22,14 @@ export interface ComposerContextRowProps {
 	activeNote: NoteMetadata | null;
 	/** The active-note pill is offered (see composerShowsActiveNoteChip). */
 	showActiveNoteChip: boolean;
-	/** The pill is dismissed for this send (sidebar A- toggle or floating ×). */
-	isAutoMentionDisabled: boolean;
-	/** A live editor selection makes the dispose action inapplicable. */
-	selectionForces: boolean;
+	/** Whether the next send attaches the active note. */
+	isAttached: boolean;
 	floatingNoteContextMode: FloatingNoteContextMode;
 	onCycleNoteContextMode?: () => void;
-	onToggleAutoMention: (disabled: boolean) => void;
+	/** Drop the active note from the next send (chip ×). */
+	onRemoveActiveNote: () => void;
+	/** Force the active note onto the next send (chip +). */
+	onAttachActiveNote: () => void;
 	attachedFiles: AttachedFile[];
 	onRemoveFile: (id: string) => void;
 }
@@ -47,11 +48,11 @@ export function ComposerContextRow({
 	variant,
 	activeNote,
 	showActiveNoteChip,
-	isAutoMentionDisabled,
-	selectionForces,
+	isAttached,
 	floatingNoteContextMode,
 	onCycleNoteContextMode,
-	onToggleAutoMention,
+	onRemoveActiveNote,
+	onAttachActiveNote,
 	attachedFiles,
 	onRemoveFile,
 }: ComposerContextRowProps) {
@@ -67,12 +68,11 @@ export function ComposerContextRow({
 		return null;
 	}
 
-	const chipDisabled = isAutoMentionDisabled && !selectionForces;
-	const toggleTitle = selectionForces
-		? "The selected text is attached as context. This toggle applies to sends without a selection."
-		: isAutoMentionDisabled
-			? "Enable auto-mention"
-			: "Temporarily disable auto-mention";
+	const chipDisabled = !isAttached;
+	const toggleTitle = isAttached
+		? "Remove the active note from the next message"
+		: "Attach the active note to the next message";
+	const onToggleChip = isAttached ? onRemoveActiveNote : onAttachActiveNote;
 
 	const noteBadge = activeNote && (
 		<span
@@ -127,9 +127,7 @@ export function ComposerContextRow({
 						type="button"
 						className="agent-client-mention-toggle"
 						title={toggleTitle}
-						onClick={() =>
-							onToggleAutoMention(!isAutoMentionDisabled)
-						}
+						onClick={onToggleChip}
 					>
 						{noteBadge}
 						<span

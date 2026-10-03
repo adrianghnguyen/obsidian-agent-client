@@ -40,7 +40,11 @@ import { useSettingsSelector } from "../hooks/useSettings";
 import { useSuggestions } from "../hooks/useSuggestions";
 import { useAgent } from "../hooks/useAgent";
 import { useSessionHistory } from "../hooks/useSessionHistory";
-import { cycleFloatingNoteContextMode } from "../services/floating-note-context";
+import {
+	cycleFloatingNoteContextMode,
+	resolveActiveNoteAttach,
+	selectionForcesAttach,
+} from "../services/floating-note-context";
 
 // Domain model imports
 import {
@@ -384,31 +388,23 @@ export const ChatPanel = React.memo(function ChatPanel({
 		}
 	}, [variant, messages.length, settings.floatingNoteContextMode]);
 
-	const autoMentionDefaultForSuggestions = useMemo(() => {
-		if (variant === "floating") {
-			if (floatingNoteContextMode === "off") {
-				return false;
-			}
-			if (floatingNoteContextMode === "first" && messages.length > 0) {
-				return false;
-			}
-			return true;
-		}
-		return settings.autoMentionActiveNote;
-	}, [
-		variant,
-		messages.length,
-		floatingNoteContextMode,
-		settings.autoMentionActiveNote,
-	]);
-
 	const suggestions = useSuggestions(
 		vaultService,
 		plugin,
 		session.availableCommands || EMPTY_COMMANDS,
-		autoMentionDefaultForSuggestions,
 		pinnedActiveNote,
 	);
+
+	// Single source of truth for whether the next send attaches the active
+	// note. The composer chip's override wins over the mode/selection decision.
+	const attachActiveNote = resolveActiveNoteAttach({
+		override: suggestions.mentions.activeNoteOverride,
+		variant,
+		globalAutoMention: settings.autoMentionActiveNote,
+		floatingNoteContextMode,
+		messageCount: messages.length,
+		hasSelection: selectionForcesAttach(suggestions.mentions.activeNote),
+	});
 
 	// Session history hook with callback for session load
 	const handleSessionLoad = useCallback(
@@ -515,8 +511,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 		vaultPath,
 		embeddedConfig?.persist ? embeddedConfig.id : undefined,
 		() => queuedSendsRef.current.length > 0,
-		variant,
-		floatingNoteContextMode,
+		attachActiveNote,
 	);
 
 	const {
@@ -1325,6 +1320,10 @@ export const ChatPanel = React.memo(function ChatPanel({
 	const handleSetConfigOptionRef = useRef(handleSetConfigOption);
 	const sessionModesRef = useRef(session.modes);
 	const sessionConfigOptionsRef = useRef(session.configOptions);
+	const attachActiveNoteRef = useRef(attachActiveNote);
+	const setActiveNoteOverrideRef = useRef(
+		suggestions.mentions.setActiveNoteOverride,
+	);
 	handleNewChatWithPersistRef.current = handleNewChatWithPersist;
 	handleNewChatRef.current = handleNewChat;
 	approveActivePermissionRef.current = agent.approveActivePermission;
@@ -1335,6 +1334,8 @@ export const ChatPanel = React.memo(function ChatPanel({
 	handleSetConfigOptionRef.current = handleSetConfigOption;
 	sessionModesRef.current = session.modes;
 	sessionConfigOptionsRef.current = session.configOptions;
+	attachActiveNoteRef.current = attachActiveNote;
+	setActiveNoteOverrideRef.current = suggestions.mentions.setActiveNoteOverride;
 
 	useEffect(() => {
 		const workspace = plugin.app.workspace;
@@ -1346,12 +1347,14 @@ export const ChatPanel = React.memo(function ChatPanel({
 		};
 
 		const refs = [
-			// Toggle auto-mention
+			// Toggle active-note context: remove if attached, force attach if not
 			ws.on(
 				"agent-client:toggle-auto-mention",
 				(targetViewId?: string) => {
 					if (targetViewId && targetViewId !== viewId) return;
-					suggestions.mentions.toggleAutoMention();
+					setActiveNoteOverrideRef.current(
+						attachActiveNoteRef.current ? "remove" : "attach",
+					);
 				},
 			),
 
@@ -1451,7 +1454,6 @@ export const ChatPanel = React.memo(function ChatPanel({
 		plugin.lastActiveChatViewId,
 		viewId,
 		variant,
-		suggestions.mentions.toggleAutoMention,
 	]);
 
 	// Deterministic prompt delivery: register a handler the plugin invokes
@@ -1758,14 +1760,23 @@ export const ChatPanel = React.memo(function ChatPanel({
 			hasActivePermission={agent.hasActivePermission}
 			agentLabel={activeAgentLabel}
 			availableCommands={session.availableCommands || []}
-			autoMentionEnabled={settings.autoMentionActiveNote}
 			chatVariant={variant}
 			floatingNoteContextMode={floatingNoteContextMode}
-			onFloatingNoteContextCycle={() =>
+			attachActiveNote={attachActiveNote}
+			onRemoveActiveNote={() =>
+				suggestions.mentions.setActiveNoteOverride("remove")
+			}
+			onAttachActiveNote={() =>
+				suggestions.mentions.setActiveNoteOverride("attach")
+			}
+			onFloatingNoteContextCycle={() => {
+				// A mode change starts fresh: drop any chip override so the
+				// new mode decides.
+				suggestions.mentions.resetActiveNoteOverride();
 				setFloatingNoteContextMode((mode) =>
 					cycleFloatingNoteContextMode(mode),
-				)
-			}
+				);
+			}}
 			restoredMessage={restoredMessage}
 			suggestions={suggestions}
 			plugin={plugin}

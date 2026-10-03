@@ -29,7 +29,6 @@ import { composerEnterShouldSend } from "../voice-input/composer-enter";
 import { ComposerContextRow } from "./ComposerContextRow";
 import {
 	composerShowsActiveNoteChip,
-	selectionForcesAttach,
 	type ChatContextVariant,
 	type FloatingNoteContextMode,
 } from "../services/floating-note-context";
@@ -211,13 +210,17 @@ export interface InputAreaProps {
 	agentLabel: string;
 	/** Available slash commands */
 	availableCommands: SlashCommand[];
-	/** Whether auto-mention setting is enabled */
-	autoMentionEnabled: boolean;
 	/** Sidebar | floating | embedded */
 	chatVariant?: ChatContextVariant;
 	/** Per-session floating active-note mode (cycles in the composer). */
 	floatingNoteContextMode?: FloatingNoteContextMode;
 	onFloatingNoteContextCycle?: () => void;
+	/** Whether the next send attaches the active note (resolved in ChatPanel). */
+	attachActiveNote: boolean;
+	/** Chip ×: drop the active note from the next send. */
+	onRemoveActiveNote: () => void;
+	/** Chip +: force the active note onto the next send. */
+	onAttachActiveNote: () => void;
 	/** Message to restore (e.g., after cancellation) */
 	restoredMessage: string | null;
 	/** Input suggestions (mentions + slash commands) */
@@ -295,10 +298,12 @@ export function InputArea({
 	hasActivePermission,
 	agentLabel,
 	availableCommands,
-	autoMentionEnabled,
 	chatVariant = "sidebar",
 	floatingNoteContextMode = "first",
 	onFloatingNoteContextCycle,
+	attachActiveNote,
+	onRemoveActiveNote,
+	onAttachActiveNote,
 	restoredMessage,
 	suggestions,
 	plugin,
@@ -333,15 +338,8 @@ export function InputArea({
 }: InputAreaProps) {
 	const { mentions, commands: slashCommands } = suggestions;
 
-	const sessionMessageCount = messages.length;
-	const selectionForces = selectionForcesAttach(mentions.activeNote);
 	const showActiveNoteChip = composerShowsActiveNoteChip({
-		variant: chatVariant,
 		hasActiveNote: !!mentions.activeNote,
-		globalAutoMention: autoMentionEnabled,
-		floatingNoteContextMode,
-		messageCount: sessionMessageCount,
-		hasSelection: selectionForces,
 	});
 
 	const logger = getLogger();
@@ -1241,15 +1239,13 @@ export function InputArea({
 					variant={chatVariant}
 					activeNote={mentions.activeNote}
 					showActiveNoteChip={showActiveNoteChip}
-					isAutoMentionDisabled={mentions.isAutoMentionDisabled}
-					selectionForces={selectionForces}
+					isAttached={attachActiveNote}
 					floatingNoteContextMode={floatingNoteContextMode}
 					onCycleNoteContextMode={() =>
 						onFloatingNoteContextCycle?.()
 					}
-					onToggleAutoMention={(disabled) =>
-						mentions.toggleAutoMention(disabled)
-					}
+					onRemoveActiveNote={onRemoveActiveNote}
+					onAttachActiveNote={onAttachActiveNote}
 					attachedFiles={attachedFiles}
 					onRemoveFile={removeFile}
 				/>
