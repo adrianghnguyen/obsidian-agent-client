@@ -112,6 +112,65 @@ describe("VoiceInputModule", () => {
 		);
 	});
 
+	it("startMicTest captures without a transcriber and reports a level", async () => {
+		const fakeStream = {
+			getTracks: () => [],
+		} as unknown as MediaStream;
+		const getUserMedia = vi.fn(async () => fakeStream);
+		Object.defineProperty(globalThis, "navigator", {
+			value: { mediaDevices: { getUserMedia } },
+			configurable: true,
+			writable: true,
+		});
+		const fakeCtx = {
+			sampleRate: 16000,
+			state: "running",
+			createMediaStreamSource: () => ({ connect: vi.fn(), disconnect: vi.fn() }),
+			createScriptProcessor: () => ({ connect: vi.fn(), disconnect: vi.fn() }),
+			createAnalyser: () => ({
+				fftSize: 256,
+				smoothingTimeConstant: 0.7,
+				frequencyBinCount: 128,
+				getByteFrequencyData: (out: Uint8Array) => out.fill(0),
+				connect: vi.fn(),
+				disconnect: vi.fn(),
+			}),
+			createGain: () => ({ gain: { value: 0 }, connect: vi.fn(), disconnect: vi.fn() }),
+			resume: vi.fn(async () => undefined),
+			close: vi.fn(async () => undefined),
+			destination: {},
+		} as unknown as AudioContext;
+		(globalThis as unknown as Record<string, unknown>).AudioContext = function () {
+			return fakeCtx;
+		};
+
+		expect(module.isTestingMic).toBe(false);
+		expect(module.getTestLevel()).toBe(0);
+
+		await expect(module.startMicTest()).resolves.toBe(true);
+		expect(module.isTestingMic).toBe(true);
+		expect(getUserMedia).toHaveBeenCalled();
+
+		module.stopMicTest();
+		expect(module.isTestingMic).toBe(false);
+	});
+
+	it("startMicTest returns false when mic access fails", async () => {
+		Object.defineProperty(globalThis, "navigator", {
+			value: {
+				mediaDevices: {
+					getUserMedia: vi.fn(async () => {
+						throw new Error("denied");
+					}),
+				},
+			},
+			configurable: true,
+			writable: true,
+		});
+		await expect(module.startMicTest()).resolves.toBe(false);
+		expect(module.isTestingMic).toBe(false);
+	});
+
 	it("getAudioLevel is 0 when idle and matches recorder when active", async () => {
 		const recorder = createFakeRecorder();
 		fakeTranscriber = new LiveTranscriber("key", "model", {

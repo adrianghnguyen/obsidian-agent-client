@@ -83,6 +83,7 @@ export default defineConfig({
           { text: "Context Files", link: "/usage/context-files" },
           { text: "Prompt Injection", link: "/usage/prompt-injection" },
           { text: "MCP Tools", link: "/usage/mcp-tools" },
+          { text: "Voice Input", link: "/usage/voice-input" },
         ],
       },
       {

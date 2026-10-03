@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Voice input microphone picker** — **Settings → Voice input → Microphone** now lists your audio inputs and saves the pick for this device only (device ids are machine-specific, so the choice stays local instead of syncing through your vault). A mic icon beside the dropdown tests the selection with a live level meter. Previously the plugin always used whatever input Chromium treated as the system default.
+
 ### Fixed
 - **Context chip × always removes the active note** — The composer's active-note chip is now shown whenever a note is open, in every mode, and its × always drops the note (and any selected text) from the next send, even while a text selection is live or the floating mode is Don't attach. When the note would not attach, the chip reads struck-through with a + to re-attach it. The change applies to the next message only and then returns to the mode default.
 

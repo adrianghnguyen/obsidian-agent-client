@@ -60,6 +60,10 @@ import {
 	clampFloatingIdleOpacityPercent,
 } from "../services/settings-normalizer";
 import { VOICE_INPUT_SECRET_ID } from "../voice-input/VoiceInputSettings";
+import {
+	ensureMicrophoneLabels,
+	listAudioInputDevices,
+} from "../voice-input/audio-input-devices";
 import changelogMarkdown from "../../CHANGELOG.md";
 import { buildManifestBanner } from "../services/changelog-banner";
 
@@ -75,6 +79,14 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	private idleOpacitySlider: SliderComponent | null = null;
 	private idleOpacityText: TextComponent | null = null;
 	private idleTransparencyToggle: ToggleComponent | null = null;
+	/** Voice-input mic picker state (rebuilt on every renderContent). */
+	private micTestRaf = 0;
+	private micTestButtons: ExtraButtonComponent[] = [];
+	private micTestLevelEl: HTMLElement | null = null;
+	/** Live dropdown for the mic picker; rebuilt on every renderContent. */
+	private micDeviceDropdown: DropdownComponent | null = null;
+	/** One-off guard so labeling getUserMedia runs once per tab visit. */
+	private micDevicesLabeled = false;
 	/**
 	 * Open sections: agent rows ("preset:<id>" / "custom:<id>") and
 	 * settings callouts ("settings:<id>"). Deliberately non-persisted
@@ -114,6 +126,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 		this.agentSelector = null;
+		this.micDeviceDropdown = null;
+		this.micTestButtons = [];
+		this.micTestLevelEl = null;
+		this.stopMicTest();
 
 		if (this.unsubscribe) {
 			this.unsubscribe();
@@ -1666,6 +1682,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					);
 
 				if (this.plugin.settings.voiceInput.enabled) {
+					this.renderMicrophoneSetting(bodyEl);
+
 					new Setting(bodyEl)
 						.setName("Gemini API key")
 						.setDesc(
@@ -1839,6 +1857,135 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		);
 	}
 
+	/**
+	 * Microphone picker + level test for voice input. Sits directly under the
+	 * enable toggle so the input choice is the first thing to set.
+	 *
+	 * Device ids are machine-specific, so the pick is kept in device-local
+	 * storage (plugin.saveSettings writes it there and data.json stays
+	 * portable). enumerateDevices only returns human labels after mic
+	 * permission exists, so this triggers labeling once per tab visit.
+	 */
+	private renderMicrophoneSetting(containerEl: HTMLElement): void {
+		const voiceInput = this.plugin.settings.voiceInput;
+		const voiceInputModule = this.plugin.voiceInput;
+		let levelEl: HTMLElement | null = null;
+
+		const setting = new Setting(containerEl)
+			.setName("Microphone")
+			.setDesc(
+				"Audio input used for voice transcription. Allow microphone access when asked to see device names.",
+			)
+			.addDropdown((dropdown) => {
+				this.micDeviceDropdown = dropdown;
+				dropdown.addOption("default", "System default");
+				dropdown.setValue(voiceInput.audioDeviceId || "default");
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.voiceInput.audioDeviceId = value;
+					await this.plugin.saveSettings();
+				});
+			})
+			.addExtraButton((button) => {
+				button
+					.setIcon("mic")
+					.setTooltip("Test this microphone")
+					.onClick(() => this.toggleMicTest(levelEl));
+				if (!voiceInputModule) {
+					button.extraSettingsEl.addClass(
+						"agent-client-settings-hidden",
+					);
+				}
+				this.micTestButtons.push(button);
+			});
+
+		levelEl = setting.descEl.createDiv({
+			cls: "agent-client-mic-test-level",
+		});
+		this.micTestLevelEl = levelEl;
+		void this.refreshMicDeviceOptions();
+	}
+
+	/**
+	 * Fill the picker once mic labels are available. Keeps the current
+	 * selection and appends it when the device is not present on this machine.
+	 */
+	private async refreshMicDeviceOptions(): Promise<void> {
+		if (!this.micDevicesLabeled) {
+			this.micDevicesLabeled = true;
+			await ensureMicrophoneLabels();
+		}
+		const devices = await listAudioInputDevices("Microphone");
+		const selector = this.micDeviceDropdown;
+		if (!selector) return;
+		const current = this.plugin.settings.voiceInput.audioDeviceId;
+		selector.addOption("default", "System default");
+		for (const device of devices) {
+			selector.addOption(device.deviceId, device.label);
+		}
+		// Keep an entry for a saved id that is not connected right now so the
+		// dropdown does not silently reselect a different input.
+		const known = devices.some((device) => device.deviceId === current);
+		if (current && current !== "default" && !known) {
+			selector.addOption(current, "Unavailable on this device");
+		}
+		selector.setValue(current || "default");
+	}
+
+	/**
+	 * Start/stop the standalone mic monitor. The meter is driven by rAF so it
+	 * reads amplitude without a Gemini Live session. The icon flips to a stop
+	 * square while testing.
+	 */
+	private toggleMicTest(levelEl: HTMLElement | null): void {
+		const voiceInputModule = this.plugin.voiceInput;
+		if (!voiceInputModule) return;
+		if (voiceInputModule.isTestingMic) {
+			this.stopMicTest();
+			return;
+		}
+		void (async () => {
+			const started = await voiceInputModule.startMicTest();
+			if (!started) {
+				new Notice("[Agent Client] Could not access the microphone");
+				return;
+			}
+			this.setMicTestIcons("square");
+			this.runMicTestMeter(levelEl);
+		})();
+	}
+
+	private setMicTestIcons(icon: string, tooltip?: string): void {
+		for (const button of this.micTestButtons) {
+			button.setIcon(icon);
+			if (tooltip) button.setTooltip(tooltip);
+		}
+	}
+
+	private runMicTestMeter(levelEl: HTMLElement | null): void {
+		const voiceInputModule = this.plugin.voiceInput;
+		if (!levelEl || !voiceInputModule) return;
+		cancelAnimationFrame(this.micTestRaf);
+		const tick = () => {
+			if (!voiceInputModule.isTestingMic) return;
+			const level = voiceInputModule.getTestLevel();
+			levelEl.setCssProps({
+				"--agent-client-mic-level": `${Math.round(level * 100)}%`,
+			});
+			this.micTestRaf = requestAnimationFrame(tick);
+		};
+		this.micTestRaf = requestAnimationFrame(tick);
+	}
+
+	private stopMicTest(): void {
+		this.plugin.voiceInput?.stopMicTest();
+		cancelAnimationFrame(this.micTestRaf);
+		this.micTestRaf = 0;
+		this.micTestLevelEl?.setCssProps({
+			"--agent-client-mic-level": "0%",
+		});
+		this.setMicTestIcons("mic", "Test this microphone");
+	}
+
 	private renderAdvancedSection(containerEl: HTMLElement): void {
 		const trailing = this.plugin.settings.debugMode
 			? "Debug on"
@@ -1995,6 +2142,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			this.unsubscribe();
 			this.unsubscribe = null;
 		}
+		this.stopMicTest();
+		this.micDevicesLabeled = false;
 		this.openSections.clear();
 		this.settingsCalloutDefaultsApplied = false;
 	}

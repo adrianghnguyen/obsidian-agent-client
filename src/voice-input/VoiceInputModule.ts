@@ -1,4 +1,5 @@
 import { Notice, Plugin } from "obsidian";
+import { AudioCapture } from "./AudioCapture";
 import { LiveTranscriber } from "./LiveTranscriber";
 import type { LiveSetupOptions } from "./LiveProtocol";
 import {
@@ -29,6 +30,8 @@ export class VoiceInputModule {
 	private transcriber: LiveTranscriber | null = null;
 	private settings: VoiceInputSettings;
 	private inProgress = false;
+	/** Standalone AudioCapture used only by the Settings test level meter. */
+	private monitor: AudioCapture | null = null;
 	private createTranscriber: (
 		apiKey: string,
 		model: string,
@@ -117,8 +120,45 @@ export class VoiceInputModule {
 		});
 	}
 
+	// ── Settings microphone test ───────────────────────────────────
+
+	/**
+	 * Capture the chosen mic without the Gemini Live socket so Settings can
+	 * show live amplitude. Refused while a real dictation is running.
+	 */
+	get isTestingMic(): boolean {
+		return this.monitor?.isActive ?? false;
+	}
+
+	async startMicTest(): Promise<boolean> {
+		if (this.transcriber?.isActive) return false;
+		this.monitor?.stop();
+		const monitor = new AudioCapture();
+		monitor.setDeviceId(this.settings.audioDeviceId);
+		try {
+			await monitor.start(() => undefined);
+			this.monitor = monitor;
+			return true;
+		} catch {
+			monitor.stop();
+			this.monitor = null;
+			return false;
+		}
+	}
+
+	stopMicTest(): void {
+		this.monitor?.stop();
+		this.monitor = null;
+	}
+
+	/** Live amplitude for the test meter, or 0 when not testing. */
+	getTestLevel(): number {
+		return this.monitor?.getLevel() ?? 0;
+	}
+
 	/** Dispose of any active session and clean up. */
 	dispose(): void {
+		this.stopMicTest();
 		if (this.transcriber) {
 			this.transcriber.dispose();
 			this.transcriber = null;

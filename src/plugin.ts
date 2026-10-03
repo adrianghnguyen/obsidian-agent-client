@@ -83,6 +83,12 @@ import {
 	writeHarnessCommandLocalMap,
 } from "./services/harness-command-local-storage";
 import {
+	readAudioDeviceIdLocal,
+	resolveAudioDeviceId,
+	voiceInputSettingsForSyncedSave,
+	writeAudioDeviceIdLocal,
+} from "./services/audio-device-local-storage";
+import {
 	AgentEnvVar,
 	PresetAgentUserSettings,
 	CustomAgentSettings,
@@ -905,6 +911,7 @@ export default class AgentClientPlugin extends Plugin {
 
 		this.ensureAtLeastOneEnabled();
 		this.applyDefaultAgentOverlay();
+		const seededAudioDevice = this.applyAudioDeviceOverlay();
 		const stripHarnessPaths = this.applyHarnessCommandOverlay();
 		this.ensureDefaultAgentId();
 		this.persistDefaultAgentLocalIfNeeded();
@@ -917,7 +924,8 @@ export default class AgentClientPlugin extends Plugin {
 			needsFloatingChatEntryMigration(raw) ||
 			needsFloatingWindowLayoutMigration(raw) ||
 			needsFloatingIdleOpacityMigration(raw) ||
-			stripHarnessPaths
+			stripHarnessPaths ||
+			seededAudioDevice
 		) {
 			await this.saveSettings();
 		}
@@ -928,6 +936,10 @@ export default class AgentClientPlugin extends Plugin {
 			this.settings.voiceInput,
 		);
 		this.voiceInput?.updateSettings(this.settings.voiceInput);
+		writeAudioDeviceIdLocal(
+			this.floatingWindowLocalStorage,
+			this.settings.voiceInput.audioDeviceId,
+		);
 
 		if (!this.settings.defaultAgentPerDevice) {
 			this.syncedDefaultAgentId = this.settings.defaultAgentId;
@@ -941,14 +953,18 @@ export default class AgentClientPlugin extends Plugin {
 			this.floatingWindowLocalStorage,
 			this.settings,
 		);
-		await this.saveData(
-			settingsForSyncedHarnessCommands(
+		const syncable: AgentClientPluginSettings = {
+			...settingsForSyncedHarnessCommands(
 				settingsForSyncedSave(
 					this.settings,
 					this.syncedDefaultAgentId,
 				),
 			),
-		);
+			voiceInput: voiceInputSettingsForSyncedSave(
+				this.settings.voiceInput,
+			),
+		};
+		await this.saveData(syncable);
 	}
 
 	/**
@@ -1114,6 +1130,27 @@ export default class AgentClientPlugin extends Plugin {
 				overlay.runtimeId,
 			);
 		}
+	}
+
+	/**
+	 * Overlay this device's microphone pick onto voice settings. The id is
+	 * device-scoped, so it lives in localStorage; a mic id that once synced
+	 * through data.json seeds this machine's overlay on first load.
+	 */
+	private applyAudioDeviceOverlay(): boolean {
+		const resolved = resolveAudioDeviceId({
+			syncedId: this.settings.voiceInput.audioDeviceId,
+			localId: readAudioDeviceIdLocal(this.floatingWindowLocalStorage),
+		});
+		this.settings.voiceInput.audioDeviceId = resolved.runtimeId;
+		if (resolved.seedLocal) {
+			writeAudioDeviceIdLocal(
+				this.floatingWindowLocalStorage,
+				resolved.seedLocal,
+			);
+			return true;
+		}
+		return false;
 	}
 
 	private persistDefaultAgentLocalIfNeeded(): void {
