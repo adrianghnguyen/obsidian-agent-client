@@ -66,10 +66,22 @@ import {
 } from "../voice-input/audio-input-devices";
 import changelogMarkdown from "../../CHANGELOG.md";
 import { buildManifestBanner } from "../services/changelog-banner";
+import {
+	filterSettingsSearchEntries,
+	type SettingsSearchEntry,
+} from "../services/settings-search";
 
 /** Nested (L2) settings sections are foldable only when they have 4+ items. */
 function nestedFoldable(itemCount: number): boolean {
 	return itemCount >= 4;
+}
+
+/** Matches the flash class used after an in-page settings search jump. */
+const SETTINGS_SEARCH_FLASH_MS = 1600;
+
+interface SettingsCalloutIndexFrame {
+	id: string;
+	title: string;
 }
 
 export class AgentClientSettingTab extends PluginSettingTab {
@@ -96,6 +108,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	private openSections = new Set<string>();
 	/** True after default-open settings callouts have been seeded this visit. */
 	private settingsCalloutDefaultsApplied = false;
+	/** Callout nesting stack while rendering, for the settings search index. */
+	private calloutIndexStack: SettingsCalloutIndexFrame[] = [];
+	/** Searchable setting rows for the in-page search, rebuilt each render. */
+	private settingsSearchEntries: SettingsSearchEntry[] = [];
 
 	constructor(app: App, plugin: AgentClientPlugin) {
 		super(app, plugin);
@@ -139,6 +155,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		this.seedSettingsCalloutDefaults();
 
 		containerEl.addClass("agent-client-settings");
+		this.calloutIndexStack = [];
+		this.settingsSearchEntries = [];
 		this.renderPageHeader(containerEl);
 		this.renderAgentsSection(containerEl);
 		this.renderComposerSection(containerEl);
@@ -187,6 +205,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			cls: "agent-client-settings-page-title",
 			text: `${this.plugin.manifest.name} ${banner.label}`.trim(),
 		});
+		this.renderSettingsSearch(header);
 		const links = header.createDiv({
 			cls: "agent-client-settings-page-links",
 		});
@@ -235,6 +254,128 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	}
 
 	/**
+	 * In-page settings search: a box in the page header that filters this
+	 * plugin's own setting rows and jumps to a match (expanding any collapsed
+	 * section and flashing the row). Results render inline in normal flow, so
+	 * no popover positioning or clipping is involved.
+	 */
+	private renderSettingsSearch(header: HTMLElement): void {
+		const wrap = header.createDiv({
+			cls: "agent-client-settings-search",
+		});
+		const box = wrap.createDiv({
+			cls: "agent-client-settings-search-box",
+		});
+		setIcon(
+			box.createSpan({ cls: "agent-client-settings-search-icon" }),
+			"search",
+		);
+		const input = box.createEl("input", {
+			cls: "agent-client-settings-search-input",
+			attr: {
+				type: "search",
+				placeholder: "Search settings",
+				"aria-label": "Search Agent Client settings",
+				spellcheck: "false",
+			},
+		});
+		const resultsEl = wrap.createDiv({
+			cls: "agent-client-settings-search-results is-hidden",
+		});
+
+		const runSearch = () => {
+			const entries = filterSettingsSearchEntries(
+				input.value,
+				this.settingsSearchEntries,
+			);
+			this.renderSettingsSearchResults(resultsEl, entries);
+		};
+
+		input.addEventListener("input", runSearch);
+		input.addEventListener("keydown", (event) => {
+			if (event.key === "Escape") {
+				input.value = "";
+				runSearch();
+				input.blur();
+				return;
+			}
+			if (event.key !== "Enter") return;
+			const first = resultsEl.querySelector<HTMLElement>(
+				".agent-client-settings-search-result",
+			);
+			if (first) {
+				event.preventDefault();
+				this.jumpToSetting(first.dataset.settingsSearchId ?? "");
+			}
+		});
+	}
+
+	private renderSettingsSearchResults(
+		resultsEl: HTMLElement,
+		entries: readonly SettingsSearchEntry[],
+	): void {
+		resultsEl.empty();
+		if (entries.length === 0) {
+			resultsEl.addClass("is-hidden");
+			return;
+		}
+		resultsEl.removeClass("is-hidden");
+		for (const entry of entries) {
+			const row = resultsEl.createDiv({
+				cls: "agent-client-settings-search-result",
+			});
+			row.dataset.settingsSearchId = entry.id;
+			row.createDiv({
+				cls: "agent-client-settings-search-result-name",
+				text: entry.name,
+			});
+			row.createDiv({
+				cls: "agent-client-settings-search-result-section",
+				text: entry.sectionTitle,
+			});
+			row.addEventListener("click", () =>
+				this.jumpToSetting(entry.id),
+			);
+		}
+	}
+
+	/** Open every ancestor callout, scroll to the row, and flash it. */
+	private jumpToSetting(id: string): void {
+		if (!id) return;
+		const entry = this.settingsSearchEntries.find((e) => e.id === id);
+		if (!entry) return;
+
+		for (const calloutId of entry.path) {
+			this.openSections.add(calloutId);
+			const calloutEl =
+				this.containerEl.querySelector<HTMLElement>(
+					`.agent-client-settings-callout[data-settings-callout-id="${calloutId}"]`,
+				);
+			if (!calloutEl) continue;
+			calloutEl.addClass("is-open");
+			const headerEl = calloutEl.querySelector<HTMLElement>(
+				".agent-client-settings-callout-header",
+			);
+			const bodyEl = calloutEl.querySelector<HTMLElement>(
+				".agent-client-settings-callout-body",
+			);
+			headerEl?.setAttribute("aria-expanded", "true");
+			bodyEl?.removeClass("is-collapsed");
+		}
+
+		const rowEl = this.containerEl.querySelector<HTMLElement>(
+			`.setting-item[data-settings-search-id="${CSS.escape(id)}"]`,
+		);
+		if (!rowEl) return;
+		rowEl.scrollIntoView({ block: "center" });
+		rowEl.addClass("agent-client-settings-search-flash");
+		window.setTimeout(
+			() => rowEl.removeClass("agent-client-settings-search-flash"),
+			SETTINGS_SEARCH_FLASH_MS,
+		);
+	}
+
+	/**
 	 * Settings callout (top-level or nested). Open state is keyed in
 	 * openSections as "settings:<id>". Defaults are seeded once per visit.
 	 * Nested sections with foldable:false render as a static heading.
@@ -258,6 +399,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		const calloutEl = containerEl.createDiv({
 			cls: "agent-client-settings-callout",
 		});
+		calloutEl.dataset.settingsCalloutId = sectionId;
 		if (options?.nested) {
 			calloutEl.addClass("is-nested");
 		}
@@ -265,6 +407,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			calloutEl.addClass("is-static");
 		}
 		calloutEl.toggleClass("is-open", isOpen);
+
+		// Every Setting row created inside this callout is indexed for search
+		// with its full section chain, so a jump can expand each ancestor.
+		this.calloutIndexStack.push({ id: sectionId, title });
 
 		if (foldable) {
 			const headerEl = calloutEl.createEl("button", {
@@ -304,6 +450,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			});
 
 			renderBody(bodyEl);
+			this.collectSettingsSearchEntries(calloutEl, bodyEl);
+			this.calloutIndexStack.pop();
 			return;
 		}
 
@@ -325,6 +473,63 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			cls: "agent-client-settings-callout-body",
 		});
 		renderBody(bodyEl);
+		this.collectSettingsSearchEntries(calloutEl, bodyEl);
+		this.calloutIndexStack.pop();
+	}
+
+	/**
+	 * Index the Setting rows owned by one callout, tagging each with its
+	 * section chain for search jumps. Nested callouts render their own rows
+	 * and are skipped here (their ids live under `ownerEl`), so a parent does
+	 * not index a child's row with a truncated path.
+	 */
+	private collectSettingsSearchEntries(
+		ownerEl: HTMLElement,
+		bodyEl: HTMLElement,
+	): void {
+		if (this.calloutIndexStack.length === 0) return;
+		const frame = this.calloutIndexStack[this.calloutIndexStack.length - 1];
+		const path = this.calloutIndexStack.map((f) => f.id);
+		// Only unwrap a nested callout wrapper when the row sits directly in
+		// this body; `:scope >` on the callout matches top-level rows, so a
+		// row inside a deeper callout does not resolve its name placeholder.
+		const items = bodyEl.querySelectorAll<HTMLElement>(".setting-item");
+		items.forEach((item) => {
+			const nestedCallout = item.parentElement?.closest(
+				".agent-client-settings-callout",
+			);
+			if (nestedCallout && nestedCallout !== ownerEl) return;
+			if (item.classList.contains("agent-client-settings-search-row")) {
+				return;
+			}
+			const infoEl = item.querySelector<HTMLElement>(
+				":scope > .setting-item-info",
+			);
+			const name = infoEl
+				?.querySelector<HTMLElement>(".setting-item-name")
+				?.textContent?.trim();
+			if (!infoEl || !name) return;
+			const descEl = infoEl.querySelector<HTMLElement>(
+				".setting-item-description",
+			);
+			const id = `${path.join(">")}#${name}`;
+			item.dataset.settingsSearchId = id;
+			const entry: SettingsSearchEntry = {
+				id,
+				name,
+				description: descEl?.textContent?.trim() ?? "",
+				sectionTitle: frame.title,
+				path,
+			};
+			const existingIndex = this.settingsSearchEntries.findIndex(
+				(e) => e.id === id,
+			);
+			if (existingIndex >= 0) {
+				this.settingsSearchEntries[existingIndex] = entry;
+			} else {
+				this.settingsSearchEntries.push(entry);
+			}
+		});
 	}
 
 	private renderNodePathSetting(containerEl: HTMLElement): void {

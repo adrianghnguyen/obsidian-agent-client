@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Settings search** — A search box in the Agent Client settings header filters the plugin's own settings as you type. Pick a result to expand its section, scroll to the row, and flash it. Keyboard: Enter jumps to the top match, Escape clears.
+
 ## 0.27.0
 
 ### Added

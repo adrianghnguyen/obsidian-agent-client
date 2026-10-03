@@ -198,6 +198,109 @@ If your plugin does not need CSS, delete this file.
 	text-decoration: underline;
 }
 
+/* In-page settings search (header row + inline results). */
+.agent-client-settings-page-header {
+	flex-wrap: wrap;
+}
+
+.agent-client-settings-search {
+	flex: 1 1 100%;
+	order: 3;
+	margin-top: 8px;
+}
+
+.agent-client-settings-search-box {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-form-field);
+}
+
+.agent-client-settings-search-box:focus-within {
+	border-color: var(--interactive-accent);
+}
+
+.agent-client-settings-search-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.agent-client-settings-search-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.agent-client-settings-search-input {
+	flex: 1;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	padding: 6px 0;
+	font-size: var(--font-ui-small);
+}
+
+.agent-client-settings-search-input:focus {
+	outline: none;
+	box-shadow: none;
+}
+
+.agent-client-settings-search-results {
+	display: flex;
+	flex-direction: column;
+	margin-top: 4px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	overflow: hidden;
+}
+
+.agent-client-settings-search-results.is-hidden {
+	display: none;
+}
+
+.agent-client-settings-search-result {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 6px 10px;
+	cursor: pointer;
+}
+
+.agent-client-settings-search-result:hover {
+	background: var(--background-modifier-hover);
+}
+
+.agent-client-settings-search-result-name {
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+}
+
+.agent-client-settings-search-result-section {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	flex-shrink: 0;
+}
+
+.agent-client-settings-search-flash {
+	animation: agent-client-settings-search-flash 1.6s ease-out;
+}
+
+@keyframes agent-client-settings-search-flash {
+	0%,
+	100% {
+		background-color: transparent;
+	}
+	20% {
+		background-color: var(--text-highlight-bg);
+	}
+}
+
 .agent-client-settings-whats-new-list {
 	margin: 0 0 8px;
 	padding-left: 1.2em;
