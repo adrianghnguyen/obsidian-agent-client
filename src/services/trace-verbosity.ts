@@ -11,7 +11,10 @@ import type {
 	ToolCallStatus,
 } from "../types/chat";
 import type { SessionConfigOption } from "../types/session";
-import type { TraceVerbosity } from "../types/settings";
+import type {
+	ToolCallFailureAnalysis,
+	TraceVerbosity,
+} from "../types/settings";
 import { isSubagentToolCall } from "./tool-call-display";
 
 export type { TraceVerbosity };
@@ -67,6 +70,24 @@ export function parseTraceVerbosity(value: unknown): TraceVerbosity {
 		return value as TraceVerbosity;
 	}
 	return DEFAULT_TRACE_VERBOSITY;
+}
+
+export const TOOL_CALL_FAILURE_ANALYSIS_LEVELS: readonly ToolCallFailureAnalysis[] =
+	["lenient", "strict"] as const;
+
+export const DEFAULT_TOOL_CALL_FAILURE_ANALYSIS: ToolCallFailureAnalysis =
+	"lenient";
+
+export function parseToolCallFailureAnalysis(
+	value: unknown,
+): ToolCallFailureAnalysis {
+	if (
+		typeof value === "string" &&
+		(TOOL_CALL_FAILURE_ANALYSIS_LEVELS as readonly string[]).includes(value)
+	) {
+		return value as ToolCallFailureAnalysis;
+	}
+	return DEFAULT_TOOL_CALL_FAILURE_ANALYSIS;
 }
 
 export function shouldRenderThought(level: TraceVerbosity): boolean {

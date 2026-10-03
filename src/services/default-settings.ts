@@ -56,6 +56,7 @@ export const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 		showEmojis: true,
 		fontSize: null,
 		traceVerbosity: "compact",
+		toolCallFailureAnalysis: "lenient",
 	},
 	savedSessions: [],
 	lastUsedModels: {},

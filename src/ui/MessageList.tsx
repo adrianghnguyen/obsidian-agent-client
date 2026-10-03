@@ -2,7 +2,7 @@ import * as React from "react";
 const { useRef, useState, useEffect, useCallback, useMemo } = React;
 
 import type { ChatMessage } from "../types/chat";
-import type { TraceVerbosity } from "../types/settings";
+import type { ToolCallFailureAnalysis, TraceVerbosity } from "../types/settings";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
 import type { IChatViewHost } from "./view-host";
@@ -48,6 +48,7 @@ export interface MessageListProps {
 	/** Active ACP session id (Cursor plan file resolution) */
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -81,6 +82,7 @@ export function MessageList({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 	hasActivePermission,
 }: MessageListProps) {
@@ -301,6 +303,7 @@ export function MessageList({
 										terminalClient={terminalClient}
 										sessionId={sessionId}
 										traceVerbosity={traceVerbosity}
+										toolCallFailureAnalysis={toolCallFailureAnalysis}
 										onApprovePermission={onApprovePermission}
 									/>
 								) : (
@@ -310,6 +313,7 @@ export function MessageList({
 										terminalClient={terminalClient}
 										sessionId={sessionId}
 										traceVerbosity={traceVerbosity}
+										toolCallFailureAnalysis={toolCallFailureAnalysis}
 										onApprovePermission={onApprovePermission}
 									/>
 								)}

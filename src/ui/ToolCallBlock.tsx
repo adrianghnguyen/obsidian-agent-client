@@ -24,6 +24,14 @@ import {
 	shouldFoldToolDetails,
 	type TraceVerbosity,
 } from "../services/trace-verbosity";
+import {
+	classifyToolCallFailure,
+	countFailedToolCalls,
+	findToolFailureReason,
+	toolCallStatusIcon,
+	toolCallStatusLabel,
+	type ToolCallFailureAnalysis,
+} from "../services/tool-call-status";
 import * as Diff from "diff";
 
 interface ToolCallBlockProps {
@@ -33,6 +41,8 @@ interface ToolCallBlockProps {
 	/** Active ACP session id — used to resolve Cursor plan files on disk */
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	/** How failed calls are analysed for the badge and reason copy. */
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	/** Nested under a parent Agent/Task tool call */
 	nested?: boolean;
 	/** Callback to approve a permission request */
@@ -48,6 +58,7 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	nested = false,
 	onApprovePermission,
 }: ToolCallBlockProps) {
@@ -170,6 +181,16 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 		return "";
 	}, [plugin]);
 
+	const failureReason = findToolFailureReason(content);
+	const aborted =
+		classifyToolCallFailure(content) === "aborted" &&
+		toolCallFailureAnalysis !== "strict";
+	const statusLabel = toolCallStatusLabel(
+		status,
+		content,
+		toolCallFailureAnalysis,
+	);
+
 	// Get showEmojis setting
 	const showEmojis = plugin.settings.displaySettings.showEmojis;
 
@@ -252,8 +273,13 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 					)}
 					{status !== "completed" && (
 						<LucideIcon
-							name={status === "failed" ? "x" : "ellipsis"}
-							className={`agent-client-message-tool-call-status-icon agent-client-status-${status}`}
+							name={toolCallStatusIcon(
+								status,
+								content,
+								toolCallFailureAnalysis,
+							)}
+							className={`agent-client-message-tool-call-status-icon agent-client-status-${aborted ? "aborted" : status}`}
+							aria-label={statusLabel}
 						/>
 					)}
 					{foldDetails && (
@@ -285,6 +311,11 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 								{loc.line != null && `:${loc.line}`}
 							</span>
 						))}
+					</div>
+				)}
+				{showBody && failureReason && (
+					<div className="agent-client-message-tool-call-failure-reason">
+						{failureReason}
 					</div>
 				)}
 			</div>
@@ -406,6 +437,7 @@ export const ToolCallBlock = React.memo(function ToolCallBlock({
 								terminalClient={terminalClient}
 								sessionId={sessionId}
 								traceVerbosity={traceVerbosity}
+								toolCallFailureAnalysis={toolCallFailureAnalysis}
 								nested
 								onApprovePermission={onApprovePermission}
 							/>
