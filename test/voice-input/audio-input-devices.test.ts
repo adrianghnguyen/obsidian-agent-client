@@ -30,7 +30,7 @@ function device(partial: Partial<MediaDeviceInfo>): MediaDeviceInfo {
 		kind: partial.kind ?? "audioinput",
 		label: partial.label ?? "",
 		toJSON: () => ({}),
-	} as MediaDeviceInfo;
+	};
 }
 
 const originalNavigator = globalThis.navigator;
