@@ -60,5 +60,6 @@ Agent Client is an Obsidian plugin that brings AI coding agents directly into yo
 - **File Editing**: Let agents read and modify files with permission controls
 - **Chat Export**: Save conversations for future reference
 - **Terminal Integration**: Agents can execute shell commands and show results inline
+- **Voice Input**: Dictate messages with live transcription and pick your microphone
 
 Ready to get started? Check out the [Installation Guide](/getting-started/).

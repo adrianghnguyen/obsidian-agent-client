@@ -284,6 +284,32 @@ If your plugin does not need CSS, delete this file.
 	padding: 8px 0;
 }
 
+/* Voice input mic picker: live level bar under the setting description.
+   Width is driven by a CSS custom property updated from requestAnimationFrame. */
+.agent-client-mic-test-level {
+	margin-top: 6px;
+	height: 4px;
+	width: 100%;
+	max-width: 260px;
+	border-radius: 2px;
+	background-color: var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.agent-client-mic-test-level::after {
+	content: "";
+	display: block;
+	height: 100%;
+	width: var(--agent-client-mic-level, 0%);
+	border-radius: 2px;
+	background-color: var(--interactive-accent);
+	transition: width 0.05s linear;
+}
+
+.agent-client-settings .agent-client-settings-hidden {
+	display: none;
+}
+
 .agent-client-settings-callout-header.is-static-header {
 	padding: 6px 0 4px;
 	cursor: default;
