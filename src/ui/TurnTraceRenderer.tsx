@@ -2,6 +2,7 @@ import * as React from "react";
 const { useState } = React;
 import type { ChatMessage, MessageContent, ToolCallMessageContent } from "../types/chat";
 import type { TraceVerbosity } from "../types/settings";
+import type { ToolCallFailureAnalysis } from "../types/settings";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
 import type { TurnSegment, ThoughtItem } from "../services/trace-turn";
@@ -20,6 +21,7 @@ import { MarkdownRenderer } from "./shared/MarkdownRenderer";
 import { CopyButton } from "./shared/CopyButton";
 import { JumpToTopButton } from "./shared/JumpToTopButton";
 import { hasCopyableText } from "../utils/message-copy";
+import { countFailedToolCalls } from "../services/tool-call-status";
 
 interface TurnTraceRendererProps {
 	segment: TurnSegment;
@@ -28,6 +30,7 @@ interface TurnTraceRendererProps {
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	onApprovePermission?: (
 		requestId: string,
 		optionId: string,
@@ -107,12 +110,14 @@ function HiddenTurnBuffer({
 	plugin,
 	terminalClient,
 	sessionId,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 }: {
 	items: HiddenTraceItem[];
 	plugin: AgentClientPlugin;
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	onApprovePermission?: (
 		requestId: string,
 		optionId: string,
@@ -120,9 +125,12 @@ function HiddenTurnBuffer({
 }) {
 	const [expanded, setExpanded] = useState(false);
 	const showEmojis = plugin.settings.displaySettings.showEmojis;
-	const failedCount = items.filter(
-		(item) => item.type === "tool_call" && item.status === "failed",
-	).length;
+	const failedCount = countFailedToolCalls(
+		items.filter(
+			(item): item is ToolCallMessageContent => item.type === "tool_call",
+		),
+		{ includeUnexplained: toolCallFailureAnalysis === "strict" },
+	);
 	const inFlight = items.some(
 		(item) =>
 			item.type === "tool_call" &&
@@ -176,6 +184,7 @@ function HiddenTurnBuffer({
 						terminalClient={terminalClient}
 						sessionId={sessionId}
 						traceVerbosity="compact"
+						toolCallFailureAnalysis={toolCallFailureAnalysis}
 						onApprovePermission={onApprovePermission}
 					/>
 				</div>
@@ -191,6 +200,7 @@ function NoisyToolGroup({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 }: {
 	kind: string;
@@ -199,6 +209,7 @@ function NoisyToolGroup({
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	onApprovePermission?: (
 		requestId: string,
 		optionId: string,
@@ -206,7 +217,9 @@ function NoisyToolGroup({
 }) {
 	const [expanded, setExpanded] = useState(false);
 	const showEmojis = plugin.settings.displaySettings.showEmojis;
-	const failedCount = items.filter((item) => item.status === "failed").length;
+	const failedCount = countFailedToolCalls(items, {
+		includeUnexplained: toolCallFailureAnalysis === "strict",
+	});
 	const inFlight = items.some(
 		(item) => item.status === "in_progress" || item.status === "pending",
 	);
@@ -257,6 +270,7 @@ function NoisyToolGroup({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity={traceVerbosity}
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					))}
@@ -272,6 +286,7 @@ function TraceGroupList({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 }: {
 	groups: TraceContentGroup[];
@@ -279,6 +294,7 @@ function TraceGroupList({
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	onApprovePermission?: (
 		requestId: string,
 		optionId: string,
@@ -300,6 +316,7 @@ function TraceGroupList({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity={traceVerbosity}
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					);
@@ -315,6 +332,7 @@ function TraceGroupList({
 									terminalClient={terminalClient}
 									sessionId={sessionId}
 									traceVerbosity={traceVerbosity}
+									toolCallFailureAnalysis={toolCallFailureAnalysis}
 									onApprovePermission={onApprovePermission}
 								/>
 							))}
@@ -329,6 +347,7 @@ function TraceGroupList({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity={traceVerbosity}
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					</div>
@@ -344,6 +363,7 @@ function TurnContentBlock({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 }: {
 	content: MessageContent;
@@ -351,6 +371,7 @@ function TurnContentBlock({
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	onApprovePermission?: (
 		requestId: string,
 		optionId: string,
@@ -379,6 +400,7 @@ function TurnContentBlock({
 				terminalClient={terminalClient}
 				sessionId={sessionId}
 				traceVerbosity={traceVerbosity}
+				toolCallFailureAnalysis={toolCallFailureAnalysis}
 				onApprovePermission={onApprovePermission}
 			/>
 		);
@@ -393,6 +415,7 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 }: TurnTraceRendererProps) {
 	const rows = collectVisibleTurnRows(segment, messages, traceVerbosity);
@@ -412,6 +435,7 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 							plugin={plugin}
 							terminalClient={terminalClient}
 							sessionId={sessionId}
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					);
@@ -436,6 +460,7 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity="compact"
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					);
@@ -456,6 +481,7 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity="full"
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					);
@@ -476,6 +502,7 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity={traceVerbosity}
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					);
@@ -489,6 +516,7 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 								terminalClient={terminalClient}
 								sessionId={sessionId}
 								traceVerbosity={traceVerbosity}
+								toolCallFailureAnalysis={toolCallFailureAnalysis}
 								onApprovePermission={onApprovePermission}
 							/>
 						</div>

@@ -8,7 +8,10 @@ import type {
 } from "../types/chat";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
-import type { TraceVerbosity } from "../types/settings";
+import type {
+	ToolCallFailureAnalysis,
+	TraceVerbosity,
+} from "../types/settings";
 import {
 	groupTraceContent,
 	hiddenTraceSummary,
@@ -17,6 +20,7 @@ import {
 	thoughtExpandedByDefault,
 	type HiddenTraceItem,
 } from "../services/trace-verbosity";
+import { countFailedToolCalls } from "../services/tool-call-status";
 import { MarkdownRenderer } from "./shared/MarkdownRenderer";
 import { TerminalBlock } from "./TerminalBlock";
 import { ToolCallBlock } from "./ToolCallBlock";
@@ -182,6 +186,7 @@ interface ContentBlockProps {
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -196,6 +201,7 @@ function ContentBlock({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 }: ContentBlockProps) {
 	switch (content.type) {
@@ -237,6 +243,7 @@ function ContentBlock({
 					terminalClient={terminalClient}
 					sessionId={sessionId}
 					traceVerbosity={traceVerbosity}
+					toolCallFailureAnalysis={toolCallFailureAnalysis}
 					onApprovePermission={onApprovePermission}
 				/>
 			);
@@ -320,6 +327,7 @@ export interface MessageBubbleProps {
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -351,6 +359,7 @@ interface NoisyToolGroupProps {
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	onApprovePermission?: (
 		requestId: string,
 		optionId: string,
@@ -363,6 +372,7 @@ function HiddenTraceGroup({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 }: {
 	items: HiddenTraceItem[];
@@ -370,6 +380,7 @@ function HiddenTraceGroup({
 	terminalClient?: AcpClient;
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
+	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	onApprovePermission?: (
 		requestId: string,
 		optionId: string,
@@ -377,9 +388,12 @@ function HiddenTraceGroup({
 }) {
 	const [expanded, setExpanded] = useState(false);
 	const showEmojis = plugin.settings.displaySettings.showEmojis;
-	const failedCount = items.filter(
-		(item) => item.type === "tool_call" && item.status === "failed",
-	).length;
+	const failedCount = countFailedToolCalls(
+		items.filter(
+			(item): item is ToolCallMessageContent => item.type === "tool_call",
+		),
+		{ includeUnexplained: toolCallFailureAnalysis === "strict" },
+	);
 	const inFlight = items.some(
 		(item) =>
 			item.type === "tool_call" &&
@@ -437,6 +451,7 @@ function HiddenTraceGroup({
 									terminalClient={terminalClient}
 									sessionId={sessionId}
 									traceVerbosity="compact"
+									toolCallFailureAnalysis={toolCallFailureAnalysis}
 									onApprovePermission={onApprovePermission}
 								/>
 							);
@@ -460,6 +475,7 @@ function HiddenTraceGroup({
 									terminalClient={terminalClient}
 									sessionId={sessionId}
 									traceVerbosity="compact"
+									toolCallFailureAnalysis={toolCallFailureAnalysis}
 									onApprovePermission={onApprovePermission}
 								/>
 							);
@@ -479,11 +495,14 @@ function NoisyToolGroup({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 }: NoisyToolGroupProps) {
 	const [expanded, setExpanded] = useState(false);
 	const showEmojis = plugin.settings.displaySettings.showEmojis;
-	const failedCount = items.filter((item) => item.status === "failed").length;
+	const failedCount = countFailedToolCalls(items, {
+		includeUnexplained: toolCallFailureAnalysis === "strict",
+	});
 	const label = `${noisyToolGroupLabel(kind)} \u00b7 ${items.length}`;
 
 	return (
@@ -531,6 +550,7 @@ function NoisyToolGroup({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity={traceVerbosity}
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					))}
@@ -546,6 +566,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 	terminalClient,
 	sessionId,
 	traceVerbosity,
+	toolCallFailureAnalysis,
 	onApprovePermission,
 }: MessageBubbleProps) {
 	const groups = groupTraceContent(message.content, traceVerbosity);
@@ -575,6 +596,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 									terminalClient={terminalClient}
 									sessionId={sessionId}
 									traceVerbosity={traceVerbosity}
+									toolCallFailureAnalysis={toolCallFailureAnalysis}
 									onApprovePermission={onApprovePermission}
 								/>
 							))}
@@ -594,6 +616,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity={traceVerbosity}
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					);
@@ -608,6 +631,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity={traceVerbosity}
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					);
@@ -621,6 +645,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 							terminalClient={terminalClient}
 							sessionId={sessionId}
 							traceVerbosity={traceVerbosity}
+							toolCallFailureAnalysis={toolCallFailureAnalysis}
 							onApprovePermission={onApprovePermission}
 						/>
 					</div>

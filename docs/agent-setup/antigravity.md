@@ -82,6 +82,21 @@ If something fails, the chat banner names the failure mode and the **ACP endpoin
 
 Having issues? See [Troubleshooting](/help/troubleshooting#antigravity).
 
+## Known upstream issue: aborted tool calls shown as failures
+
+The Antigravity ACP bridge (v1.2.1) can report a tool call as `failed` even when nothing errored. Its own turn-end logic closes any tool call that never received a terminal step with `status="failed"`, and it sweeps permission-prompt frames the agent never executed the same way (`raw_output: "Tool call was approved but never executed."`). The agent's own trajectory DB shows no error for these calls.
+
+In practice this shows up as a run of `view_file` reads and `Run create_file?` prompts marked failed, while the agent worked normally and edited the files with `edit_file` instead.
+
+Agent Client does not create these failures; this is an Antigravity bridge behavior. The plugin's display handling:
+
+- **Settings → Agent Client → Chat display → Failed tool call analysis** (default **Lenient**) treats a failed call with no error detail (no output, no error text) as **Not run** and leaves it out of the "N failed" count. Set it to **Strict** to count every ACP failure.
+- A real failure (denied permission, error output, missing path) still shows the red X and its message.
+
+The one genuinely reported Antigravity failure in that session was a sandbox rule, not a bug: a `grep_search` scoped to `~/.gemini` was denied because only specific subdirectories (`~/.gemini/config/skills`, `antigravity-cli/skills`, `antigravity-acp`) are on the workspace allowlist, and the parent `~/.gemini` is not. Scope searches to an allowed subdirectory.
+
+If a future bridge release stops marking aborted calls as failed, the Strict setting reproduces the raw ACP status and the default no longer needs the lenient interpretation.
+
 ## Gemini CLI deprecation
 
 Antigravity is Google's agent stack with an ACP bridge. The community `agy-acp` npm adapter remains available as a [custom agent](/agent-setup/custom-agents) if you need a different bridge.

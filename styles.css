@@ -806,6 +806,19 @@ If your plugin does not need CSS, delete this file.
 	color: var(--color-red);
 }
 
+.agent-client-message-tool-call-status-icon.agent-client-status-aborted svg {
+	color: var(--text-muted);
+}
+
+.agent-client-message-tool-call-failure-reason {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-top: 4px;
+	user-select: text;
+	overflow-wrap: break-word;
+	word-break: break-word;
+}
+
 .agent-client-message-tool-call-locations {
 	color: var(--text-muted);
 	user-select: text;

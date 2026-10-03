@@ -48,6 +48,15 @@ export type FloatingNoteContextMode = "first" | "always" | "off";
  */
 export type TraceVerbosity = "hidden" | "compact" | "full";
 
+/**
+ * How failed tool calls are analysed for the error count and status badge.
+ * - lenient: a `failed` call with no error evidence (no content, no error
+ *   output) is shown as "Not run" and excluded from the "N failed" count — the
+ *   Antigravity bridge reports aborted/dropped calls this way.
+ * - strict: every ACP `status === "failed"` is counted and shows a red X.
+ */
+export type ToolCallFailureAnalysis = "lenient" | "strict";
+
 export interface AgentClientPluginSettings {
 	/**
 	 * Per-preset user overrides, keyed by presetId (see
@@ -130,6 +139,13 @@ export interface AgentClientPluginSettings {
 		 * Independent of ACP thought_level (reasoning effort).
 		 */
 		traceVerbosity: TraceVerbosity;
+		/**
+		 * How failed tool calls are analysed for the error count and status
+		 * badge. `lenient` (default) treats a failed call with no error
+		 * evidence as "Not run" and hides it from the failed count; `strict`
+		 * counts every ACP failure.
+		 */
+		toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	};
 	// Locally saved session metadata (for agents without session/list support)
 	savedSessions: SavedSessionInfo[];
