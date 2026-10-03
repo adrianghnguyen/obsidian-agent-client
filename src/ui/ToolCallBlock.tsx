@@ -26,7 +26,6 @@ import {
 } from "../services/trace-verbosity";
 import {
 	classifyToolCallFailure,
-	countFailedToolCalls,
 	findToolFailureReason,
 	toolCallStatusIcon,
 	toolCallStatusLabel,
