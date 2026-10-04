@@ -597,7 +597,9 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-client-loading-indicator.agent-client-hidden {
-	visibility: hidden;
+	/* display:none (not visibility:hidden) so the idle indicator stops
+	   reserving its height + margins as dead space below the last message. */
+	display: none;
 }
 
 .agent-client-loading-status {

@@ -10,6 +10,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ### Changed
 - **Context chips size to their content** — File/context chips no longer clip at a fixed width; each chip grows to fit its name, and a truncated chip exposes the full name on hover.
+- **No more dead space below a response** — The idle "thinking" indicator no longer reserves a blank strip under the latest message, so the conversation ends snugly against the composer instead of leaving a gap.
 
 ## 0.28.0
 
