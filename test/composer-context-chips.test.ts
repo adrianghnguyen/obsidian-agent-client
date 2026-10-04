@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import React from "react";
+import * as React from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import { ComposerContextRow } from "../src/ui/ComposerContextRow";
 
