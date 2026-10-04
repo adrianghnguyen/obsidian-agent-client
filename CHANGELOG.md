@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Jump to top of the latest message** — When the latest message is long enough that its start has scrolled out of view, a "Jump to top" pill sits front and center at the bottom of the conversation (styled like the composer's context chips); click it to scroll back to the beginning of that message. It shows for any long latest message — streaming or finished — and fades once you've scrolled away from the bottom. Works the same in sidebar, floating, and embedded chats.
+
 ## 0.28.0
 
 ### Added
