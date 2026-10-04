@@ -8,6 +8,7 @@ import type {
 	FloatingNoteContextMode,
 } from "../services/floating-note-context";
 import {
+	composerContextChips,
 	floatingNoteContextIcon,
 	floatingNoteContextTooltip,
 	showFloatingNoteContextControl,
@@ -32,6 +33,10 @@ export interface ComposerContextRowProps {
 	onAttachActiveNote: () => void;
 	attachedFiles: AttachedFile[];
 	onRemoveFile: (id: string) => void;
+	/** Current composer text — parsed for `@[[note]]` mention chips. */
+	message: string;
+	/** Remove a `@[[note]]` mention from the composer text. */
+	onRemoveMention: (noteTitle: string) => void;
 }
 
 /**
@@ -55,15 +60,17 @@ export function ComposerContextRow({
 	onAttachActiveNote,
 	attachedFiles,
 	onRemoveFile,
+	message,
+	onRemoveMention,
 }: ComposerContextRowProps) {
 	const isFloatingContext = showFloatingNoteContextControl(variant);
 	const showStandaloneModeGlyph = isFloatingContext && !showActiveNoteChip;
-	const fileChips = attachedFiles.filter((file) => file.kind === "file");
+	const contextChips = composerContextChips({ message, attachedFiles });
 
 	if (
 		!showActiveNoteChip &&
 		!showStandaloneModeGlyph &&
-		fileChips.length === 0
+		contextChips.length === 0
 	) {
 		return null;
 	}
@@ -142,16 +149,21 @@ export function ComposerContextRow({
 				</div>
 			)}
 
-			{fileChips.map((file) => (
+			{contextChips.map((chip) => (
 				<button
-					key={file.id}
+					key={chip.id}
 					type="button"
-					className="agent-client-auto-mention-inline"
-					onClick={() => onRemoveFile(file.id)}
-					title="Remove attachment"
+					className="agent-client-auto-mention-inline agent-client-context-chip"
+					onClick={() =>
+						chip.kind === "file"
+							? onRemoveFile(chip.fileId ?? "")
+							: onRemoveMention(chip.fullName)
+					}
+					title={chip.fullName}
+					aria-label={`Remove ${chip.label}`}
 				>
 					<span className="agent-client-mention-badge">
-						@{file.name ?? "file"}
+						{chip.label}
 					</span>
 					<span
 						className="agent-client-auto-mention-toggle-icon"

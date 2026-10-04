@@ -1736,6 +1736,26 @@ If your plugin does not need CSS, delete this file.
 	max-width: calc(100% - 24px);
 }
 
+/*
+ * Context chips (typed @[[note]] mentions + attached files) size to their
+ * content instead of a fixed width, so each referenced file stays readable.
+ * Only an extreme overlong name is allowed to truncate (widening to its
+ * natural width up to a generous cap), and the chip `title` exposes the full
+ * name on hover for that truncation case.
+ */
+.agent-client-context-chip {
+	width: auto;
+	max-width: 100%;
+	flex: 0 1 auto;
+}
+
+.agent-client-context-chip .agent-client-mention-badge {
+	max-width: min(420px, 60vw);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .agent-client-mention-badge.agent-client-disabled {
 	color: var(--text-faint);
 	text-decoration: line-through;

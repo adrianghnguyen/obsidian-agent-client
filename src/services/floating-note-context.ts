@@ -5,6 +5,7 @@
 
 import type { AttachedFile } from "../types/chat";
 import type { NoteMetadata } from "./vault-service";
+import { extractMentionTitles } from "../utils/mention-parser";
 
 export type ChatContextVariant = "sidebar" | "floating" | "embedded";
 
@@ -184,6 +185,66 @@ export function composerAttachedFileChipLabels(
 	return files
 		.filter((file) => file.kind === "file")
 		.map((file) => composerAttachedFileChipLabel(file));
+}
+
+/**
+ * A single context chip in the composer strip: either an `@[[note]]` mention
+ * typed in the message or a manually attached file. Both share the same
+ * `@name` label and hover tooltip so the strip reads consistently.
+ *
+ * `fullName` is the untruncated name exposed via the chip's `title` tooltip,
+ * and `fileId` identifies the attached file to remove (mentions are removed by
+ * editing the text).
+ */
+export interface ComposerContextChip {
+	id: string;
+	kind: "mention" | "file";
+	label: string;
+	fullName: string;
+	fileId?: string;
+}
+
+/**
+ * Ordered, de-duplicated composer chips: `@[[note]]` mentions typed in the
+ * current message first (so every referenced file is visible), then manually
+ * attached files. A mention wins over an attached file with the same name so
+ * the same reference never shows twice.
+ */
+export function composerContextChips(input: {
+	message: string;
+	attachedFiles: AttachedFile[];
+}): ComposerContextChip[] {
+	const chips: ComposerContextChip[] = [];
+	const seen = new Set<string>();
+
+	for (const title of extractMentionTitles(input.message)) {
+		const key = title.toLowerCase();
+		if (seen.has(key)) continue;
+		seen.add(key);
+		chips.push({
+			id: `mention:${title}`,
+			kind: "mention",
+			label: `@${title}`,
+			fullName: title,
+		});
+	}
+
+	for (const file of input.attachedFiles) {
+		if (file.kind !== "file") continue;
+		const name = file.name ?? "file";
+		const key = name.toLowerCase();
+		if (seen.has(key)) continue;
+		seen.add(key);
+		chips.push({
+			id: `file:${file.id}`,
+			kind: "file",
+			label: `@${name}`,
+			fullName: name,
+			fileId: file.id,
+		});
+	}
+
+	return chips;
 }
 
 /** Active-note @ chip label (matches sidebar auto-mention badge text). */

@@ -100,6 +100,40 @@ export function replaceMention(
 	return { newText, newCursorPos };
 }
 
+// Extract the note titles referenced by @[[note]] mentions, in first-seen
+// order and de-duplicated. Pure: does not resolve files (no vault access), so
+// it is safe to call on every composer keystroke to build the context chips.
+export function extractMentionTitles(text: string): string[] {
+	const mentionRegex = /@\[\[([^\]]+)\]\]/g;
+	const titles: string[] = [];
+	const seen = new Set<string>();
+	for (const match of text.matchAll(mentionRegex)) {
+		const noteTitle = match[1];
+		if (seen.has(noteTitle)) continue;
+		seen.add(noteTitle);
+		titles.push(noteTitle);
+	}
+	return titles;
+}
+
+// Remove every @[[note]] reference (optionally carrying a `:from-to` range)
+// from the message text, tidying the whitespace the removal leaves behind.
+// Used by the context chip's × so it matches the attach-file chip affordance.
+export function removeMentionFromText(
+	text: string,
+	noteTitle: string,
+): string {
+	const escaped = noteTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const mentionRegex = new RegExp(
+		`@\\[\\[${escaped}\\]\\](?::\\d+-\\d+)?[ \\t]?`,
+		"g",
+	);
+	return text
+		.replace(mentionRegex, "")
+		.replace(/[ \t]{2,}/g, " ")
+		.replace(/[ \t]+$/gm, "");
+}
+
 // Extract all @mentions from text
 export function extractMentionedNotes(
 	text: string,

@@ -11,6 +11,7 @@ import {
 	composerShowsActiveNoteChip,
 	selectionForcesAttach,
 	floatingComposerContextChipLabels,
+	composerContextChips,
 } from "../src/services/floating-note-context";
 
 const base = {
@@ -299,5 +300,49 @@ describe("floatingComposerContextChipLabels", () => {
 				attachedFiles: [fileAttachment("file-A")],
 			}),
 		).toEqual(["@Active:5-10", "@file-A"]);
+	});
+});
+
+describe("composerContextChips", () => {
+	it("shows a chip for each @[[note]] mention in the message", () => {
+		const chips = composerContextChips({
+			message: "compare @[[Alpha]] with @[[Beta]]",
+			attachedFiles: [],
+		});
+		expect(chips.map((c) => c.label)).toEqual(["@Alpha", "@Beta"]);
+		expect(chips.map((c) => c.kind)).toEqual(["mention", "mention"]);
+		expect(chips.map((c) => c.fullName)).toEqual(["Alpha", "Beta"]);
+	});
+
+	it("lists mentions before attached files", () => {
+		const chips = composerContextChips({
+			message: "@[[Alpha]]",
+			attachedFiles: [fileAttachment("file-A")],
+		});
+		expect(chips.map((c) => c.label)).toEqual(["@Alpha", "@file-A"]);
+		expect(chips[1].fileId).toBe("file-A");
+	});
+
+	it("does not duplicate a name that is both mentioned and attached", () => {
+		const chips = composerContextChips({
+			message: "@[[file-A]]",
+			attachedFiles: [fileAttachment("file-A")],
+		});
+		expect(chips.map((c) => c.label)).toEqual(["@file-A"]);
+		expect(chips[0].kind).toBe("mention");
+	});
+
+	it("ignores non-file attachments (images)", () => {
+		const image: AttachedFile = {
+			id: "img-1",
+			kind: "image",
+			mimeType: "image/png",
+			data: "abc",
+		};
+		const chips = composerContextChips({
+			message: "",
+			attachedFiles: [image],
+		});
+		expect(chips).toEqual([]);
 	});
 });
