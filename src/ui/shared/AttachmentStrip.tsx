@@ -59,6 +59,7 @@ export function AttachmentStrip({ files, onRemove }: AttachmentStripProps) {
 				<div
 					key={file.id}
 					className="agent-client-attachment-preview-item"
+					title={file.name ?? "file"}
 				>
 					{file.kind === "image" && file.data ? (
 						<img

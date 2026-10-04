@@ -38,6 +38,7 @@ import {
 } from "../voice-input/voice-turn-end";
 import { ENGAGEMENT_VOICE_INPUT } from "../services/engagement-latch";
 import { getLogger } from "../utils/logger";
+import { removeMentionFromText } from "../utils/mention-parser";
 import type { ErrorInfo } from "../types/errors";
 import type { AgentUpdateNotification } from "../services/update-checker";
 import { useSettings } from "../hooks/useSettings";
@@ -449,6 +450,18 @@ export function InputArea({
 			textareaRef.current?.focus();
 		},
 		[attachedFiles, onAttachedFilesChange],
+	);
+
+	/**
+	 * Remove a `@[[note]]` mention from the composer text (context chip ×),
+	 * mirroring the attach-file chip's remove affordance.
+	 */
+	const removeMention = useCallback(
+		(noteTitle: string) => {
+			onInputChange(removeMentionFromText(inputValue, noteTitle));
+			textareaRef.current?.focus();
+		},
+		[inputValue, onInputChange],
 	);
 
 	/**
@@ -1248,6 +1261,8 @@ export function InputArea({
 					onAttachActiveNote={onAttachActiveNote}
 					attachedFiles={attachedFiles}
 					onRemoveFile={removeFile}
+					message={inputValue}
+					onRemoveMention={removeMention}
 				/>
 
 				{/* Inline voice controls + textarea with Hint Overlay */}

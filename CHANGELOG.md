@@ -4,6 +4,14 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Jump to top of the latest message** — When the latest message is long enough that its start has scrolled out of view, a "Jump to top" pill sits front and center at the bottom of the conversation (styled like the composer's context chips); click it to scroll back to the beginning of that message. It shows for any long latest message — streaming or finished — and fades once you've scrolled away from the bottom. Works the same in sidebar, floating, and embedded chats.
+- **@-mentioned files as context chips** — Files you reference with `@[[note]]` in the composer now appear in the context chip row next to attached files, so every referenced file is visible at a glance. Each chip's × removes that mention, and hovering a chip reveals the full file name.
+
+### Changed
+- **Context chips size to their content** — File/context chips no longer clip at a fixed width; each chip grows to fit its name, and a truncated chip exposes the full name on hover.
+- **No more dead space below a response** — The idle "thinking" indicator no longer reserves a blank strip under the latest message, so the conversation ends snugly against the composer instead of leaving a gap.
+
 ## 0.28.0
 
 ### Added

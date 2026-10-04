@@ -23,6 +23,10 @@ import {
 // this window keeps total stable so the scroll position is preserved. (#321)
 const SHOW_SETTLE_MS = 500;
 
+// Pixels of slack when deciding whether the top of the latest item is still
+// on screen. A top within this distance of the viewport edge counts as visible.
+const JUMP_TOP_TOLERANCE = 4;
+
 /**
  * Props for MessageList component
  */
@@ -89,6 +93,11 @@ export function MessageList({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [isAtBottom, setIsAtBottom] = useState(true);
 	const isAtBottomRef = useRef(true);
+	// Whether the top of the latest item is scrolled off-screen. Drives the
+	// front-and-center "jump to top of message" button — shown for any long
+	// latest message, streaming or not.
+	const [showJumpToTop, setShowJumpToTop] = useState(false);
+	const showJumpToTopRef = useRef(false);
 	const prevIsSendingRef = useRef(false);
 	// Last measured height per message id. Used to keep the virtualizer's total
 	// size stable while the tab is hidden (display:none) so scrollTop isn't
@@ -179,6 +188,58 @@ export function MessageList({
 		return isNearBottom;
 	}, []);
 
+	/**
+	 * Whether the top of the latest (last) rendered item has scrolled above
+	 * the viewport. Drives the front-and-center "jump to top of message"
+	 * button — shown for any long latest message, streaming or not.
+	 */
+	const isLatestTopOffscreen = useCallback((): boolean => {
+		const container = containerRef.current;
+		if (!container) return false;
+		const inner = container.querySelector<HTMLElement>(
+			".agent-client-virtual-list-inner",
+		);
+		const items = inner?.querySelectorAll<HTMLElement>(
+			".agent-client-virtual-item",
+		);
+		const lastItem = items?.[items.length - 1];
+		if (!lastItem || items.length === 0) return false;
+		const containerTop = container.getBoundingClientRect().top;
+		const itemTop = lastItem.getBoundingClientRect().top;
+		return itemTop < containerTop - JUMP_TOP_TOLERANCE;
+	}, []);
+
+	const updateJumpToTop = useCallback(() => {
+		const next = isLatestTopOffscreen();
+		if (next !== showJumpToTopRef.current) {
+			showJumpToTopRef.current = next;
+			setShowJumpToTop(next);
+		}
+	}, [isLatestTopOffscreen]);
+
+	/**
+	 * Instant scroll of the scroller to the top of the latest item. Assigning
+	 * scrollTop avoids Electron's no-op smooth scroll on this virtualized
+	 * overflow container (same approach as JumpToTopButton).
+	 */
+	const jumpToLatestTop = useCallback(() => {
+		const container = containerRef.current;
+		if (!container) return;
+		const inner = container.querySelector<HTMLElement>(
+			".agent-client-virtual-list-inner",
+		);
+		const items = inner?.querySelectorAll<HTMLElement>(
+			".agent-client-virtual-item",
+		);
+		const lastItem = items?.[items.length - 1];
+		if (lastItem) {
+			const delta =
+				lastItem.getBoundingClientRect().top -
+				container.getBoundingClientRect().top;
+			container.scrollTop = container.scrollTop + delta;
+		}
+	}, []);
+
 	// Reset scroll state and drop the per-message size cache when messages are
 	// cleared (new chat / restore / fork / restart all funnel through an empty
 	// array first). Prevents stale msgId→height entries from accumulating
@@ -227,6 +288,12 @@ export function MessageList({
 		}
 	}, [displayItems, virtualizer]);
 
+	// Latest scroll handler without re-registering the listener on each
+	// isSending/streaming change (sidebar registerDomEvent has no per-effect
+	// cleanup, so re-running the effect would stack listeners).
+	const updateJumpToTopRef = useRef(updateJumpToTop);
+	updateJumpToTopRef.current = updateJumpToTop;
+
 	// Set up scroll event listener for isAtBottom detection
 	useEffect(() => {
 		const container = containerRef.current;
@@ -234,13 +301,21 @@ export function MessageList({
 
 		const handleScroll = () => {
 			checkIfAtBottom();
+			updateJumpToTopRef.current();
 		};
 
 		view.registerDomEvent(container, "scroll", handleScroll);
 
 		// Initial check
 		checkIfAtBottom();
+		updateJumpToTopRef.current();
 	}, [view, checkIfAtBottom]);
+
+	// Re-evaluate the jump-to-top button as streaming starts/stops and as new
+	// content changes the latest item's top position.
+	useEffect(() => {
+		updateJumpToTop();
+	}, [isSending, displayItems, updateJumpToTop]);
 
 	// ============================================================
 	// Render
@@ -344,6 +419,30 @@ export function MessageList({
 					)}
 				</div>
 			</div>
+
+			{/* Jump to top of the latest message — front and center at the
+			    bottom, shown whenever that message's top is off-screen. Same
+			    action as the per-message jump button beside copy. Fades once
+			    the user has scrolled away from the bottom. */}
+			{showJumpToTop && (
+				<button
+					type="button"
+					className={`agent-client-scroll-to-top${!isAtBottom ? " agent-client-scroll-to-top-dimmed" : ""}`}
+					aria-label="Jump to top of latest message"
+					title="Jump to top of latest message"
+					onClick={jumpToLatestTop}
+				>
+					<span
+						className="agent-client-scroll-to-top-icon"
+						ref={(el) => {
+							if (el) setIcon(el, "arrow-up-to-line");
+						}}
+					/>
+					<span className="agent-client-scroll-to-top-label">
+						Jump to top
+					</span>
+				</button>
+			)}
 
 			{/* Scroll to bottom — pinned to bottom of scrollbar track */}
 			{!isAtBottom && (

@@ -597,7 +597,9 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-client-loading-indicator.agent-client-hidden {
-	visibility: hidden;
+	/* display:none (not visibility:hidden) so the idle indicator stops
+	   reserving its height + margins as dead space below the last message. */
+	display: none;
 }
 
 .agent-client-loading-status {
@@ -658,6 +660,78 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-client-scroll-to-bottom:hover svg {
+	color: var(--interactive-accent);
+}
+
+/* ===== Jump to Top of Latest Message (front and center, bottom) =====
+   Mirrors the composer context-chip design: rounded pill, muted surface,
+   small label. More prominent than the in-message action button because it
+   floats over the bottom of the conversation. */
+.agent-client-scroll-to-top {
+	position: absolute;
+	bottom: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 30px;
+	padding: 0 12px !important;
+	margin: 0 !important;
+	border: 1px solid var(--background-modifier-border) !important;
+	border-radius: 16px;
+	background-color: var(--background-secondary) !important;
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+	outline: none !important;
+	appearance: none;
+	box-shadow: var(--shadow-s) !important;
+	min-width: unset !important;
+	min-height: unset !important;
+	z-index: 10;
+	opacity: 1;
+	transition:
+		opacity 0.2s ease,
+		background-color 0.15s ease,
+		border-color 0.15s ease,
+		color 0.15s ease;
+}
+
+/* Fade while the user pages back through the response themselves so the
+   button stays out of the way of the text. */
+.agent-client-scroll-to-top.agent-client-scroll-to-top-dimmed {
+	opacity: 0.28;
+}
+
+.agent-client-scroll-to-top.agent-client-scroll-to-top-dimmed:hover {
+	opacity: 1;
+}
+
+.agent-client-scroll-to-top-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+}
+
+.agent-client-scroll-to-top-icon svg {
+	width: 14px;
+	height: 14px;
+	transition: color 0.15s ease;
+}
+
+.agent-client-scroll-to-top-label {
+	white-space: nowrap;
+}
+
+.agent-client-scroll-to-top:hover {
+	background-color: var(--background-modifier-hover) !important;
+	border-color: var(--interactive-accent) !important;
+	color: var(--text-normal);
+}
+
+.agent-client-scroll-to-top:hover .agent-client-scroll-to-top-icon svg {
 	color: var(--interactive-accent);
 }
 
@@ -1662,6 +1736,26 @@ If your plugin does not need CSS, delete this file.
 	overflow: hidden;
 	text-overflow: ellipsis;
 	max-width: calc(100% - 24px);
+}
+
+/*
+ * Context chips (typed @[[note]] mentions + attached files) size to their
+ * content instead of a fixed width, so each referenced file stays readable.
+ * Only an extreme overlong name is allowed to truncate (widening to its
+ * natural width up to a generous cap), and the chip `title` exposes the full
+ * name on hover for that truncation case.
+ */
+.agent-client-context-chip {
+	width: auto;
+	max-width: 100%;
+	flex: 0 1 auto;
+}
+
+.agent-client-context-chip .agent-client-mention-badge {
+	max-width: min(420px, 60vw);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .agent-client-mention-badge.agent-client-disabled {
