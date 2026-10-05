@@ -2,6 +2,7 @@ import * as React from "react";
 const { useRef, useState, useEffect, useCallback, useMemo } = React;
 
 import type { ChatMessage } from "../types/chat";
+import type { SessionState } from "../types/session";
 import type { ToolCallFailureAnalysis, TraceVerbosity } from "../types/settings";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
@@ -11,10 +12,8 @@ import { buildDisplayListItems } from "../services/trace-turn";
 import { MessageBubble } from "./MessageBubble";
 import { TurnTraceRenderer } from "./TurnTraceRenderer";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-	ANTIGRAVITY_CONNECTING_COPY,
-	ANTIGRAVITY_PRESET_ID,
-} from "../harnesses/antigravity";
+import { formatHarnessConnectingEmptyState } from "../services/harness-connecting-message";
+import { useHarnessBootElapsed } from "../hooks/useHarnessBootElapsed";
 
 // How long (ms) after a tab is re-shown we refuse to shrink measured item
 // sizes. Right after re-show the items briefly re-measure small while their
@@ -43,6 +42,10 @@ export interface MessageListProps {
 	agentLabel: string;
 	/** Active agent id (Antigravity uses a slower first-connect message). */
 	agentId?: string;
+	/** Session connection state (empty-state connecting copy). */
+	sessionState: SessionState;
+	/** Epoch ms when the current harness boot started (`session.createdAt`). */
+	bootStartedAtMs: number;
 	/** Plugin instance */
 	plugin: AgentClientPlugin;
 	/** View instance for event registration */
@@ -80,7 +83,9 @@ export function MessageList({
 	isSessionReady,
 	isRestoringSession,
 	agentLabel,
-	agentId,
+	agentId = "",
+	sessionState,
+	bootStartedAtMs,
 	plugin,
 	view,
 	terminalClient,
@@ -90,6 +95,15 @@ export function MessageList({
 	onApprovePermission,
 	hasActivePermission,
 }: MessageListProps) {
+	const showConnecting =
+		!isSessionReady &&
+		!isRestoringSession &&
+		sessionState !== "error";
+	const bootElapsedMs = useHarnessBootElapsed(
+		showConnecting,
+		showConnecting ? bootStartedAtMs : null,
+	);
+
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [isAtBottom, setIsAtBottom] = useState(true);
 	const isAtBottomRef = useRef(true);
@@ -329,10 +343,12 @@ export function MessageList({
 					<div className="agent-client-chat-empty-state">
 						{isRestoringSession
 							? "Restoring session..."
-							: !isSessionReady
-								? agentId === ANTIGRAVITY_PRESET_ID
-									? ANTIGRAVITY_CONNECTING_COPY
-									: `Connecting to ${agentLabel}...`
+							: showConnecting
+								? formatHarnessConnectingEmptyState({
+										agentId,
+										agentLabel,
+										elapsedMs: bootElapsedMs,
+									})
 								: `Start a conversation with ${agentLabel}...`}
 					</div>
 				</div>
