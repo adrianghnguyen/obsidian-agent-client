@@ -4,10 +4,13 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.29.0
+
 ### Added
 - **Jump to top of the latest message** — When the latest message is long enough that its start has scrolled out of view, a "Jump to top" pill sits front and center at the bottom of the conversation (styled like the composer's context chips); click it to scroll back to the beginning of that message. It shows for any long latest message — streaming or finished — and fades once you've scrolled away from the bottom. Works the same in sidebar, floating, and embedded chats.
 - **@-mentioned files as context chips** — Files you reference with `@[[note]]` in the composer now appear in the context chip row next to attached files, so every referenced file is visible at a glance. Each chip's × removes that mention, and hovering a chip reveals the full file name.
 - **Harness boot timer** — While a new chat or floating window is waiting for the agent harness to connect, the empty chat area shows a live elapsed timer (for example `Connecting to Cursor... (0:12)`), which disappears as soon as the session is ready.
+- **Status bar spinner while agents work** — When **Floating chat → Status bar** is enabled, the robot icon becomes a spinning loader whenever any open session is sending or loading history, so in-progress work is obvious at a glance (separate from the blue unread tint when a reply is waiting).
 
 ### Changed
 - **Context chips size to their content** — File/context chips no longer clip at a fixed width; each chip grows to fit its name, and a truncated chip exposes the full name on hover.
