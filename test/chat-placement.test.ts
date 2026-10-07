@@ -45,17 +45,18 @@ function snapshot(
 }
 
 function hit(classNames: string[]): PlacementHitTarget {
-	return {
-		closest(selector: string) {
+	const target: PlacementHitTarget = {
+		closest(selector: string): PlacementHitTarget | null {
 			const parts = selector.split(",").map((part) => part.trim());
 			const matched = classNames.some((name) =>
 				parts.some(
 					(part) => part === `.${name}` || part.endsWith(name),
 				),
 			);
-			return matched ? this : null;
+			return matched ? target : null;
 		},
 	};
+	return target;
 }
 
 describe("chat placement", () => {

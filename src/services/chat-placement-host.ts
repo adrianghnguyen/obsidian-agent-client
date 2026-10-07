@@ -7,7 +7,6 @@ import { getLogger } from "../utils/logger";
 import type { ChatViewType } from "./view-registry";
 import {
 	type ChatPlacementSnapshot,
-	type PlacementDockTarget,
 	type PlacementHitTarget,
 	type PlacementOpenTarget,
 	disarmNextSidebarAdoption,

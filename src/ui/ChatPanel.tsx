@@ -76,12 +76,9 @@ import {
 	type QueuedComposerSend,
 } from "../services/composer-send-queue";
 import {
-	beginPlacementDrag,
-	consumePlacementClickSuppression,
 	peekLivePlacement,
 	peekPlacementHandoff,
 	releasePlacementHandoff,
-	takePlacementHandoff,
 	type ChatPlacementSnapshot,
 } from "../services/chat-placement";
 
