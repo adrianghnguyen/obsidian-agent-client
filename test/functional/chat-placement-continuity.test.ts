@@ -4,11 +4,9 @@
  * Tier: Vitest integration — the highest automated tier in this repo
  * (obsidian-plugin-testing). These tests do not boot Obsidian.
  *
- * Strategy: merge this suite to main before PR #65. moveWithHarness runs
- * on main and drives the real AcpClientPool and ChatViewRegistry. The
- * ChatPlacementHost cases stay skipped until placement ships in #65 after
- * rebase (that PR adds src/services/chat-placement-host.ts). They do not
- * wait for #65 to land first.
+ * Strategy: the harness drives the real AcpClientPool and ChatViewRegistry.
+ * ChatPlacementHost is required on this branch and runs the same cases
+ * against the production move.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { AttachedFile } from "../../src/types/chat";
@@ -371,13 +369,16 @@ registerContinuitySuite(
 	(world) => bindHarness(world),
 );
 
+if (!hostModule) {
+	throw new Error(
+		"ChatPlacementHost is required. src/services/chat-placement-host.ts must export it.",
+	);
+}
+
+const productionHost: ProductionHostModule = hostModule;
+
 registerContinuitySuite(
-	"ChatPlacementHost wired to the real pool and registry — enabled when placement ships in #65 after rebase",
-	hostModule !== null,
-	(world) => {
-		if (!hostModule) {
-			throw new Error("ChatPlacementHost suite ran without the module");
-		}
-		return bindProductionHost(world, hostModule);
-	},
+	"ChatPlacementHost wired to the real pool and registry",
+	true,
+	(world) => bindProductionHost(world, productionHost),
 );
