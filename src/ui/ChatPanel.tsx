@@ -1049,13 +1049,24 @@ export const ChatPanel = React.memo(function ChatPanel({
 
 	useEffect(() => {
 		if (!initialRestoreSessionId) return;
-		if (!isSessionReady || !session.sessionId || !session.agentId) return;
+		if (!session.agentId) return;
+		if (session.state === "initializing") return;
+		// Pinned cold-open must restore local transcript even when spawn fails
+		// (no live sessionId yet). Normal path waits for ready.
+		const connectSettled =
+			isSessionReady || session.state === "error";
+		if (!connectSettled) return;
 		if (pinRestoreAttemptedRef.current) return;
 
 		const savedSession = plugin.settingsService
 			.getSavedSessions()
 			.find((s) => s.sessionId === initialRestoreSessionId);
-		if (!savedSession || savedSession.sessionId === session.sessionId) {
+		if (
+			!savedSession ||
+			(isSessionReady &&
+				session.sessionId &&
+				savedSession.sessionId === session.sessionId)
+		) {
 			pinRestoreAttemptedRef.current = true;
 			return;
 		}
@@ -1082,6 +1093,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 		isSessionReady,
 		session.sessionId,
 		session.agentId,
+		session.state,
 		sessionHistory.restoreSession,
 		plugin.settingsService,
 		agent.restartSession,
