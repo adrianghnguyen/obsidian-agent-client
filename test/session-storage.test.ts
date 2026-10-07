@@ -212,6 +212,46 @@ describe("SessionStorage — rename does not bump updatedAt (last-activity seman
 	});
 });
 
+describe("SessionStorage — pin survives saveSession replace", () => {
+	it("keeps pinned when a later save omits the flag", async () => {
+		const { storage, state } = makeStorage();
+		state.savedSessions = [
+			makeSession({ sessionId: "s1", title: "old", pinned: true }),
+		];
+
+		await storage.saveSession(
+			makeSession({ sessionId: "s1", title: "new" }),
+		);
+
+		expect(state.savedSessions[0].title).toBe("new");
+		expect(state.savedSessions[0].pinned).toBe(true);
+	});
+
+	it("does not evict a pinned LRU row", async () => {
+		const { storage, state } = makeStorage();
+		const iso = (minute: number) =>
+			new Date(Date.UTC(2026, 0, 1, 0, minute)).toISOString();
+		state.savedSessions = Array.from({ length: 50 }, (_, i) =>
+			makeSession({
+				sessionId: `s${i}`,
+				updatedAt: iso(i),
+				pinned: i === 0,
+			}),
+		);
+
+		await storage.saveSession(
+			makeSession({ sessionId: "brand-new", updatedAt: iso(1000) }),
+		);
+
+		expect(state.savedSessions.some((s) => s.sessionId === "s0")).toBe(
+			true,
+		);
+		expect(state.savedSessions.some((s) => s.sessionId === "s1")).toBe(
+			false,
+		);
+	});
+});
+
 describe("SessionStorage — non-embedded saves keep sessionId fallback", () => {
 	it("dedups by sessionId and never deletes a transcript", async () => {
 		const { storage, state, adapter } = makeStorage();

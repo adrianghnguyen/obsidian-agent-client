@@ -3,6 +3,7 @@ const { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } =
 	React;
 import { useSyncExternalStore } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { setIcon } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
 import type {
@@ -33,6 +34,9 @@ import { VaultService } from "../services/vault-service";
 import { resolveFloatingWindowLayout } from "../services/settings-normalizer";
 import { floatingWindowLocalLayoutsEqual } from "../services/floating-window-local-storage";
 import { useFloatingIdleOpacity } from "../hooks/useFloatingIdleOpacity";
+import { useLongPress } from "../hooks/useLongPress";
+import { useSettings } from "../hooks/useSettings";
+import { isSessionPinned } from "../services/session-history-pin";
 import {
 	focusChatComposerTextarea,
 	queryChatComposerTextarea,
@@ -215,6 +219,7 @@ export class FloatingViewContainer implements IChatViewContainer {
 		initialExpanded: boolean,
 		initialPosition?: { x: number; y: number },
 		initialAgentId?: string,
+		restoreSessionId?: string,
 	): void {
 		this.root = createRoot(this.containerEl);
 		this.root.render(
@@ -224,6 +229,7 @@ export class FloatingViewContainer implements IChatViewContainer {
 				initialExpanded={initialExpanded}
 				initialPosition={initialPosition}
 				initialAgentId={initialAgentId}
+				initialRestoreSessionId={restoreSessionId}
 				onRegisterCallbacks={(cbs) => {
 					this.panelDelegate.setCallbacks(cbs);
 				}}
@@ -384,10 +390,15 @@ export class FloatingViewContainer implements IChatViewContainer {
 interface TabPanelSpec {
 	viewId: string;
 	initialAgentId?: string;
+	restoreSessionId?: string;
 }
 
 interface FloatingTabbedShellApi {
-	addTab: (viewId: string, initialAgentId?: string) => void;
+	addTab: (
+		viewId: string,
+		initialAgentId?: string,
+		restoreSessionId?: string,
+	) => void;
 	removeTab: (viewId: string) => void;
 	activateTab: (viewId: string) => void;
 	setExpanded: (expanded: boolean) => void;
@@ -563,7 +574,11 @@ export class FloatingTabbedShell {
 				onRegisterApi={(api) => {
 					this.api = api;
 					for (const pending of this.pendingTabs) {
-						api.addTab(pending.viewId, pending.initialAgentId);
+						api.addTab(
+							pending.viewId,
+							pending.initialAgentId,
+							pending.restoreSessionId,
+						);
 					}
 					this.pendingTabs = [];
 					if (this.activeTabId) {
@@ -586,6 +601,7 @@ export class FloatingTabbedShell {
 		instanceId: string,
 		initialExpanded: boolean,
 		initialAgentId?: string,
+		restoreSessionId?: string,
 	): FloatingTabContainer {
 		const container = new FloatingTabContainer(this, instanceId);
 		this.tabs.set(container.viewId, container);
@@ -594,9 +610,14 @@ export class FloatingTabbedShell {
 		const spec: TabPanelSpec = {
 			viewId: container.viewId,
 			initialAgentId,
+			restoreSessionId,
 		};
 		if (this.api) {
-			this.api.addTab(spec.viewId, spec.initialAgentId);
+			this.api.addTab(
+				spec.viewId,
+				spec.initialAgentId,
+				spec.restoreSessionId,
+			);
 			this.api.activateTab(spec.viewId);
 		} else {
 			this.pendingTabs.push(spec);
@@ -727,6 +748,7 @@ interface FloatingChatComponentProps {
 	initialPosition?: { x: number; y: number };
 	/** Agent to launch (from an agent button's pin); default agent when omitted. */
 	initialAgentId?: string;
+	initialRestoreSessionId?: string;
 	onRegisterCallbacks?: (callbacks: ChatPanelCallbacks) => void;
 	onRegisterExpanded?: (setExpanded: (expanded: boolean) => void) => void;
 	onExpandedChange?: (expanded: boolean) => void;
@@ -740,6 +762,7 @@ function FloatingChatComponent({
 	initialExpanded = false,
 	initialPosition,
 	initialAgentId,
+	initialRestoreSessionId,
 	onRegisterCallbacks,
 	onRegisterExpanded,
 	onExpandedChange,
@@ -965,6 +988,7 @@ function FloatingChatComponent({
 						variant="floating"
 						viewId={viewId}
 						initialAgentId={initialAgentId}
+						initialRestoreSessionId={initialRestoreSessionId}
 						onRegisterCallbacks={onRegisterCallbacks}
 						onMinimize={handleMinimizeWindow}
 						onClose={handleCloseWindow}
@@ -1000,6 +1024,7 @@ function FloatingTabPanel({
 	plugin,
 	viewId,
 	initialAgentId,
+	restoreSessionId,
 	isActive,
 	onRegisterCallbacks,
 	onSessionTitleChanged,
@@ -1010,6 +1035,7 @@ function FloatingTabPanel({
 	plugin: AgentClientPlugin;
 	viewId: string;
 	initialAgentId?: string;
+	restoreSessionId?: string;
 	isActive: boolean;
 	onRegisterCallbacks: (callbacks: ChatPanelCallbacks) => void;
 	onSessionTitleChanged: () => void;
@@ -1063,6 +1089,7 @@ function FloatingTabPanel({
 					variant="floating"
 					viewId={viewId}
 					initialAgentId={initialAgentId}
+					initialRestoreSessionId={restoreSessionId}
 					onRegisterCallbacks={onRegisterCallbacks}
 					onSessionTitleChanged={onSessionTitleChanged}
 					floatingWindowControlsInTabBar
@@ -1074,6 +1101,88 @@ function FloatingTabPanel({
 					containerEl={containerEl}
 				/>
 			</ChatContextProvider>
+		</div>
+	);
+}
+
+function FloatingChatTab({
+	label,
+	status,
+	isActive,
+	unread,
+	pinned,
+	onSelect,
+	onClose,
+}: {
+	label: string;
+	status: SessionStatus;
+	isActive: boolean;
+	unread: boolean;
+	pinned: boolean;
+	onSelect: () => void;
+	onClose: () => void;
+}) {
+	const pinRef = useRef<HTMLSpanElement>(null);
+	useEffect(() => {
+		if (pinRef.current) setIcon(pinRef.current, "pin");
+	}, [pinned]);
+
+	const tabPress = useLongPress(onSelect, pinned ? onClose : onSelect);
+	const closePress = useLongPress(
+		pinned ? () => {} : onClose,
+		onClose,
+	);
+
+	const handleMouseDown = (e: React.MouseEvent) => {
+		if (e.button !== 1) return;
+		e.preventDefault();
+		e.stopPropagation();
+		if (!pinned) onClose();
+	};
+
+	return (
+		<div
+			className={`agent-client-floating-tab${isActive ? " is-active" : ""}${
+				unread ? " is-unread" : ""
+			}${pinned ? " is-pinned" : ""}${tabPress.armed ? " is-armed" : ""}`}
+			onPointerDown={tabPress.onPointerDown}
+			onPointerUp={tabPress.onPointerUp}
+			onPointerLeave={tabPress.onPointerLeave}
+			onMouseDown={handleMouseDown}
+			title={
+				pinned
+					? `${label} — ${sessionStatusLabel(status)} (hold to close)`
+					: `${label} — ${sessionStatusLabel(status)}`
+			}
+		>
+			<SessionStatusIcon status={status} unread={unread} />
+			{pinned && (
+				<span
+					ref={pinRef}
+					className="agent-client-floating-tab-pin"
+					aria-hidden
+				/>
+			)}
+			<span className="agent-client-floating-tab-label">{label}</span>
+			<button
+				type="button"
+				className={`agent-client-floating-tab-close${
+					closePress.armed ? " is-armed" : ""
+				}`}
+				title={pinned ? "Hold to close pinned tab" : "Close tab"}
+				onPointerDown={(e) => {
+					e.stopPropagation();
+					closePress.onPointerDown(e);
+				}}
+				onPointerUp={(e) => {
+					e.stopPropagation();
+					closePress.onPointerUp(e);
+				}}
+				onPointerLeave={closePress.onPointerLeave}
+				onClick={(e) => e.stopPropagation()}
+			>
+				×
+			</button>
 		</div>
 	);
 }
@@ -1097,6 +1206,7 @@ function FloatingTabbedShellComponent({
 		plugin.viewRegistry.getSnapshot,
 		plugin.viewRegistry.getSnapshot,
 	);
+	const settings = useSettings(plugin);
 	const [isExpanded, setIsExpanded] = useState(initialExpanded);
 	const [tabs, setTabs] = useState<TabPanelSpec[]>([]);
 	const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -1258,10 +1368,10 @@ function FloatingTabbedShellComponent({
 
 	useEffect(() => {
 		const api: FloatingTabbedShellApi = {
-			addTab: (viewId, initialAgentId) => {
+			addTab: (viewId, initialAgentId, restoreSessionId) => {
 				setTabs((prev) => {
 					if (prev.some((t) => t.viewId === viewId)) return prev;
-					return [...prev, { viewId, initialAgentId }];
+					return [...prev, { viewId, initialAgentId, restoreSessionId }];
 				});
 				activeTabIdRef.current = viewId;
 				setActiveTabId(viewId);
@@ -1300,16 +1410,6 @@ function FloatingTabbedShellComponent({
 		};
 		onRegisterApi(api);
 	}, [onRegisterApi]);
-
-	const handleTabMouseDown = useCallback(
-		(e: React.MouseEvent, viewId: string) => {
-			if (e.button !== 1) return;
-			e.preventDefault();
-			e.stopPropagation();
-			onCloseTab(viewId);
-		},
-		[onCloseTab],
-	);
 
 	const handleSelectTab = useCallback(
 		(viewId: string) => {
@@ -1356,40 +1456,28 @@ function FloatingTabbedShellComponent({
 								"Chat";
 							const status =
 								container?.getSessionStatus() ?? "disconnected";
-							const isActive = tab.viewId === activeTabId;
-							const unread =
-								plugin.viewRegistry.isUnread(tab.viewId);
+							const sessionId = container?.getSessionId();
+							const pinned = sessionId
+								? isSessionPinned(
+										settings.savedSessions ?? [],
+										sessionId,
+									)
+								: false;
 							return (
-								<div
+								<FloatingChatTab
 									key={tab.viewId}
-									className={`agent-client-floating-tab${
-										isActive ? " is-active" : ""
-									}${unread ? " is-unread" : ""}`}
-									onClick={() => handleSelectTab(tab.viewId)}
-									onMouseDown={(e) =>
-										handleTabMouseDown(e, tab.viewId)
+									label={label}
+									status={status}
+									isActive={tab.viewId === activeTabId}
+									unread={plugin.viewRegistry.isUnread(
+										tab.viewId,
+									)}
+									pinned={pinned}
+									onSelect={() =>
+										handleSelectTab(tab.viewId)
 									}
-									title={`${label} — ${sessionStatusLabel(status)}`}
-								>
-									<SessionStatusIcon
-										status={status}
-										unread={unread}
-									/>
-									<span className="agent-client-floating-tab-label">
-										{label}
-									</span>
-									<button
-										type="button"
-										className="agent-client-floating-tab-close"
-										title="Close tab"
-										onClick={(e) => {
-											e.stopPropagation();
-											onCloseTab(tab.viewId);
-										}}
-									>
-										×
-									</button>
-								</div>
+									onClose={() => onCloseTab(tab.viewId)}
+								/>
 							);
 						})}
 						<HeaderButton
@@ -1427,6 +1515,7 @@ function FloatingTabbedShellComponent({
 							plugin={plugin}
 							viewId={tab.viewId}
 							initialAgentId={tab.initialAgentId}
+							restoreSessionId={tab.restoreSessionId}
 							isActive={tab.viewId === activeTabId}
 							onRegisterCallbacks={(cbs) => {
 								getTabContainer(tab.viewId)?.setCallbacks(cbs);
@@ -1458,9 +1547,15 @@ export function createFloatingChat(
 	initialExpanded = false,
 	initialPosition?: { x: number; y: number },
 	initialAgentId?: string,
+	restoreSessionId?: string,
 ): FloatingViewContainer {
 	const container = new FloatingViewContainer(plugin, instanceId);
-	container.mount(initialExpanded, initialPosition, initialAgentId);
+	container.mount(
+		initialExpanded,
+		initialPosition,
+		initialAgentId,
+		restoreSessionId,
+	);
 	return container;
 }
 
@@ -1473,6 +1568,7 @@ export function createFloatingTabbedShell(
 	initialExpanded = false,
 	initialPosition?: { x: number; y: number },
 	initialAgentId?: string,
+	restoreSessionId?: string,
 ): { shell: FloatingTabbedShell; tab: FloatingTabContainer } {
 	const shell = new FloatingTabbedShell(
 		plugin,
@@ -1480,6 +1576,11 @@ export function createFloatingTabbedShell(
 		initialPosition,
 	);
 	shell.mount();
-	const tab = shell.addTab(instanceId, initialExpanded, initialAgentId);
+	const tab = shell.addTab(
+		instanceId,
+		initialExpanded,
+		initialAgentId,
+		restoreSessionId,
+	);
 	return { shell, tab };
 }

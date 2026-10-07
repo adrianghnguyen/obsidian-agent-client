@@ -191,6 +191,27 @@ export function useHistoryModal(
 		[sessionHistory.deleteSession, logger],
 	);
 
+	const handleTogglePin = useCallback(
+		async (sessionId: string, pinned: boolean, sessionCwd: string) => {
+			try {
+				await sessionHistory.setSessionPinned(
+					sessionId,
+					pinned,
+					sessionCwd,
+				);
+				new Notice(
+					pinned
+						? "[Agent Client] Session pinned"
+						: "[Agent Client] Session unpinned",
+				);
+			} catch (error) {
+				new Notice("[Agent Client] Failed to update pin");
+				logger.error("Session pin error:", error);
+			}
+		},
+		[sessionHistory.setSessionPinned, logger],
+	);
+
 	const handleEditTitle = useCallback(
 		async (sessionId: string, newTitle: string, sessionCwd: string) => {
 			try {
@@ -257,6 +278,7 @@ export function useHistoryModal(
 					onForkSession: handleForkSession,
 					onDeleteSession: handleDeleteSession,
 					onEditTitle: handleEditTitle,
+					onTogglePin: handleTogglePin,
 					onLoadMore: handleLoadMore,
 					onFetchSessions: handleFetchSessions,
 					onClearSessions: handleClearSessions,
@@ -291,6 +313,7 @@ export function useHistoryModal(
 		handleForkSession,
 		handleDeleteSession,
 		handleEditTitle,
+		handleTogglePin,
 		handleLoadMore,
 		handleFetchSessions,
 		handleClearSessions,
@@ -316,6 +339,7 @@ export function useHistoryModal(
 				onForkSession: handleForkSession,
 				onDeleteSession: handleDeleteSession,
 				onEditTitle: handleEditTitle,
+				onTogglePin: handleTogglePin,
 				onLoadMore: handleLoadMore,
 				onFetchSessions: handleFetchSessions,
 				onClearSessions: handleClearSessions,
@@ -338,6 +362,7 @@ export function useHistoryModal(
 		handleForkSession,
 		handleDeleteSession,
 		handleEditTitle,
+		handleTogglePin,
 		handleLoadMore,
 		handleFetchSessions,
 		handleClearSessions,

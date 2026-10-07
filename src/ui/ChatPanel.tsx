@@ -22,6 +22,7 @@ import { useHistoryModal } from "../hooks/useHistoryModal";
 import { useChatActions } from "../hooks/useChatActions";
 import { ChangeDirectoryModal } from "./ChangeDirectoryModal";
 import { addRenameSessionMenuItem } from "./EditTitleModal";
+import { addPinSessionMenuItem } from "./pin-session-menu";
 
 // Service imports
 import { getLogger } from "../utils/logger";
@@ -117,6 +118,8 @@ export interface ChatPanelProps {
 	viewId: string;
 	workingDirectory?: string;
 	initialAgentId?: string;
+	/** Restore this history session after the harness is ready. */
+	initialRestoreSessionId?: string;
 	config?: {
 		agent?: string;
 		model?: string;
@@ -290,6 +293,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 	viewId,
 	workingDirectory,
 	initialAgentId,
+	initialRestoreSessionId,
 	config,
 	embeddedConfig,
 	onRegisterCallbacks,
@@ -457,6 +461,8 @@ export const ChatPanel = React.memo(function ChatPanel({
 	const flushingQueuedSendRef = useRef(false);
 	const cancelledQueuedSendIdsRef = useRef(new Set<string>());
 	const persistRestoreAttemptedRef = useRef(false);
+	const pinRestoreAttemptedRef = useRef(false);
+	const pinRestartedRef = useRef(false);
 	// Tracks whether we've already re-spawned the agent to match a saved
 	// conversation before restoring it (prevents a restart loop).
 	const persistRestartedRef = useRef(false);
@@ -704,6 +710,11 @@ export const ChatPanel = React.memo(function ChatPanel({
 					"New session",
 			);
 
+			addPinSessionMenuItem(menu, plugin, session.sessionId, {
+				agentId: session.agentId,
+				cwd: agentCwd,
+			});
+
 			menu.addItem((item: MenuItem) => {
 				item.setTitle("Open new view")
 					.setIcon("copy-plus")
@@ -759,6 +770,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 		},
 		[
 			session.sessionId,
+			session.agentId,
 			handleNewChatWithPersist,
 			handleOpenHistory,
 			handleExportChat,
@@ -809,6 +821,11 @@ export const ChatPanel = React.memo(function ChatPanel({
 					.find((s) => s.sessionId === session.sessionId)?.title ??
 					"New session",
 			);
+
+			addPinSessionMenuItem(menu, plugin, session.sessionId, {
+				agentId: session.agentId,
+				cwd: agentCwd,
+			});
 
 			if (onOpenNewWindow) {
 				menu.addItem((item: MenuItem) => {
@@ -873,6 +890,9 @@ export const ChatPanel = React.memo(function ChatPanel({
 			handleNewChatInDirectory,
 			handleOpenSettings,
 			session.sessionId,
+			session.agentId,
+			plugin,
+			agentCwd,
 		],
 	);
 
@@ -1022,6 +1042,46 @@ export const ChatPanel = React.memo(function ChatPanel({
 		session.sessionId,
 		session.agentId,
 		sessionHistory.canRestore,
+		sessionHistory.restoreSession,
+		plugin.settingsService,
+		agent.restartSession,
+	]);
+
+	useEffect(() => {
+		if (!initialRestoreSessionId) return;
+		if (!isSessionReady || !session.sessionId || !session.agentId) return;
+		if (pinRestoreAttemptedRef.current) return;
+
+		const savedSession = plugin.settingsService
+			.getSavedSessions()
+			.find((s) => s.sessionId === initialRestoreSessionId);
+		if (!savedSession || savedSession.sessionId === session.sessionId) {
+			pinRestoreAttemptedRef.current = true;
+			return;
+		}
+
+		const restorePlan = planHistoryRestore(savedSession, session.agentId);
+		if (
+			restorePlan.action === "restart-then-restore" &&
+			!pinRestartedRef.current
+		) {
+			pinRestartedRef.current = true;
+			setAgentCwd(savedSession.cwd);
+			void agent.restartSession(restorePlan.agentId, restorePlan.cwd);
+			return;
+		}
+
+		pinRestoreAttemptedRef.current = true;
+		setAgentCwd(savedSession.cwd);
+		void sessionHistory.restoreSession(
+			savedSession.sessionId,
+			savedSession.cwd,
+		);
+	}, [
+		initialRestoreSessionId,
+		isSessionReady,
+		session.sessionId,
+		session.agentId,
 		sessionHistory.restoreSession,
 		plugin.settingsService,
 		agent.restartSession,

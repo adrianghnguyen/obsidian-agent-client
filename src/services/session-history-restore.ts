@@ -7,6 +7,7 @@
  */
 
 import type { SavedSessionInfo, SessionInfo } from "../types/session";
+import { compareSessionsPinnedFirst } from "./session-history-pin";
 
 export type HistoryRestorePlan =
 	| {
@@ -62,6 +63,7 @@ export function toHistorySessionInfos(
 		updatedAt: s.updatedAt,
 		agentId: s.agentId,
 		agentDisplayName: resolveDisplayName?.(s.agentId) ?? undefined,
+		pinned: s.pinned,
 	}));
 }
 
@@ -94,6 +96,7 @@ export function mergeAgentListWithLocalHistory(
 			agentDisplayName: agentId
 				? (resolveDisplayName?.(agentId) ?? s.agentDisplayName)
 				: s.agentDisplayName,
+			pinned: local?.pinned ?? s.pinned,
 		};
 	});
 
@@ -106,16 +109,13 @@ export function mergeAgentListWithLocalHistory(
 			updatedAt: local.updatedAt,
 			agentId: local.agentId,
 			agentDisplayName: resolveDisplayName?.(local.agentId),
+			pinned: local.pinned,
 		});
 	}
 
-	// Newest activity first so other-harness locals are not buried under the
-	// live agent's session/list order.
-	return merged.sort((a, b) => {
-		const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-		const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-		return bTime - aTime;
-	});
+	// Pinned first, then newest activity, so other-harness locals are not
+	// buried under the live agent's session/list order.
+	return merged.sort(compareSessionsPinnedFirst);
 }
 
 /**

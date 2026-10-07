@@ -32,6 +32,7 @@ export class FloatingChatHost {
 		initialExpanded = false,
 		initialPosition?: { x: number; y: number },
 		initialAgentId?: string,
+		restoreSessionId?: string,
 	): IChatViewContainer | null {
 		// Single choke point for the setting: commands, the floating button,
 		// and the onload bootstrap are already gated upstream, but agent
@@ -54,6 +55,7 @@ export class FloatingChatHost {
 					initialExpanded,
 					initialPosition,
 					initialAgentId,
+					restoreSessionId,
 				);
 				this.floatingTabbedShell = shell;
 				return tab;
@@ -62,6 +64,7 @@ export class FloatingChatHost {
 				instanceId,
 				initialExpanded,
 				initialAgentId,
+				restoreSessionId,
 			);
 		}
 
@@ -73,6 +76,7 @@ export class FloatingChatHost {
 			initialExpanded,
 			initialPosition,
 			initialAgentId,
+			restoreSessionId,
 		);
 	}
 

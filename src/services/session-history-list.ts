@@ -5,6 +5,7 @@
  */
 
 import type { SavedSessionInfo } from "../types/session";
+import { compareSessionsPinnedFirst } from "./session-history-pin";
 
 /**
  * Default for "Show current vault only" when the history modal opens.
@@ -15,10 +16,7 @@ export const HISTORY_OPEN_FILTER_BY_VAULT_DEFAULT = false;
 export function sortSavedSessionsByUpdatedAt(
 	sessions: SavedSessionInfo[],
 ): SavedSessionInfo[] {
-	return [...sessions].sort(
-		(a, b) =>
-			new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-	);
+	return [...sessions].sort(compareSessionsPinnedFirst);
 }
 
 /**

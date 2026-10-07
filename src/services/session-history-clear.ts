@@ -44,6 +44,9 @@ export function sessionsMatchingClearRange(
 	nowMs: number,
 ): SavedSessionInfo[] {
 	const cutoff = clearRangeCutoff(range, nowMs);
-	if (cutoff === null) return [...sessions];
-	return sessions.filter((s) => new Date(s.updatedAt).getTime() < cutoff);
+	return sessions.filter((s) => {
+		if (s.pinned) return false;
+		if (cutoff === null) return true;
+		return new Date(s.updatedAt).getTime() < cutoff;
+	});
 }
