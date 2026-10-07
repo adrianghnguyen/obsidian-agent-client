@@ -4,6 +4,8 @@ This working copy is the **fork**, not the parent. Day-to-day push/PR targets `o
 
 `gh` may resolve to upstream. Pass `--repo adrianghnguyen/obsidian-agent-client` for fork PRs/API. Do not open routine feature PRs against RAIT-09 unless asked.
 
+What the plugin must do, and which tests lock it: [Expected behavior & test baseline](#expected-behavior--test-baseline).
+
 **Deploy (default = sandbox):** When the user says **deploy**, copy the build to the **sandbox** vault unless they explicitly ask for production/main (`Obsidian` vault).
 
 - **Sandbox (default):** `C:\plugin-sandbox-Obsidian\.obsidian\plugins\agent-client\` → `obsidian plugin:reload id=agent-client vault=plugin-sandbox-Obsidian`
@@ -60,6 +62,43 @@ Use this playbook when a task changes chat UI (composer, floating chat, queue st
 Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, Mistral Vibe, OpenCode, Kiro, Hermes Agent, Cursor, Antigravity, custom agents) via ACP.
 
 **Tech**: React 19, TypeScript, Obsidian API, Agent Client Protocol (ACP)
+
+## Expected behavior & test baseline
+
+You talk to one ACP agent from either a docked chat or a floating chat. Each chat owns one ACP client, keyed by its view id (`AcpClientPool`). `ChatViewRegistry` tracks which chats are open and which one is focused. Docked and floating chats must behave the same; only the window chrome differs.
+
+Moving a chat between those two places is the baseline below. **Merge PR #66 to `main` before PR #65.** #66 lands this section and the functional tests. #65 rebases afterward, ships the placement UI, and should unskip the host cases and extend this section.
+
+After #65 merges, update this section with the header, drag, and command path, and unskip `ChatPlacementHost` in `test/functional/chat-placement-continuity.test.ts`.
+
+### Tiers
+
+| Tier | Where | What it covers |
+| --- | --- | --- |
+| Functional | `test/functional/chat-placement-continuity.test.ts` | Real pool and registry across a move. The harness suite runs on `main`. The host suite stays skipped until placement ships in #65 after rebase. |
+| Unit | `test/acp-client-pool.test.ts`, `test/view-registry.test.ts`. After #65 rebases: `test/chat-placement.test.ts` | One class or a pure helper. #65's placement unit tests mock the host. |
+| Manual Obsidian | Sandbox vault `plugin-sandbox-Obsidian` | Drag onto the sidebar or editor, header buttons, Notice popups, tab chrome. |
+
+```bash
+npm test -- test/functional/chat-placement-continuity.test.ts
+```
+
+### Invariants
+
+| What you should see | Rule | Test in `test/functional/chat-placement-continuity.test.ts` | Tier |
+| --- | --- | --- | --- |
+| Dock a connected floating chat | The same ACP client, session id, in-flight turn, transcript, and draft stay. The view id is reused and the chat becomes docked. The client is not disconnected, including after the teardown grace. | `keeps the ACP client and transcript when a connected chat docks` | Functional (harness runs now; same name under the skipped host suite) |
+| Float a docked chat mid-turn | The same client stays, the chat becomes floating, and it is still sending. | `keeps the same client when a busy docked chat floats` | Functional |
+| Move a chat that has not connected | The draft, attached files, and queued send move. The destination gets a new view id and a new client that is not initialized. The old session id and transcript are not copied. The source client disconnects. | `copies the composer onto a new client when the chat is not connected` | Functional |
+| Tabbed floating window | Only the tab you move changes place. The other tab keeps its own client, session, and draft. | Sibling checks inside the two dock tests above | Functional |
+| Still connecting or authenticating | The move is refused. The chat stays where it is and the client stays up, even if the client object is already marked initialized. | `refuses to move a chat that is still connecting`; `refuses to move a chat that is still authenticating` | Functional |
+| The destination cannot open | The source chat stays on screen and the client stays connected. | `leaves the source in place when the destination cannot open` | Functional |
+| Floating chat is turned off | Float is refused. The docked chat is unchanged. | `does not float when floating chat is disabled` | Functional |
+| The chat is already docked | Dock does nothing and does not disconnect. | `ignores a dock request for a chat that is already docked` | Functional |
+| Same view id, source closes after the destination registered | `unregisterInstance` keeps the replacement. `unregister` by id would delete it. | `registry handoff` in the same file. Pool reuse by view id is `test/acp-client-pool.test.ts`. Other registry focus rules are `test/view-registry.test.ts`. | Functional, plus those unit files |
+| Drag highlight, "Dock this chat", "Float this chat" | On-screen only until #65. | After #65 rebases, drop targets are unit-tested in `test/chat-placement.test.ts`. The host wiring unskips in the functional file. | Manual now; unit and functional host suite after #65 |
+
+The skipped suite title is: `ChatPlacementHost wired to the real pool and registry — enabled when placement ships in #65 after rebase`.
 
 ## Architecture
 
