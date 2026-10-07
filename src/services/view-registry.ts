@@ -263,6 +263,16 @@ export class ChatViewRegistry {
 	}
 
 	/**
+	 * Unregister only when `view` still owns the id.
+	 * A dock/float handoff registers the destination under the same id before
+	 * the source finishes closing; the source must not delete that replacement.
+	 */
+	unregisterInstance(view: IChatViewContainer): void {
+		if (this.views.get(view.viewId) !== view) return;
+		this.unregister(view.viewId);
+	}
+
+	/**
 	 * Unregister a view container.
 	 * If the focused view is unregistered, focus moves to another view.
 	 */
