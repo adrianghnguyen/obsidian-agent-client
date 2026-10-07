@@ -3,10 +3,10 @@
  * move has to: reuse the view id when the ACP client is already up, copy
  * the composer when it is not, and refuse the move while connecting.
  *
- * ChatPlacementHost (PR #65) is optional. When that module is on the tree,
- * the same scenarios run through the real host with these ports. Until
- * then, moveWithHarness applies the same outcomes against the real pool
- * and registry.
+ * ChatPlacementHost is optional on this branch. moveWithHarness applies
+ * the outcomes against the real pool and registry on main. The host suite
+ * is enabled when placement ships in #65 after rebase (that PR adds the
+ * module). This file does not depend on #65 landing first.
  */
 
 import { existsSync } from "node:fs";

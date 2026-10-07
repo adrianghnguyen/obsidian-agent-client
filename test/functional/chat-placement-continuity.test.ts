@@ -4,10 +4,11 @@
  * Tier: Vitest integration — the highest automated tier in this repo
  * (obsidian-plugin-testing). These tests do not boot Obsidian.
  *
- * Strategy: PR #65 unit-tests chat-placement with a mocked host. This file
- * drives the real AcpClientPool and ChatViewRegistry. moveWithHarness covers
- * main before that PR. When src/services/chat-placement-host.ts is on the
- * tree, the same cases also run through ChatPlacementHost.
+ * Strategy: merge this suite to main before PR #65. moveWithHarness runs
+ * on main and drives the real AcpClientPool and ChatViewRegistry. The
+ * ChatPlacementHost cases stay skipped until placement ships in #65 after
+ * rebase (that PR adds src/services/chat-placement-host.ts). They do not
+ * wait for #65 to land first.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { AttachedFile } from "../../src/types/chat";
@@ -371,7 +372,7 @@ registerContinuitySuite(
 );
 
 registerContinuitySuite(
-	"ChatPlacementHost wired to the real pool and registry",
+	"ChatPlacementHost wired to the real pool and registry — enabled when placement ships in #65 after rebase",
 	hostModule !== null,
 	(world) => {
 		if (!hostModule) {
