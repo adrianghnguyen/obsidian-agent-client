@@ -93,6 +93,7 @@ export function useAgentSession(
 	workingDirectory: string,
 	setErrorInfo: (error: ErrorInfo | null, agentId?: string) => void,
 	initialAgentId?: string,
+	adoptedSession?: ChatSession | null,
 ): UseAgentSessionReturn {
 	// ============================================================
 	// Session State
@@ -107,11 +108,13 @@ export function useAgentSession(
 	);
 
 	const [session, setSession] = useState<ChatSession>(() =>
-		createInitialSession(
-			effectiveInitialAgentId,
-			initialAgent.displayName,
-			workingDirectory,
-		),
+		adoptedSession
+			? adoptedSession
+			: createInitialSession(
+					effectiveInitialAgentId,
+					initialAgent.displayName,
+					workingDirectory,
+				),
 	);
 
 	const isReady = session.state === "ready";
@@ -173,7 +176,9 @@ export function useAgentSession(
 					setSession((prev) => ({ ...prev, state: "error" }));
 					{
 						const settings = settingsAccess.getSnapshot();
-						const endpoint = isAntigravityAgent(update.error.agentId)
+						const endpoint = isAntigravityAgent(
+							update.error.agentId,
+						)
 							? resolveAntigravityEndpoint(
 									settings.presetAgents.antigravity?.command,
 								)
@@ -181,10 +186,7 @@ export function useAgentSession(
 						const errorInfo = isAntigravityAgent(
 							update.error.agentId,
 						)
-							? mapAntigravityProcessError(
-									update.error,
-									endpoint,
-								)
+							? mapAntigravityProcessError(update.error, endpoint)
 							: {
 									title: update.error.title || "Agent Error",
 									message:
@@ -273,8 +275,10 @@ export function useAgentSession(
 						command: agentConfig.command,
 						args: agentConfig.args,
 						wslMode: settings.windowsWslMode,
-						env: buildHarnessSessionOpenEnv(agentConfig, (secretId) =>
-							agentClient.resolvePresetSecret(secretId),
+						env: buildHarnessSessionOpenEnv(
+							agentConfig,
+							(secretId) =>
+								agentClient.resolvePresetSecret(secretId),
 						),
 					},
 				);
@@ -375,7 +379,11 @@ export function useAgentSession(
 					? resolveAntigravityEndpoint(agentSettings?.command)
 					: "";
 				setErrorInfo(
-					enrichAntigravityErrorInfo(agentId, endpoint, cursorEnriched),
+					enrichAntigravityErrorInfo(
+						agentId,
+						endpoint,
+						cursorEnriched,
+					),
 					agentId,
 				);
 			}

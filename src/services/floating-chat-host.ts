@@ -16,6 +16,24 @@ import {
 } from "../ui/FloatingChatView";
 import type { IChatViewContainer } from "./view-registry";
 
+export type OpenFloatingChatExtra = {
+	/** Restore a saved session when opening (pinned reopen). */
+	restoreSessionId?: string;
+	/** Reuse this view id (and its ACP client) instead of allocating one. */
+	adoptViewId?: string;
+	/** Stash key when the move starts a fresh client. */
+	freshPlacementKey?: string;
+};
+
+function coalesceOpenFloatingExtra(
+	arg?: string | OpenFloatingChatExtra,
+): OpenFloatingChatExtra {
+	if (typeof arg === "string") {
+		return { restoreSessionId: arg };
+	}
+	return arg ?? {};
+}
+
 export class FloatingChatHost {
 	/** Shared shell when enableFloatingChatTabs is on (null when unused). */
 	private floatingTabbedShell: FloatingTabbedShell | null = null;
@@ -32,8 +50,9 @@ export class FloatingChatHost {
 		initialExpanded = false,
 		initialPosition?: { x: number; y: number },
 		initialAgentId?: string,
-		restoreSessionId?: string,
+		extra?: string | OpenFloatingChatExtra,
 	): IChatViewContainer | null {
+		const options = coalesceOpenFloatingExtra(extra);
 		// Single choke point for the setting: commands, the floating button,
 		// and the onload bootstrap are already gated upstream, but agent
 		// buttons and the in-window "new window" action are not. A window
@@ -55,7 +74,9 @@ export class FloatingChatHost {
 					initialExpanded,
 					initialPosition,
 					initialAgentId,
-					restoreSessionId,
+					options.adoptViewId,
+					options.restoreSessionId,
+					options.freshPlacementKey,
 				);
 				this.floatingTabbedShell = shell;
 				return tab;
@@ -64,7 +85,9 @@ export class FloatingChatHost {
 				instanceId,
 				initialExpanded,
 				initialAgentId,
-				restoreSessionId,
+				options.adoptViewId,
+				options.restoreSessionId,
+				options.freshPlacementKey,
 			);
 		}
 
@@ -76,8 +99,26 @@ export class FloatingChatHost {
 			initialExpanded,
 			initialPosition,
 			initialAgentId,
-			restoreSessionId,
+			options.adoptViewId,
+			options.restoreSessionId,
+			options.freshPlacementKey,
 		);
+	}
+
+	/** Float a docked chat into a new window or tab, preserving its view id when live. */
+	openAdoptedFloating(snapshot: {
+		sourceViewId: string;
+		agentId: string;
+		reuseClient: boolean;
+	}): IChatViewContainer | null {
+		return this.openNewFloatingChat(true, undefined, snapshot.agentId, {
+			adoptViewId: snapshot.reuseClient
+				? snapshot.sourceViewId
+				: undefined,
+			freshPlacementKey: snapshot.reuseClient
+				? undefined
+				: snapshot.sourceViewId,
+		});
 	}
 
 	/**
@@ -95,7 +136,9 @@ export class FloatingChatHost {
 	 */
 	flushFloatingWindowLayouts(): void {
 		this.floatingTabbedShell?.persistLayoutNow();
-		for (const container of this.plugin.viewRegistry.getByType("floating")) {
+		for (const container of this.plugin.viewRegistry.getByType(
+			"floating",
+		)) {
 			if (container instanceof FloatingViewContainer) {
 				container.persistLayoutNow();
 			}
@@ -151,7 +194,10 @@ export class FloatingChatHost {
 
 		const target = this.plugin.viewRegistry.get(targetId);
 		if (!target) return;
-		if (this.plugin.settings.floatingChatOneKeyToggle && target.isExpanded()) {
+		if (
+			this.plugin.settings.floatingChatOneKeyToggle &&
+			target.isExpanded()
+		) {
 			target.collapse();
 		} else {
 			target.expand();
@@ -188,7 +234,9 @@ export class FloatingChatHost {
 			this.floatingTabbedShell = null;
 		}
 
-		for (const container of this.plugin.viewRegistry.getByType("floating")) {
+		for (const container of this.plugin.viewRegistry.getByType(
+			"floating",
+		)) {
 			if (container instanceof FloatingViewContainer) {
 				container.unmount();
 			}

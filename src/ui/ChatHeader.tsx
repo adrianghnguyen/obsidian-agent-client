@@ -1,6 +1,11 @@
 import * as React from "react";
 import { setIcon } from "obsidian";
 
+import {
+	beginPlacementDrag,
+	consumePlacementClickSuppression,
+	type PlacementDragOrigin,
+} from "../services/chat-placement";
 import { HeaderButton } from "./shared/IconButton";
 import { FloatingTransparencyLockButton } from "./shared/FloatingTransparencyLockButton";
 import { useChatContext } from "./ChatContext";
@@ -35,6 +40,10 @@ export interface SidebarHeaderProps {
 	onShowMenu: (e: React.MouseEvent<HTMLDivElement>) => void;
 	/** Callback to open session history */
 	onOpenHistory?: () => void;
+	/** Move this docked chat into a floating window. */
+	onFloatChat?: () => void;
+	/** View id carried by the float drag. */
+	placementViewId?: string;
 }
 
 /**
@@ -60,6 +69,10 @@ export interface FloatingHeaderProps {
 	onClose?: () => void;
 	/** When true, More / minimize / close render elsewhere (tab bar). */
 	hideWindowControls?: boolean;
+	/** Move this floating chat into a docked workspace leaf. */
+	onDockChat?: () => void;
+	/** View id carried by the dock drag. */
+	placementViewId?: string;
 }
 
 /**
@@ -129,6 +142,53 @@ function NavActionButton({
 	);
 }
 
+/**
+ * Click moves the chat. Drag drops it on the other kind of window.
+ * mousedown is stopped so a floating header drag does not start a window move.
+ */
+function PlacementDragButton({
+	icon,
+	label,
+	origin,
+	viewId,
+	onMove,
+}: {
+	icon: string;
+	label: string;
+	origin: PlacementDragOrigin;
+	viewId: string;
+	onMove: () => void;
+}) {
+	const ref = React.useRef<HTMLDivElement>(null);
+
+	React.useEffect(() => {
+		if (ref.current) setIcon(ref.current, icon);
+	}, [icon]);
+
+	return (
+		<div
+			ref={ref}
+			className="clickable-icon nav-action-button agent-client-placement-drag-handle"
+			draggable
+			aria-label={label}
+			title={label}
+			onMouseDown={(event) => event.stopPropagation()}
+			onDragStart={(event) => {
+				event.stopPropagation();
+				beginPlacementDrag(
+					event.dataTransfer,
+					{ viewId, origin },
+					{ suppressClick: true },
+				);
+			}}
+			onClick={() => {
+				if (consumePlacementClickSuppression()) return;
+				onMove();
+			}}
+		/>
+	);
+}
+
 // ============================================================================
 // Sidebar Header
 // ============================================================================
@@ -151,6 +211,8 @@ function SidebarHeader({
 	onExportChat,
 	onShowMenu,
 	onOpenHistory,
+	onFloatChat,
+	placementViewId,
 }: SidebarHeaderProps) {
 	return (
 		<div className="nav-header agent-client-chat-view-header">
@@ -194,6 +256,15 @@ function SidebarHeader({
 					label="More"
 					onClick={onShowMenu}
 				/>
+				{onFloatChat && placementViewId && (
+					<PlacementDragButton
+						icon="app-window"
+						label="Float this chat. Drag onto a floating chat window."
+						origin="sidebar"
+						viewId={placementViewId}
+						onMove={onFloatChat}
+					/>
+				)}
 			</div>
 		</div>
 	);
@@ -222,6 +293,8 @@ function FloatingHeader({
 	onMinimize,
 	onClose,
 	hideWindowControls,
+	onDockChat,
+	placementViewId,
 }: FloatingHeaderProps) {
 	const { plugin } = useChatContext();
 
@@ -243,6 +316,15 @@ function FloatingHeader({
 				</p>
 			)}
 			<div className="agent-client-inline-header-actions">
+				{onDockChat && placementViewId && (
+					<PlacementDragButton
+						icon="panel-right"
+						label="Dock this chat. Drag onto the sidebar or editor."
+						origin="floating"
+						viewId={placementViewId}
+						onMove={onDockChat}
+					/>
+				)}
 				{!hideWindowControls && (
 					<>
 						<FloatingTransparencyLockButton plugin={plugin} />
