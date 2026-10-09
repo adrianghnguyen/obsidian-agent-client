@@ -4,10 +4,12 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.30.0-rc.1
+
 ### Added
 - **Pin session threads** — Pin any number of conversations from Session History, the chat ⋮ menu, or the Session Manager. Pinned threads reopen automatically the next time that harness starts, even if you closed the tab. New chat / + still start a blank session. Pinned rows stay at the top of history and are skipped by clear/eviction.
 - **Hold to close a pinned tab** — A short click or middle-click no longer closes a pinned floating-chat tab. Hold the tab (about a second) until it arms, then release.
-- **Dock and float a chat** — Each chat can move between a floating window and a docked workspace tab without dropping the live session. Use **Dock this chat** on a floating chat, or **Float this chat** on a docked chat (header button or More menu). Drag a floating tab, or the dock button, onto the sidebar or editor to dock it. Drag the docked chat's float button onto a floating window to float it. In a tabbed floating window, only the tab you move changes place.
+- **Dock and float a chat** — Each chat can move between a floating window and a docked workspace tab without dropping the live session. Use **Dock this chat** on a floating chat, or **Float this chat** on a docked chat (header button or More menu), or the command palette entries **Dock floating chat** and **Float chat view**. Drag a floating tab, or the dock button, onto the sidebar or editor to dock it. Drag the docked chat's float button onto a floating window to float it. In a tabbed floating window, only the tab you move changes place. A connected session keeps the same agent process; moves are blocked while a chat is still connecting or authenticating.
 
 ## 0.29.0
 
