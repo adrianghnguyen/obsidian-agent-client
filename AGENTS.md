@@ -69,26 +69,26 @@ Each chat owns one ACP client, keyed by view id (`AcpClientPool`). `ChatViewRegi
 
 Functional tests live in `test/functional/*.test.ts`. They wire real services (pool, registry, session storage, permission manager, ACP handler, harness open plan) under Vitest and the Obsidian stub. They do not boot Obsidian or spawn an ACP agent. Unit tests still cover one helper at a time. CI job `lint-test-build` runs `npm run lint`, `npm test`, and `npm run build`.
 
+Moving a chat between floating and docked views is part of the baseline below. The harness and `ChatPlacementHost` suites both run against the real pool and registry; production moves go through `src/services/chat-placement-host.ts`.
+
 ```bash
 npm test -- test/functional
 ```
-
-**#66** is on `main` (float/dock harness). **#65** rebases afterward, ships placement UI, and should unskip `ChatPlacementHost` in `test/functional/chat-placement-continuity.test.ts`. **#64** (session pins) is not on `main`. Pin rows stay manual until that code lands. Do not vendor #64 or #65 into this suite.
 
 ### Tiers
 
 | Tier | Where | What it covers |
 | --- | --- | --- |
-| Functional | `test/functional/*.test.ts` | Cross-module outcomes. Placement host suite stays skipped until #65. |
-| Unit | `test/**/*.test.ts` outside `functional/` | One class or pure helper. |
-| Manual Obsidian | Sandbox vault `plugin-sandbox-Obsidian` | Drag, Notice pixels, tab chrome, leaf ids, keychain UI, a live ACP process. |
+| Functional | `test/functional/*.test.ts` | Cross-module outcomes, including placement harness and `ChatPlacementHost wired to the real pool and registry`. |
+| Unit | `test/**/*.test.ts` outside `functional/` (e.g. `test/chat-placement.test.ts`, `test/session-history-pin.test.ts`) | One class or pure helper. Placement unit tests mock the host ports and cover drop targets. |
+| Manual Obsidian | Sandbox vault `plugin-sandbox-Obsidian` | Drag onto the sidebar or editor, header buttons, Notice popups, tab chrome, leaf ids, keychain UI, a live ACP process. |
 | Optional smoke | `npm run smoke:voice` | Gemini Live transcript. Not part of `npm test`. |
 
 ### Critical-path matrix
 
 | Path | Invariant | Test | Tier |
 | --- | --- | --- | --- |
-| Dock a connected floating chat | Same ACP client, session id, in-flight turn, transcript, and draft. View id reused. Client stays up after the teardown grace. | `test/functional/chat-placement-continuity.test.ts` `keeps the ACP client and transcript when a connected chat docks` | Functional |
+| Dock a connected floating chat | Same ACP client, session id, in-flight turn, transcript, and draft. View id reused. Client stays up after the teardown grace. | `test/functional/chat-placement-continuity.test.ts` `keeps the ACP client and transcript when a connected chat docks` | Functional (harness and host) |
 | Float a docked chat mid-turn | Same client, view becomes floating, still sending. | same file, `keeps the same client when a busy docked chat floats` | Functional |
 | Move a chat that has not connected | Draft, files, and queued send move. New view id and new uninitialized client. Old session and transcript are not copied. Source disconnects. | same file, `copies the composer onto a new client when the chat is not connected` | Functional |
 | Tabbed floating window | Only the moved tab changes place. The sibling keeps its client, session, and draft. | Sibling checks in the two dock tests above | Functional |
@@ -118,17 +118,12 @@ npm test -- test/functional
 | Cursor session open | A key skips authenticate. An auth failure after that defers to `HarnessAuthRequiredError` and does not authenticate again. No key and no trusted login authenticates, then opens. | same file | Functional |
 | Claude session open | No authenticate step. | same file | Functional |
 | Custom agent and spawn failure | Custom command and env pass through with no API-key intent. `openHarnessSession` rejects an unknown id. A missing Cursor CLI is retitled `Cursor CLI Not Found`. | same file | Functional |
-| Drag, "Dock this chat", "Float this chat", Notice pixels | On-screen until #65. Drop-target helpers land in `test/chat-placement.test.ts` when that branch rebases. Host wiring unskips in the placement functional file. | — | Manual |
-| `ChatPlacementHost` | Same move outcomes through the production host. | Skipped suite in `chat-placement-continuity.test.ts` until #65 | Manual until #65 |
-| Pin persistence | `savedSessions.pinned`, skip LRU, skip history clear, hold-to-close, cold restore. Field is not on `main`. | — | Manual until #64 |
+| Drag highlight, **Dock this chat**, **Float this chat** | Floating tab or dock button dropped on the left sidebar, right sidebar, or editor docks that chat. Float button on a floating window floats a docked chat. Header buttons, More menu, and commands **Dock floating chat** / **Float chat view** match the same rules. | Drop targets: `test/chat-placement.test.ts`. Host move: `ChatPlacementHost wired to the real pool and registry`. Notice pixels and drag outline. | Unit, functional, and manual |
+| Pin persistence | `savedSessions.pinned`, skip LRU, skip history clear, cold restore. | `test/session-history-pin.test.ts`, `test/session-storage.test.ts` | Unit; hold-to-close tab UX is manual |
 | Live ACP process | Real spawn, stdin/stdout, agent transcript. | — | Manual |
 | Frame batching and React unmount | Merge result and pool grace are functional. Per-frame RAF timing and a real chat unmount are not. | — | Manual |
 | Leaf id, tab chrome, chips, settings toggles | Workspace leaf vs `viewId`, glyphs, chip pixels, settings controls. | — | Manual |
 | Keychain UI and voice | Secret picker. `npm run smoke:voice` for Gemini Live. | — | Manual |
-
-The skipped placement suite title is: `ChatPlacementHost wired to the real pool and registry — enabled when placement ships in #65 after rebase`.
-
-After #65 merges, unskip that suite and move the drag/header row to Functional or Unit as the new tests allow. After #64 merges, add a functional row for pin skip-LRU and skip-clear if those rules are in services, and leave hold-to-close on the manual row.
 
 ## Architecture
 

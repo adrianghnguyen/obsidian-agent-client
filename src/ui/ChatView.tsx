@@ -23,6 +23,10 @@ import { ChatPanelDelegate } from "./chat-panel-delegate";
 
 // Service imports
 import { VaultService } from "../services/vault-service";
+import {
+	claimNextSidebarAdoption,
+	placementKeepsClient,
+} from "../services/chat-placement";
 
 export const VIEW_TYPE_CHAT = "agent-client-chat-view";
 
@@ -68,6 +72,7 @@ function ChatComponent({
 				// current without a subscription.
 				initialAgentId={view.getInitialAgentId() ?? undefined}
 				initialRestoreSessionId={view.getRestoreSessionId() ?? undefined}
+				freshPlacementKey={view.getFreshPlacementKey() ?? undefined}
 				viewHost={view}
 				onRegisterCallbacks={(callbacks) =>
 					view.setCallbacks(callbacks)
@@ -83,6 +88,8 @@ function ChatComponent({
 interface ChatViewState extends Record<string, unknown> {
 	initialAgentId?: string;
 	restoreSessionId?: string;
+	/** One-shot key for a move that does not reuse the live ACP client. */
+	placementKey?: string;
 }
 
 export class ChatView extends ItemView implements IChatViewContainer {
@@ -96,6 +103,14 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	/** Initial agent ID passed via state (for openNewChatViewWithAgent) */
 	private initialAgentId: string | null = null;
 	private restoreSessionId: string | null = null;
+	/**
+	 * Set when this leaf adopted a live floating chat (view id reused).
+	 * Fresh moves pass the stash key through view state instead.
+	 */
+	private adoptedViewId: string | null = null;
+	private freshPlacementKey: string | null = null;
+	/** When false, onClose leaves the ACP client for the destination view. */
+	private releaseClientOnClose = true;
 	/** Fallback timer: mounts with defaults if setState never arrives. */
 	private mountFallbackTimer: number | null = null;
 
@@ -114,8 +129,29 @@ export class ChatView extends ItemView implements IChatViewContainer {
 		this.logger = getLogger();
 		// Static sidebar view (not navigable) — hides .view-header
 		this.navigation = false;
-		// Use leaf.id if available, otherwise generate UUID
-		this.viewId = (leaf as { id?: string }).id ?? crypto.randomUUID();
+		// A dock handoff claims the floating view id so the ACP client is reused.
+		const adopted = claimNextSidebarAdoption();
+		this.adoptedViewId = adopted;
+		this.viewId =
+			adopted ?? (leaf as { id?: string }).id ?? crypto.randomUUID();
+	}
+
+	/** Stash key for a move that starts a new client. Null for live adoption. */
+	getFreshPlacementKey(): string | null {
+		return this.freshPlacementKey;
+	}
+
+	/** Keep the ACP process alive when this leaf closes for a float handoff. */
+	retainAcpClientOnClose(): void {
+		this.releaseClientOnClose = false;
+	}
+
+	preparePlacementMove() {
+		const snapshot = this.panelDelegate.capturePlacement();
+		if (!snapshot || !placementKeepsClient(snapshot)) return snapshot;
+		this.panelDelegate.armPreserveOnUnmount();
+		this.retainAcpClientOnClose();
+		return snapshot;
 	}
 
 	getViewType() {
@@ -154,6 +190,9 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	): Promise<void> {
 		this.initialAgentId = state.initialAgentId ?? null;
 		this.restoreSessionId = state.restoreSessionId ?? null;
+		if (!this.adoptedViewId && state.placementKey) {
+			this.freshPlacementKey = state.placementKey;
+		}
 		await super.setState(state, result);
 		this.renderPanel();
 	}
@@ -387,8 +426,9 @@ export class ChatView extends ItemView implements IChatViewContainer {
 			this.mountFallbackTimer = null;
 		}
 
-		// Unregister from plugin's view registry
-		this.plugin.viewRegistry.unregister(this.viewId);
+		// Unregister from plugin's view registry. A float handoff may already
+		// have registered the destination under this view id.
+		this.plugin.viewRegistry.unregisterInstance(this);
 
 		// Cleanup is handled by React useEffect cleanup in ChatPanel
 		// which performs auto-export and closeSession
@@ -400,7 +440,10 @@ export class ChatView extends ItemView implements IChatViewContainer {
 		// Cleanup services owned by this class
 		this.vaultService?.destroy();
 
-		// Remove adapter for this view (disconnect process)
-		await this.plugin.removeAcpClient(this.viewId);
+		// Remove adapter for this view (disconnect process), unless the chat
+		// was floated and the destination still owns the client.
+		if (this.releaseClientOnClose) {
+			await this.plugin.removeAcpClient(this.viewId);
+		}
 	}
 }

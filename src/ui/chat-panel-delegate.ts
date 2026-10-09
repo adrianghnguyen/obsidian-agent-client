@@ -6,6 +6,7 @@
  */
 
 import type { ChatInputState } from "../types/chat";
+import type { ChatPlacementSnapshot } from "../services/chat-placement";
 import type { SessionStatus } from "../services/view-registry";
 import type { ChatPanelCallbacks } from "./ChatPanel";
 
@@ -58,5 +59,13 @@ export class ChatPanelDelegate {
 
 	openSessionHistory(): void {
 		this.callbacks?.openSessionHistory();
+	}
+
+	capturePlacement(): ChatPlacementSnapshot | null {
+		return this.callbacks?.capturePlacement?.() ?? null;
+	}
+
+	armPreserveOnUnmount(): void {
+		this.callbacks?.armPreserveOnUnmount?.();
 	}
 }

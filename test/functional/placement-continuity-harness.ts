@@ -3,10 +3,8 @@
  * move has to: reuse the view id when the ACP client is already up, copy
  * the composer when it is not, and refuse the move while connecting.
  *
- * ChatPlacementHost is optional on this branch. moveWithHarness applies
- * the outcomes against the real pool and registry on main. The host suite
- * is enabled when placement ships in #65 after rebase (that PR adds the
- * module). This file does not depend on #65 landing first.
+ * moveWithHarness applies the outcomes against the real pool and registry.
+ * bindProductionHost drives ChatPlacementHost, which ships with dock/float.
  */
 
 import { existsSync } from "node:fs";
