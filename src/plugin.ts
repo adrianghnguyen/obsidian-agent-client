@@ -106,6 +106,10 @@ import { FloatingChatHost } from "./services/floating-chat-host";
 import { ChatLeafHost } from "./services/chat-leaf";
 import { registerSessionScopedCommands } from "./commands/register-plugin-commands";
 import type { SavedSessionInfo } from "./types/session";
+import {
+	pinnedSessionsForRestore,
+	selectPinnedSessionsToOpen,
+} from "./services/session-history-pin";
 import { initializeLogger, getLogger } from "./utils/logger";
 
 // Re-export for backward compatibility
@@ -125,6 +129,8 @@ export default class AgentClientPlugin extends Plugin {
 
 	/** Registry for all chat view containers (sidebar + floating) */
 	viewRegistry = new ChatViewRegistry();
+
+	private claimedPinnedRestores = new Set<string>();
 
 	/** Per-view AcpClient pool with embedded remount grace teardown */
 	private acpClientPool = new AcpClientPool<AcpClient>({
@@ -341,10 +347,9 @@ export default class AgentClientPlugin extends Plugin {
 		this.floatingChatStatusBar = new FloatingChatStatusBar(this);
 		this.floatingChatStatusBar.mount();
 
-		// Mount initial floating chat instance only if enabled
-		if (this.isFloatingChatEnabled()) {
-			this.openNewFloatingChat();
-		}
+		this.app.workspace.onLayoutReady(() => {
+			this.restorePinnedSessions();
+		});
 
 		// Clean up all ACP sessions when Obsidian quits
 		// Note: We don't wait for disconnect to complete to avoid blocking quit
@@ -496,11 +501,59 @@ export default class AgentClientPlugin extends Plugin {
 	async openNewChatViewWithAgent(
 		agentId: string,
 		locationOverride?: "right-pane",
+		restoreSessionId?: string,
 	): Promise<string | null> {
 		return this.chatLeaf.openNewChatViewWithAgent(
 			agentId,
 			locationOverride,
+			restoreSessionId,
 		);
+	}
+
+	/**
+	 * Reopen every pinned history thread that is not already open.
+	 * Floating chat (when enabled) gets one tab per pin; otherwise sidebar views.
+	 * Explicit New chat / + still start blank.
+	 */
+	restorePinnedSessions(): void {
+		const pinned = pinnedSessionsForRestore(
+			this.settings.savedSessions ?? [],
+		);
+		const openIds = new Set<string>();
+		for (const view of this.viewRegistry.getSnapshot().views) {
+			const id = view.getSessionId();
+			if (id) openIds.add(id);
+		}
+		for (const id of this.claimedPinnedRestores) openIds.add(id);
+		const toOpen = selectPinnedSessionsToOpen(pinned, openIds);
+
+		if (this.isFloatingChatEnabled()) {
+			if (toOpen.length === 0) {
+				if (this.getFloatingChatInstances().length === 0) {
+					this.openNewFloatingChat();
+				}
+				return;
+			}
+			for (const saved of toOpen) {
+				this.claimedPinnedRestores.add(saved.sessionId);
+				this.openNewFloatingChat(
+					true,
+					undefined,
+					saved.agentId,
+					saved.sessionId,
+				);
+			}
+			return;
+		}
+
+		for (const saved of toOpen) {
+			this.claimedPinnedRestores.add(saved.sessionId);
+			void this.openNewChatViewWithAgent(
+				saved.agentId,
+				undefined,
+				saved.sessionId,
+			);
+		}
 	}
 
 	/** Open a new floating chat window (or tab when tabs mode is enabled). */
@@ -508,11 +561,13 @@ export default class AgentClientPlugin extends Plugin {
 		initialExpanded = false,
 		initialPosition?: { x: number; y: number },
 		initialAgentId?: string,
+		restoreSessionId?: string,
 	): IChatViewContainer | null {
 		return this.floatingChatHost.openNewFloatingChat(
 			initialExpanded,
 			initialPosition,
 			initialAgentId,
+			restoreSessionId,
 		);
 	}
 

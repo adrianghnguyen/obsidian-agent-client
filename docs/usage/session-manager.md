@@ -64,7 +64,8 @@ Click the **⋮** (more) button on the right of any session entry, or right-clic
 | Action | Description |
 |--------|-------------|
 | **Rename** | Edit the session title. The new title is shown both in the Session Manager and on the chat view's tab |
-| **Close** | Close the chat view (the underlying session remains in History) |
+| **Pin / Unpin** | Keep the thread so it reopens on the next harness start. Closing the view does not unpin it |
+| **Close** | Close the chat view (the underlying session remains in History; pinned threads still restore later) |
 
 For embedded chat blocks, only **Rename** is offered. There is no **Close** action — the view is owned by the code block in its host note, so close the note (or remove the block) instead.
 

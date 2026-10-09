@@ -2903,6 +2903,19 @@ If your plugin does not need CSS, delete this file.
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.agent-client-session-history-item-pin {
+	flex-shrink: 0;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--text-muted);
+	padding: 1px 6px;
+	border-radius: 4px;
+	background: var(--background-modifier-hover);
 }
 
 .agent-client-session-history-item-metadata {
@@ -3442,6 +3455,30 @@ If your plugin does not need CSS, delete this file.
 /* Unread turn: tint the tab label blue to match the glowing status symbol. */
 .agent-client-floating-tab.is-unread {
 	color: var(--color-blue, var(--text-accent));
+}
+
+.agent-client-floating-tab.is-pinned {
+	padding-left: 8px;
+}
+
+.agent-client-floating-tab.is-armed,
+.agent-client-floating-tab-close.is-armed {
+	color: var(--text-error, var(--color-red, #e04646));
+}
+
+.agent-client-floating-tab-pin {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 12px;
+	height: 12px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.agent-client-floating-tab-pin svg {
+	width: 12px;
+	height: 12px;
 }
 
 .agent-client-floating-tab-label {

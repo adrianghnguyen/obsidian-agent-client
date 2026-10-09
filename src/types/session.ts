@@ -527,6 +527,8 @@ export interface SessionInfo {
 	agentId?: string;
 	/** Display name for agentId when known from settings */
 	agentDisplayName?: string;
+	/** Local pin: reopen this thread on the next harness start */
+	pinned?: boolean;
 }
 
 /**
@@ -587,6 +589,11 @@ export interface SavedSessionInfo {
 	createdAt: string;
 	/** ISO 8601 timestamp of last activity */
 	updatedAt: string;
+	/**
+	 * When true, this thread is reopened on the next harness start even if
+	 * its tab was closed. Any number of sessions may be pinned.
+	 */
+	pinned?: boolean;
 }
 /**
  * Domain Models for Agent Initialization Results

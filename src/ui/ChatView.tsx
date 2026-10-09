@@ -67,6 +67,7 @@ function ChatComponent({
 				// later setState re-renders this component, so the prop stays
 				// current without a subscription.
 				initialAgentId={view.getInitialAgentId() ?? undefined}
+				initialRestoreSessionId={view.getRestoreSessionId() ?? undefined}
 				viewHost={view}
 				onRegisterCallbacks={(callbacks) =>
 					view.setCallbacks(callbacks)
@@ -81,6 +82,7 @@ function ChatComponent({
 /** State stored for view persistence */
 interface ChatViewState extends Record<string, unknown> {
 	initialAgentId?: string;
+	restoreSessionId?: string;
 }
 
 export class ChatView extends ItemView implements IChatViewContainer {
@@ -93,6 +95,7 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	readonly viewType: ChatViewType = "sidebar";
 	/** Initial agent ID passed via state (for openNewChatViewWithAgent) */
 	private initialAgentId: string | null = null;
+	private restoreSessionId: string | null = null;
 	/** Fallback timer: mounts with defaults if setState never arrives. */
 	private mountFallbackTimer: number | null = null;
 
@@ -134,6 +137,7 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	getState(): ChatViewState {
 		return {
 			initialAgentId: this.initialAgentId ?? undefined,
+			restoreSessionId: this.restoreSessionId ?? undefined,
 		};
 	}
 
@@ -149,6 +153,7 @@ export class ChatView extends ItemView implements IChatViewContainer {
 		result: { history: boolean },
 	): Promise<void> {
 		this.initialAgentId = state.initialAgentId ?? null;
+		this.restoreSessionId = state.restoreSessionId ?? null;
 		await super.setState(state, result);
 		this.renderPanel();
 	}
@@ -159,6 +164,10 @@ export class ChatView extends ItemView implements IChatViewContainer {
 	 */
 	getInitialAgentId(): string | null {
 		return this.initialAgentId;
+	}
+
+	getRestoreSessionId(): string | null {
+		return this.restoreSessionId;
 	}
 
 	/**

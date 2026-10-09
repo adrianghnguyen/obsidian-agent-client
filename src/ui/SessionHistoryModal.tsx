@@ -114,8 +114,8 @@ class ConfirmClearHistoryModal extends Modal {
 		contentEl.createEl("p", {
 			text:
 				this.rangeLabel === "All time"
-					? "This deletes ALL local session history across ALL agent harnesses (not just the agent you are using now)."
-					: `This deletes any local session history ${this.rangeLabel.toLowerCase()} across ALL agent harnesses (not just the agent you are using now).`,
+					? "This deletes ALL unpinned local session history across ALL agent harnesses (not just the agent you are using now). Pinned sessions are kept."
+					: `This deletes any unpinned local session history ${this.rangeLabel.toLowerCase()} across ALL agent harnesses (not just the agent you are using now). Pinned sessions are kept.`,
 			cls: "agent-client-confirm-delete-message",
 		});
 
@@ -207,6 +207,12 @@ interface SessionHistoryContentProps {
 	onEditTitle: (
 		sessionId: string,
 		newTitle: string,
+		sessionCwd: string,
+	) => void | Promise<void>;
+	/** Pin or unpin a local history row */
+	onTogglePin: (
+		sessionId: string,
+		pinned: boolean,
 		sessionCwd: string,
 	) => void | Promise<void>;
 	/** Callback to load more sessions (pagination) */
@@ -376,6 +382,7 @@ function SessionItem({
 	onForkSession,
 	onDeleteSession,
 	onEditTitle,
+	onTogglePin,
 	onClose,
 }: {
 	session: SessionInfo;
@@ -390,6 +397,7 @@ function SessionItem({
 	onForkSession: (sessionId: string, cwd: string) => Promise<void>;
 	onDeleteSession: (sessionId: string) => void | Promise<void>;
 	onEditTitle: (sessionId: string) => void;
+	onTogglePin: (sessionId: string, pinned: boolean) => void;
 	onClose: () => void;
 }) {
 	// Offer restore when the live agent can restore, or when the row carries
@@ -414,6 +422,10 @@ function SessionItem({
 		onEditTitle(session.sessionId);
 	}, [session.sessionId, onEditTitle]);
 
+	const handleTogglePin = useCallback(() => {
+		onTogglePin(session.sessionId, !session.pinned);
+	}, [session.sessionId, session.pinned, onTogglePin]);
+
 	const agentLabel = session.agentDisplayName || session.agentId;
 
 	return (
@@ -423,6 +435,14 @@ function SessionItem({
 					<span>
 						{truncateTitle(session.title ?? "Untitled Session")}
 					</span>
+					{session.pinned && (
+						<span
+							className="agent-client-session-history-item-pin"
+							aria-label="Pinned"
+						>
+							Pinned
+						</span>
+					)}
 				</div>
 				<div className="agent-client-session-history-item-metadata">
 					{agentLabel && (
@@ -450,6 +470,12 @@ function SessionItem({
 			</div>
 
 			<div className="agent-client-session-history-item-actions">
+				<IconButton
+					iconName={session.pinned ? "pin-off" : "pin"}
+					label={session.pinned ? "Unpin session" : "Pin session"}
+					className="agent-client-session-history-action-icon agent-client-session-history-pin-icon"
+					onClick={handleTogglePin}
+				/>
 				<IconButton
 					iconName="pencil"
 					label="Edit session title"
@@ -511,6 +537,7 @@ function SessionHistoryContent({
 	onForkSession,
 	onDeleteSession,
 	onEditTitle,
+	onTogglePin,
 	onLoadMore,
 	onFetchSessions,
 	onClearSessions,
@@ -574,6 +601,14 @@ function SessionHistoryContent({
 			modal.open();
 		},
 		[app, sessions, currentCwd, onEditTitle],
+	);
+
+	const handleTogglePin = useCallback(
+		(sessionId: string, pinned: boolean) => {
+			const target = sessions.find((s) => s.sessionId === sessionId);
+			void onTogglePin(sessionId, pinned, target?.cwd ?? currentCwd);
+		},
+		[sessions, currentCwd, onTogglePin],
 	);
 
 	const handleClearClick = useCallback(() => {
@@ -782,6 +817,7 @@ function SessionHistoryContent({
 								onForkSession={onForkSession}
 								onDeleteSession={handleDeleteWithConfirmation}
 								onEditTitle={handleEditWithModal}
+								onTogglePin={handleTogglePin}
 								onClose={onClose}
 							/>
 						))}

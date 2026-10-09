@@ -4,6 +4,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Pin session threads** — Pin any number of conversations from Session History, the chat ⋮ menu, or the Session Manager. Pinned threads reopen automatically the next time that harness starts, even if you closed the tab. New chat / + still start a blank session. Pinned rows stay at the top of history and are skipped by clear/eviction.
+- **Hold to close a pinned tab** — A short click or middle-click no longer closes a pinned floating-chat tab. Hold the tab (about a second) until it arms, then release.
+
 ## 0.29.0
 
 ### Added

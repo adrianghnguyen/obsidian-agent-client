@@ -167,6 +167,7 @@ export class ChatLeafHost {
 	async openNewChatViewWithAgent(
 		agentId: string,
 		locationOverride?: "right-pane",
+		restoreSessionId?: string,
 	): Promise<string | null> {
 		const leaf =
 			locationOverride === "right-pane"
@@ -180,7 +181,7 @@ export class ChatLeafHost {
 		await leaf.setViewState({
 			type: VIEW_TYPE_CHAT,
 			active: true,
-			state: { initialAgentId: agentId },
+			state: { initialAgentId: agentId, restoreSessionId },
 		});
 
 		await this.plugin.app.workspace.revealLeaf(leaf);

@@ -128,6 +128,12 @@ export interface ISettingsAccess {
 		patch: Partial<Omit<SavedSessionInfo, "sessionId" | "createdAt">>,
 	): Promise<void>;
 
+	setSessionPinned(
+		sessionId: string,
+		pinned: boolean,
+		createIfMissing?: { agentId: string; cwd: string; title?: string },
+	): Promise<void>;
+
 	// ============================================================
 	// Session Message History Methods
 	// ============================================================
@@ -320,6 +326,18 @@ export class SettingsService implements ISettingsAccess {
 		patch: Partial<Omit<SavedSessionInfo, "sessionId" | "createdAt">>,
 	): Promise<void> {
 		return this.sessionStorage.updateSession(sessionId, patch);
+	}
+
+	async setSessionPinned(
+		sessionId: string,
+		pinned: boolean,
+		createIfMissing?: { agentId: string; cwd: string; title?: string },
+	): Promise<void> {
+		return this.sessionStorage.setSessionPinned(
+			sessionId,
+			pinned,
+			createIfMissing,
+		);
 	}
 
 	async saveSessionMessages(
