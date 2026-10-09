@@ -65,40 +65,70 @@ Obsidian plugin for AI agent interaction (Claude Code, Codex, Gemini CLI, Mistra
 
 ## Expected behavior & test baseline
 
-You talk to one ACP agent from either a docked chat or a floating chat. Each chat owns one ACP client, keyed by its view id (`AcpClientPool`). `ChatViewRegistry` tracks which chats are open and which one is focused. Docked and floating chats must behave the same; only the window chrome differs.
+Each chat owns one ACP client, keyed by view id (`AcpClientPool`). `ChatViewRegistry` tracks which chats are open and which one is focused. Docked and floating chats must behave the same; only the window chrome differs.
 
-Moving a chat between those two places is the baseline below. **Merge PR #66 to `main` before PR #65.** #66 lands this section and the functional tests. #65 rebases afterward, ships the placement UI, and should unskip the host cases and extend this section.
+Functional tests live in `test/functional/*.test.ts`. They wire real services (pool, registry, session storage, permission manager, ACP handler, harness open plan) under Vitest and the Obsidian stub. They do not boot Obsidian or spawn an ACP agent. Unit tests still cover one helper at a time. CI job `lint-test-build` runs `npm run lint`, `npm test`, and `npm run build`.
 
-After #65 merges, update this section with the header, drag, and command path, and unskip `ChatPlacementHost` in `test/functional/chat-placement-continuity.test.ts`.
+```bash
+npm test -- test/functional
+```
+
+**#66** is on `main` (float/dock harness). **#65** rebases afterward, ships placement UI, and should unskip `ChatPlacementHost` in `test/functional/chat-placement-continuity.test.ts`. **#64** (session pins) is not on `main`. Pin rows stay manual until that code lands. Do not vendor #64 or #65 into this suite.
 
 ### Tiers
 
 | Tier | Where | What it covers |
 | --- | --- | --- |
-| Functional | `test/functional/chat-placement-continuity.test.ts` | Real pool and registry across a move. The harness suite runs on `main`. The host suite stays skipped until placement ships in #65 after rebase. |
-| Unit | `test/acp-client-pool.test.ts`, `test/view-registry.test.ts`. After #65 rebases: `test/chat-placement.test.ts` | One class or a pure helper. #65's placement unit tests mock the host. |
-| Manual Obsidian | Sandbox vault `plugin-sandbox-Obsidian` | Drag onto the sidebar or editor, header buttons, Notice popups, tab chrome. |
+| Functional | `test/functional/*.test.ts` | Cross-module outcomes. Placement host suite stays skipped until #65. |
+| Unit | `test/**/*.test.ts` outside `functional/` | One class or pure helper. |
+| Manual Obsidian | Sandbox vault `plugin-sandbox-Obsidian` | Drag, Notice pixels, tab chrome, leaf ids, keychain UI, a live ACP process. |
+| Optional smoke | `npm run smoke:voice` | Gemini Live transcript. Not part of `npm test`. |
 
-```bash
-npm test -- test/functional/chat-placement-continuity.test.ts
-```
+### Critical-path matrix
 
-### Invariants
-
-| What you should see | Rule | Test in `test/functional/chat-placement-continuity.test.ts` | Tier |
+| Path | Invariant | Test | Tier |
 | --- | --- | --- | --- |
-| Dock a connected floating chat | The same ACP client, session id, in-flight turn, transcript, and draft stay. The view id is reused and the chat becomes docked. The client is not disconnected, including after the teardown grace. | `keeps the ACP client and transcript when a connected chat docks` | Functional (harness runs now; same name under the skipped host suite) |
-| Float a docked chat mid-turn | The same client stays, the chat becomes floating, and it is still sending. | `keeps the same client when a busy docked chat floats` | Functional |
-| Move a chat that has not connected | The draft, attached files, and queued send move. The destination gets a new view id and a new client that is not initialized. The old session id and transcript are not copied. The source client disconnects. | `copies the composer onto a new client when the chat is not connected` | Functional |
-| Tabbed floating window | Only the tab you move changes place. The other tab keeps its own client, session, and draft. | Sibling checks inside the two dock tests above | Functional |
-| Still connecting or authenticating | The move is refused. The chat stays where it is and the client stays up, even if the client object is already marked initialized. | `refuses to move a chat that is still connecting`; `refuses to move a chat that is still authenticating` | Functional |
-| The destination cannot open | The source chat stays on screen and the client stays connected. | `leaves the source in place when the destination cannot open` | Functional |
-| Floating chat is turned off | Float is refused. The docked chat is unchanged. | `does not float when floating chat is disabled` | Functional |
-| The chat is already docked | Dock does nothing and does not disconnect. | `ignores a dock request for a chat that is already docked` | Functional |
-| Same view id, source closes after the destination registered | `unregisterInstance` keeps the replacement. `unregister` by id would delete it. | `registry handoff` in the same file. Pool reuse by view id is `test/acp-client-pool.test.ts`. Other registry focus rules are `test/view-registry.test.ts`. | Functional, plus those unit files |
-| Drag highlight, "Dock this chat", "Float this chat" | On-screen only until #65. | After #65 rebases, drop targets are unit-tested in `test/chat-placement.test.ts`. The host wiring unskips in the functional file. | Manual now; unit and functional host suite after #65 |
+| Dock a connected floating chat | Same ACP client, session id, in-flight turn, transcript, and draft. View id reused. Client stays up after the teardown grace. | `test/functional/chat-placement-continuity.test.ts` `keeps the ACP client and transcript when a connected chat docks` | Functional |
+| Float a docked chat mid-turn | Same client, view becomes floating, still sending. | same file, `keeps the same client when a busy docked chat floats` | Functional |
+| Move a chat that has not connected | Draft, files, and queued send move. New view id and new uninitialized client. Old session and transcript are not copied. Source disconnects. | same file, `copies the composer onto a new client when the chat is not connected` | Functional |
+| Tabbed floating window | Only the moved tab changes place. The sibling keeps its client, session, and draft. | Sibling checks in the two dock tests above | Functional |
+| Still connecting or authenticating | Move refused. Client stays up, even if it is already marked initialized. | `refuses to move a chat that is still connecting`; `refuses to move a chat that is still authenticating` | Functional |
+| Destination cannot open | Source stays. Client stays connected. | `leaves the source in place when the destination cannot open` | Functional |
+| Floating chat turned off | Float refused. Docked chat unchanged. | `does not float when floating chat is disabled` | Functional |
+| Already docked | Dock is a no-op and does not disconnect. | `ignores a dock request for a chat that is already docked` | Functional |
+| Same view id, source closes after the destination registered | `unregisterInstance` keeps the replacement. `unregister` by id deletes it. | `registry handoff` in the same file | Functional |
+| New chat / switch harness | Enabled default agent. A disabled stored default falls back. A disabled agent still resolves for an open session. The next chat starts disconnected with no session id. | `test/functional/session-lifecycle.test.ts` | Functional |
+| API key at spawn | Secret id attaches `ANTHROPIC_API_KEY` intent. Empty id or blank secret does not export the var. | same file | Functional |
+| Saved mode and model | Restored on the client before the session is treated as ready. Unknown values are not sent. | same file | Functional |
+| Send after connect | One auth method retries once. Two methods ask the user. An empty response is success. | same file | Functional |
+| Two open chats | Each view id has its own client. Focusing one does not disconnect the other. Grace teardown disconnects only the closed id. Remount inside the grace window keeps the client. | `test/functional/multi-view-isolation.test.ts` | Functional |
+| Pending prompt bus | A prompt drains only into the view that registered that id. `clear()` drops anything not yet delivered. | same file | Functional |
+| Unread, busy, broadcast | Focusing a chat clears only that chat's unread flag. Busy count and `toType` follow each view. | same file | Functional |
+| Composer queue | FIFO while connecting, mid-turn, or restoring. Error blocks flush. A chip cancelled after take is not sent. | `test/functional/composer-send-pipeline.test.ts` | Functional |
+| Composer vs permission | An active permission on the transcript blocks flush. Clearing it sends the queued text. | same file | Functional |
+| History restore | A different harness restarts, then loads that session's transcript. The same harness only restores. | `test/functional/session-history-restore.test.ts` | Functional |
+| History list | Local rows from another harness appear. Titles prefer local metadata. The next activity write heals `agentId`. | same file | Functional |
+| Index cap vs clear | LRU eviction drops the index row and keeps the transcript file. History clear deletes the index row and the file. | same file | Functional |
+| Embedded block | Newest `embedId` wins across agents. Renaming does not change `updatedAt` or which session is newest. | same file | Functional |
+| Streaming transcript | User, thought, and answer chunks merge. Tool updates do not duplicate the call. Nested text stays on the parent tool. Another session id and `usage_update` do not change the transcript. The file reloads the same tool status. Saved title wins. | `test/functional/message-stream-persist.test.ts` | Functional |
+| Permission queue | First request is the banner. Responding activates the next and keeps the composer blocked until the queue is empty. | `test/functional/permission-queue.test.ts` | Functional |
+| Auto-allow and cancel | Auto-allow resolves with no banner. Cancel resolves every pending request and clears the banner. | same file | Functional |
+| Permission for another session | The tool call is not shown on this transcript, so the composer is not blocked. Cancel still settles the hidden request. | same file | Functional |
+| Harness spawn plan | A missing Cursor absolute path becomes `agent`. `CURSOR_API_KEY` is injected from the secret id. | `test/functional/harness-spawn-plan.test.ts` | Functional |
+| Cursor session open | A key skips authenticate. An auth failure after that defers to `HarnessAuthRequiredError` and does not authenticate again. No key and no trusted login authenticates, then opens. | same file | Functional |
+| Claude session open | No authenticate step. | same file | Functional |
+| Custom agent and spawn failure | Custom command and env pass through with no API-key intent. `openHarnessSession` rejects an unknown id. A missing Cursor CLI is retitled `Cursor CLI Not Found`. | same file | Functional |
+| Drag, "Dock this chat", "Float this chat", Notice pixels | On-screen until #65. Drop-target helpers land in `test/chat-placement.test.ts` when that branch rebases. Host wiring unskips in the placement functional file. | — | Manual |
+| `ChatPlacementHost` | Same move outcomes through the production host. | Skipped suite in `chat-placement-continuity.test.ts` until #65 | Manual until #65 |
+| Pin persistence | `savedSessions.pinned`, skip LRU, skip history clear, hold-to-close, cold restore. Field is not on `main`. | — | Manual until #64 |
+| Live ACP process | Real spawn, stdin/stdout, agent transcript. | — | Manual |
+| Frame batching and React unmount | Merge result and pool grace are functional. Per-frame RAF timing and a real chat unmount are not. | — | Manual |
+| Leaf id, tab chrome, chips, settings toggles | Workspace leaf vs `viewId`, glyphs, chip pixels, settings controls. | — | Manual |
+| Keychain UI and voice | Secret picker. `npm run smoke:voice` for Gemini Live. | — | Manual |
 
-The skipped suite title is: `ChatPlacementHost wired to the real pool and registry — enabled when placement ships in #65 after rebase`.
+The skipped placement suite title is: `ChatPlacementHost wired to the real pool and registry — enabled when placement ships in #65 after rebase`.
+
+After #65 merges, unskip that suite and move the drag/header row to Functional or Unit as the new tests allow. After #64 merges, add a functional row for pin skip-LRU and skip-clear if those rules are in services, and leave hold-to-close on the manual row.
 
 ## Architecture
 
