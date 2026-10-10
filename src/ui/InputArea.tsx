@@ -857,12 +857,6 @@ export function InputArea({
 		const voiceInput = plugin.voiceInput;
 		if (!voiceInput) return;
 		if (voiceInput.isListening || isVoiceListening) return;
-		if (!isSessionReady) {
-			new Notice(
-				"[Agent Client] Wait for the agent session to be ready before using voice input.",
-			);
-			return;
-		}
 
 		const acc = voiceAccumulatorRef.current;
 		acc.begin(inputValue);
@@ -895,7 +889,6 @@ export function InputArea({
 		plugin,
 		inputValue,
 		onInputChange,
-		isSessionReady,
 		isVoiceListening,
 		presenceLatch,
 		finishVoiceListeningUi,
@@ -1273,7 +1266,7 @@ export function InputArea({
 							audioLevel={audioLevel}
 							onStart={handleStartVoice}
 							onStop={() => void stopVoiceListening()}
-							disabled={!isSessionReady || isRestoringSession}
+							disabled={isRestoringSession}
 						/>
 					)}
 					<div className="agent-client-textarea-wrapper">

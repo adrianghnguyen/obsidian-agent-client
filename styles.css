@@ -1898,10 +1898,7 @@ If your plugin does not need CSS, delete this file.
 	cursor: pointer;
 	transition: background-color 0.1s ease;
 	height: 20px;
-	max-width: 120px;
-	min-width: 0;
-	flex-shrink: 1;
-	overflow: hidden;
+	flex-shrink: 0;
 }
 
 .agent-client-toolbar-dropdown:hover {
@@ -1916,14 +1913,10 @@ If your plugin does not need CSS, delete this file.
 
 .agent-client-toolbar-dropdown-label-area {
 	display: grid;
-	max-width: 100px;
-	overflow: hidden;
 }
 
 .agent-client-toolbar-dropdown-label-area > * {
 	grid-area: 1 / 1;
-	overflow: hidden;
-	text-overflow: ellipsis;
 	white-space: nowrap;
 	text-align: left;
 	font-size: 11px;

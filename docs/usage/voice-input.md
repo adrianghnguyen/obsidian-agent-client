@@ -14,6 +14,8 @@ Voice input uses Google's Gemini Live API, so it needs a Google AI Studio API ke
 
 A microphone button then appears on the chat input for every chat variant (sidebar, floating, and embedded). While listening, the button shows a live level wave; click **Stop** to finish dictation.
 
+Dictation works while the agent is still connecting. If you send before the harness is ready, the message joins the same queued-send strip as a typed prompt and goes out when the session is ready.
+
 ## Choosing a microphone
 
 **Settings → Voice input → Microphone** lists your audio inputs. Pick the one you want to dictate with, or leave **System default** to follow the operating system.

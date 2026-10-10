@@ -10,6 +10,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 - **Harness boot timer** — While a new chat or floating window is waiting for the agent harness to connect, the empty chat area shows a live elapsed timer (for example `Connecting to Cursor... (0:12)`), which disappears as soon as the session is ready.
 
 ### Changed
+- **Voice input while the agent connects** — You can start dictation before the harness session is ready; sending dictated text uses the same queued-send strip as typing until the agent is connected.
+- **Composer toolbar pills size to their labels** — Model, mode, and other bottom-right dropdown pills no longer clip at a fixed width; each pill grows to fit the longest option label so the full name stays visible.
 - **Context chips size to their content** — File/context chips no longer clip at a fixed width; each chip grows to fit its name, and a truncated chip exposes the full name on hover.
 - **No more dead space below a response** — The idle "thinking" indicator no longer reserves a blank strip under the latest message, so the conversation ends snugly against the composer instead of leaving a gap.
 
