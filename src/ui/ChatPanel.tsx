@@ -22,6 +22,7 @@ import { useHistoryModal } from "../hooks/useHistoryModal";
 import { useChatActions } from "../hooks/useChatActions";
 import { ChangeDirectoryModal } from "./ChangeDirectoryModal";
 import { addRenameSessionMenuItem } from "./EditTitleModal";
+import { addPinSessionMenuItem } from "./pin-session-menu";
 
 // Service imports
 import { getLogger } from "../utils/logger";
@@ -74,6 +75,12 @@ import {
 	wasComposerSendCancelled,
 	type QueuedComposerSend,
 } from "../services/composer-send-queue";
+import {
+	peekLivePlacement,
+	peekPlacementHandoff,
+	releasePlacementHandoff,
+	type ChatPlacementSnapshot,
+} from "../services/chat-placement";
 
 /** Stable empty array for useSuggestions when no commands available */
 const EMPTY_COMMANDS: SlashCommand[] = [];
@@ -106,6 +113,10 @@ export interface ChatPanelCallbacks {
 	sendMessage: () => Promise<boolean>;
 	cancelOperation: () => Promise<void>;
 	openSessionHistory: () => void;
+	/** Snapshot used to dock or float this chat without dropping the session. */
+	capturePlacement?: () => ChatPlacementSnapshot;
+	/** Skip disconnect when this panel unmounts because the chat is moving. */
+	armPreserveOnUnmount?: () => void;
 }
 
 // ============================================================================
@@ -117,6 +128,8 @@ export interface ChatPanelProps {
 	viewId: string;
 	workingDirectory?: string;
 	initialAgentId?: string;
+	/** Restore this history session after the harness is ready. */
+	initialRestoreSessionId?: string;
 	config?: {
 		agent?: string;
 		model?: string;
@@ -153,6 +166,11 @@ export interface ChatPanelProps {
 	viewHost?: IChatViewHost;
 	/** External container element for focus tracking (floating uses parent's container) */
 	containerEl?: HTMLElement | null;
+	/**
+	 * One-shot key for a move that starts a fresh client (chat was not
+	 * connected yet). Live moves reuse viewId and do not need this.
+	 */
+	freshPlacementKey?: string;
 }
 
 // ============================================================================
@@ -196,8 +214,7 @@ function selectChatPanelSettings(s: AgentClientPluginSettings) {
 		displaySettings: {
 			fontSize: s.displaySettings.fontSize,
 			traceVerbosity: s.displaySettings.traceVerbosity,
-			toolCallFailureAnalysis:
-				s.displaySettings.toolCallFailureAnalysis,
+			toolCallFailureAnalysis: s.displaySettings.toolCallFailureAnalysis,
 		},
 	};
 }
@@ -290,6 +307,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 	viewId,
 	workingDirectory,
 	initialAgentId,
+	initialRestoreSessionId,
 	config,
 	embeddedConfig,
 	onRegisterCallbacks,
@@ -303,6 +321,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 	onFloatingHeaderMouseDown,
 	viewHost: viewHostProp,
 	containerEl: containerElProp,
+	freshPlacementKey,
 }: ChatPanelProps) {
 	// ============================================================
 	// Platform Check
@@ -333,9 +352,22 @@ export const ChatPanel = React.memo(function ChatPanel({
 		return process.cwd();
 	}, [plugin, workingDirectory]);
 
+	// A dock/float move stashes the live session under this view id before mount.
+	const [adoptedPlacement] = useState(() => {
+		const live = peekLivePlacement(viewId);
+		if (live) return live;
+		if (freshPlacementKey) return peekPlacementHandoff(freshPlacementKey);
+		return null;
+	});
+	const reuseLiveClient =
+		adoptedPlacement?.reuseClient === true &&
+		adoptedPlacement.sourceViewId === viewId;
+
 	// Agent working directory — defaults to vault path.
 	// Can be changed independently via "New chat in directory..." action.
-	const [agentCwd, setAgentCwd] = useState(vaultPath);
+	const [agentCwd, setAgentCwd] = useState(
+		() => adoptedPlacement?.cwd ?? vaultPath,
+	);
 
 	// ============================================================
 	// Custom Hooks
@@ -352,6 +384,13 @@ export const ChatPanel = React.memo(function ChatPanel({
 		vaultService,
 		agentCwd,
 		initialAgentId,
+		reuseLiveClient && adoptedPlacement
+			? {
+					session: adoptedPlacement.session,
+					messages: adoptedPlacement.messages,
+					isSending: adoptedPlacement.isSending,
+				}
+			: null,
 	);
 
 	const {
@@ -447,16 +486,24 @@ export const ChatPanel = React.memo(function ChatPanel({
 	const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
 
 	// Input state (for broadcast commands)
-	const [inputValue, setInputValue] = useState("");
-	const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+	const [inputValue, setInputValue] = useState(
+		() => adoptedPlacement?.input?.text ?? "",
+	);
+	const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>(
+		() => adoptedPlacement?.input?.files ?? [],
+	);
 
 	// Composer submits waiting for harness ready / turn idle (FIFO)
-	const [queuedSends, setQueuedSends] = useState<QueuedComposerSend[]>([]);
+	const [queuedSends, setQueuedSends] = useState<QueuedComposerSend[]>(
+		() => adoptedPlacement?.queuedSends ?? [],
+	);
 	const queuedSendsRef = useRef<QueuedComposerSend[]>([]);
 	queuedSendsRef.current = queuedSends;
 	const flushingQueuedSendRef = useRef(false);
 	const cancelledQueuedSendIdsRef = useRef(new Set<string>());
 	const persistRestoreAttemptedRef = useRef(false);
+	const pinRestoreAttemptedRef = useRef(false);
+	const pinRestartedRef = useRef(false);
 	// Tracks whether we've already re-spawned the agent to match a saved
 	// conversation before restoring it (prevents a restart loop).
 	const persistRestartedRef = useRef(false);
@@ -704,6 +751,11 @@ export const ChatPanel = React.memo(function ChatPanel({
 					"New session",
 			);
 
+			addPinSessionMenuItem(menu, plugin, session.sessionId, {
+				agentId: session.agentId,
+				cwd: agentCwd,
+			});
+
 			menu.addItem((item: MenuItem) => {
 				item.setTitle("Open new view")
 					.setIcon("copy-plus")
@@ -713,6 +765,16 @@ export const ChatPanel = React.memo(function ChatPanel({
 						);
 					});
 			});
+
+			if (plugin.isFloatingChatEnabled()) {
+				menu.addItem((item: MenuItem) => {
+					item.setTitle("Float this chat")
+						.setIcon("app-window")
+						.onClick(() => {
+							void plugin.floatChat(viewId);
+						});
+				});
+			}
 
 			menu.addItem((item: MenuItem) => {
 				item.setTitle("Restart agent")
@@ -759,6 +821,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 		},
 		[
 			session.sessionId,
+			session.agentId,
 			handleNewChatWithPersist,
 			handleOpenHistory,
 			handleExportChat,
@@ -767,6 +830,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			agentCwd,
 			handleNewChatInDirectory,
 			handleOpenSettings,
+			viewId,
 		],
 	);
 
@@ -810,6 +874,11 @@ export const ChatPanel = React.memo(function ChatPanel({
 					"New session",
 			);
 
+			addPinSessionMenuItem(menu, plugin, session.sessionId, {
+				agentId: session.agentId,
+				cwd: agentCwd,
+			});
+
 			if (onOpenNewWindow) {
 				menu.addItem((item: MenuItem) => {
 					item.setTitle("Open new floating chat")
@@ -819,6 +888,14 @@ export const ChatPanel = React.memo(function ChatPanel({
 						});
 				});
 			}
+
+			menu.addItem((item: MenuItem) => {
+				item.setTitle("Dock this chat")
+					.setIcon("panel-right")
+					.onClick(() => {
+						void plugin.dockChat(viewId);
+					});
+			});
 
 			menu.addItem((item: MenuItem) => {
 				item.setTitle("Restart agent")
@@ -873,6 +950,10 @@ export const ChatPanel = React.memo(function ChatPanel({
 			handleNewChatInDirectory,
 			handleOpenSettings,
 			session.sessionId,
+			session.agentId,
+			plugin,
+			agentCwd,
+			viewId,
 		],
 	);
 
@@ -938,6 +1019,12 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// ============================================================
 	// Initialize session on mount
 	useEffect(() => {
+		if (adoptedPlacement) {
+			releasePlacementHandoff(adoptedPlacement.sourceViewId);
+		}
+	}, [adoptedPlacement]);
+
+	useEffect(() => {
 		// Only an explicit directive — the embedded config pin or the view
 		// state's initialAgentId — may re-run init after mount, and only
 		// when it names a different agent than the one this effect last
@@ -949,6 +1036,14 @@ export const ChatPanel = React.memo(function ChatPanel({
 		// directive comparison still covers the fallback-mount path: a late
 		// setState delivering the id the default already resolved to
 		// compares equal to lastInitAgentRef and is skipped.
+		if (reuseLiveClient) {
+			if (!hasInitializedRef.current) {
+				hasInitializedRef.current = true;
+				lastInitAgentRef.current =
+					adoptedPlacement?.session.agentId ?? "";
+			}
+			return;
+		}
 		const directive = config?.agent || initialAgentId;
 		if (
 			hasInitializedRef.current &&
@@ -963,7 +1058,13 @@ export const ChatPanel = React.memo(function ChatPanel({
 		lastInitAgentRef.current = resolvedAgent;
 		logger.log("[Debug] Starting connection setup via useSession...");
 		void agent.createSession(resolvedAgent);
-	}, [agent.createSession, config?.agent, initialAgentId]);
+	}, [
+		agent.createSession,
+		config?.agent,
+		initialAgentId,
+		reuseLiveClient,
+		adoptedPlacement?.session.agentId,
+	]);
 
 	useEffect(() => {
 		if (variant !== "embedded") return;
@@ -1027,6 +1128,58 @@ export const ChatPanel = React.memo(function ChatPanel({
 		agent.restartSession,
 	]);
 
+	useEffect(() => {
+		if (!initialRestoreSessionId) return;
+		if (!session.agentId) return;
+		if (session.state === "initializing") return;
+		// Pinned cold-open must restore local transcript even when spawn fails
+		// (no live sessionId yet). Normal path waits for ready.
+		const connectSettled =
+			isSessionReady || session.state === "error";
+		if (!connectSettled) return;
+		if (pinRestoreAttemptedRef.current) return;
+
+		const savedSession = plugin.settingsService
+			.getSavedSessions()
+			.find((s) => s.sessionId === initialRestoreSessionId);
+		if (
+			!savedSession ||
+			(isSessionReady &&
+				session.sessionId &&
+				savedSession.sessionId === session.sessionId)
+		) {
+			pinRestoreAttemptedRef.current = true;
+			return;
+		}
+
+		const restorePlan = planHistoryRestore(savedSession, session.agentId);
+		if (
+			restorePlan.action === "restart-then-restore" &&
+			!pinRestartedRef.current
+		) {
+			pinRestartedRef.current = true;
+			setAgentCwd(savedSession.cwd);
+			void agent.restartSession(restorePlan.agentId, restorePlan.cwd);
+			return;
+		}
+
+		pinRestoreAttemptedRef.current = true;
+		setAgentCwd(savedSession.cwd);
+		void sessionHistory.restoreSession(
+			savedSession.sessionId,
+			savedSession.cwd,
+		);
+	}, [
+		initialRestoreSessionId,
+		isSessionReady,
+		session.sessionId,
+		session.agentId,
+		session.state,
+		sessionHistory.restoreSession,
+		plugin.settingsService,
+		agent.restartSession,
+	]);
+
 	// Apply configured model (a select config option with category "model")
 	// when session is ready.
 	useEffect(() => {
@@ -1083,8 +1236,20 @@ export const ChatPanel = React.memo(function ChatPanel({
 	saveSessionMessagesRef.current = sessionHistory.saveSessionMessages;
 
 	// Cleanup on unmount only - auto-export and close session
+	const preserveOnUnmountRef = useRef(false);
+	const agentCwdRef = useRef(agentCwd);
+	agentCwdRef.current = agentCwd;
+	const queuedSendsSnapshotRef = useRef(queuedSends);
+	queuedSendsSnapshotRef.current = queuedSends;
+
 	useEffect(() => {
 		return () => {
+			if (preserveOnUnmountRef.current) {
+				logger.log(
+					"[ChatPanel] Handoff: keeping the live session connected",
+				);
+				return;
+			}
 			logger.log("[ChatPanel] Cleanup: auto-export and close session");
 			// Flush trailing-chunk content the debounced save may not have
 			// persisted yet (view closed within the debounce window). Only when a
@@ -1148,8 +1313,19 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// freshly loaded/replayed messages are never re-saved (which would bump
 	// updatedAt and corrupt "last used" ordering). (#320 review)
 	useEffect(() => {
+		// A live dock/float already has a transcript. Keep the trailing save
+		// armed so quitting before the next turn still writes it. A plain
+		// load/replay must stay disarmed so it does not bump "last used".
+		if (
+			reuseLiveClient &&
+			adoptedPlacement &&
+			adoptedPlacement.messages.length > 0
+		) {
+			sentThisSessionRef.current = true;
+			return;
+		}
 		sentThisSessionRef.current = false;
-	}, [session.sessionId]);
+	}, [session.sessionId, reuseLiveClient, adoptedPlacement]);
 
 	useEffect(() => {
 		const wasSending = prevIsSendingRef.current;
@@ -1184,8 +1360,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			// opening it) clears the flag again.
 			const registry = plugin.viewRegistry;
 			const isActiveAndForeground =
-				registry.getFocusedId() === viewId &&
-				activeDocument.hasFocus();
+				registry.getFocusedId() === viewId && activeDocument.hasFocus();
 			if (!isActiveAndForeground) {
 				registry.markUnread(viewId);
 			}
@@ -1339,7 +1514,8 @@ export const ChatPanel = React.memo(function ChatPanel({
 	sessionModesRef.current = session.modes;
 	sessionConfigOptionsRef.current = session.configOptions;
 	attachActiveNoteRef.current = attachActiveNote;
-	setActiveNoteOverrideRef.current = suggestions.mentions.setActiveNoteOverride;
+	setActiveNoteOverrideRef.current =
+		suggestions.mentions.setActiveNoteOverride;
 
 	useEffect(() => {
 		const workspace = plugin.app.workspace;
@@ -1453,12 +1629,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 				workspace.offref(ref);
 			}
 		};
-	}, [
-		plugin.app.workspace,
-		plugin.lastActiveChatViewId,
-		viewId,
-		variant,
-	]);
+	}, [plugin.app.workspace, plugin.lastActiveChatViewId, viewId, variant]);
 
 	// Deterministic prompt delivery: register a handler the plugin invokes
 	// directly (or that drains a queued prompt) instead of a timed workspace
@@ -1664,6 +1835,35 @@ export const ChatPanel = React.memo(function ChatPanel({
 			openSessionHistory: () => {
 				handleOpenHistoryRef.current();
 			},
+			capturePlacement: () => {
+				const state = sessionStateRef.current;
+				const blockedReason =
+					state === "initializing" || state === "authenticating"
+						? "[Agent Client] Wait for this chat to finish connecting before moving it."
+						: null;
+				const current = sessionRef.current;
+				return {
+					sourceViewId: viewId,
+					reuseClient: !blockedReason && acpClient.isInitialized(),
+					agentId: current.agentId,
+					cwd: agentCwdRef.current,
+					session: { ...current },
+					messages: messagesRef.current.slice(),
+					isSending: isSendingRef.current,
+					input: {
+						text: inputValueRef.current,
+						files: attachedFilesRef.current.slice(),
+					},
+					queuedSends: queuedSendsSnapshotRef.current.map((item) => ({
+						...item,
+						files: item.files.slice(),
+					})),
+					blockedReason,
+				};
+			},
+			armPreserveOnUnmount: () => {
+				preserveOnUnmountRef.current = true;
+			},
 		});
 	}, [onRegisterCallbacks, activeAgentLabel]);
 
@@ -1692,6 +1892,14 @@ export const ChatPanel = React.memo(function ChatPanel({
 				onExportChat={() => void handleExportChat()}
 				onShowMenu={handleShowSidebarMenu}
 				onOpenHistory={handleOpenHistory}
+				onFloatChat={
+					plugin.isFloatingChatEnabled()
+						? () => {
+								void plugin.floatChat(viewId);
+							}
+						: undefined
+				}
+				placementViewId={viewId}
 			/>
 		) : variant === "floating" ? (
 			// Floating variant always shows the agent selector (no agent pinning).
@@ -1706,6 +1914,10 @@ export const ChatPanel = React.memo(function ChatPanel({
 				onMinimize={onMinimize}
 				onClose={onClose}
 				hideWindowControls={floatingWindowControlsInTabBar}
+				onDockChat={() => {
+					void plugin.dockChat(viewId);
+				}}
+				placementViewId={viewId}
 			/>
 		) : (
 			// Embedded variant: hide the agent selector when the block pins an

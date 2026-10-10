@@ -53,6 +53,16 @@ Default: **Off**.
 
 Floating chat works through the command palette / hotkeys only — no floating button and no status-bar icon.
 
+## Dock and float
+
+Each chat can switch between a floating window and a docked workspace tab. The move is per chat: other floating tabs stay where they are, and the conversation keeps its agent connection.
+
+- **Dock this chat** — header button on a floating chat, or **More → Dock this chat**. The chat opens where new chats open (Settings → Chat view location), unless you drag it.
+- **Float this chat** — header button on a docked chat, or **More → Float this chat**. With floating tabs enabled, it becomes a tab in the existing floating window.
+- **Drag** — drag a floating tab onto the left sidebar, right sidebar, or editor to dock that tab there. Drag the docked chat's float button onto a floating window to float it. The outline shows a valid drop target. Workspace tab rearranging stays with Obsidian.
+
+Commands: **Dock floating chat** and **Float chat view** act on the focused chat.
+
 ## Moving and Resizing
 
 - **Drag** the header bar (or the tab bar in tabs mode) to move the window
@@ -90,7 +100,9 @@ The focused floating window is always displayed in front of other floating windo
 Enable **Enable floating chat tabs** under **Settings → Agent Client → Floating chat** to keep multiple independent chats in **one** floating window.
 
 - **"Open new floating chat view"** and the header **⋮** menu add a **tab** to the existing window (or create the window if none exists)
-- Use the tab strip to switch chats; **+** (right of the tabs) opens a new tab; **×** on a tab closes that chat
+- Use the tab strip to switch chats; **+** (right of the tabs) opens a new tab; **×** on an unpinned tab closes that chat
+- **Pin** a session (header **⋮** → Pin session, or Session History) to reopen it on the next harness start. A pin icon appears on the tab. Hold the pinned tab (or its ×) until it arms, then release to close it for this run — the pin stays
+- You can pin as many tabs as you want, including several on the same agent
 - Header close closes the **active** tab; closing the last tab closes the window
 - Minimize hides the whole window while preserving every tab’s session
 

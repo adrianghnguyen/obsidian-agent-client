@@ -46,7 +46,10 @@ import {
 	resolveFloatingIdleOpacityPercent,
 	needsFloatingIdleOpacityMigration,
 } from "./services/settings-normalizer";
-import { parseTraceVerbosity, parseToolCallFailureAnalysis } from "./services/trace-verbosity";
+import {
+	parseTraceVerbosity,
+	parseToolCallFailureAnalysis,
+} from "./services/trace-verbosity";
 import { parseFloatingNoteContextMode } from "./services/floating-note-context";
 import {
 	createAppLocalStorageAccess,
@@ -56,7 +59,10 @@ import {
 	type FloatingWindowLocalLayout,
 	type FloatingWindowLocalStorageAccess,
 } from "./services/floating-window-local-storage";
-import { PRESET_AGENTS, DEFAULT_PRESET_AGENT_ID } from "./services/preset-agents";
+import {
+	PRESET_AGENTS,
+	DEFAULT_PRESET_AGENT_ID,
+} from "./services/preset-agents";
 import { VoiceInputModule } from "./voice-input/VoiceInputModule";
 import type { VoiceInputSettings } from "./voice-input/VoiceInputSettings";
 import { normalizeVoiceInputSettings } from "./voice-input/VoiceInputSettings";
@@ -103,9 +109,15 @@ import { DEFAULT_SETTINGS } from "./services/default-settings";
 import { checkPluginForUpdates } from "./services/plugin-update-checker";
 import { AgentBlockProcessor } from "./services/agent-block-processor";
 import { FloatingChatHost } from "./services/floating-chat-host";
+import { ChatPlacementHost } from "./services/chat-placement-host";
+import type { PlacementOpenTarget } from "./services/chat-placement";
 import { ChatLeafHost } from "./services/chat-leaf";
 import { registerSessionScopedCommands } from "./commands/register-plugin-commands";
 import type { SavedSessionInfo } from "./types/session";
+import {
+	pinnedSessionsForRestore,
+	selectPinnedSessionsToOpen,
+} from "./services/session-history-pin";
 import { initializeLogger, getLogger } from "./utils/logger";
 
 // Re-export for backward compatibility
@@ -125,6 +137,8 @@ export default class AgentClientPlugin extends Plugin {
 
 	/** Registry for all chat view containers (sidebar + floating) */
 	viewRegistry = new ChatViewRegistry();
+
+	private claimedPinnedRestores = new Set<string>();
 
 	/** Per-view AcpClient pool with embedded remount grace teardown */
 	private acpClientPool = new AcpClientPool<AcpClient>({
@@ -146,6 +160,22 @@ export default class AgentClientPlugin extends Plugin {
 	private floatingChatHost = new FloatingChatHost(this);
 	/** Workspace leaf / ChatView activation helpers */
 	private chatLeaf = new ChatLeafHost(this);
+	/** Dock a floating chat or float a docked chat, including drag-and-drop. */
+	private placementHost = new ChatPlacementHost({
+		getView: (viewId) => this.viewRegistry.get(viewId) ?? null,
+		isFloatingEnabled: () => this.isFloatingChatEnabled(),
+		notice: (message) => {
+			new Notice(message);
+		},
+		openSidebar: (snapshot, target) =>
+			this.chatLeaf.openAdoptedChat(snapshot, target),
+		openFloating: (snapshot) => {
+			const opened = this.floatingChatHost.openAdoptedFloating(snapshot);
+			if (!opened) {
+				throw new Error("Floating chat did not open");
+			}
+		},
+	});
 	/** Floating button container (independent from chat view instances) */
 	private floatingButton: FloatingButtonContainer | null = null;
 	/** Status-bar entry for floating chat (Session Manager hover popover) */
@@ -162,10 +192,7 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	saveFloatingWindowLocalLayout(layout: FloatingWindowLocalLayout): void {
-		writeFloatingWindowLocalLayout(
-			this.floatingWindowLocalStorage,
-			layout,
-		);
+		writeFloatingWindowLocalLayout(this.floatingWindowLocalStorage, layout);
 	}
 
 	private migrateFloatingWindowLayoutToLocalStorage(
@@ -312,6 +339,29 @@ export default class AgentClientPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "dock-floating-chat",
+			name: "Dock floating chat",
+			checkCallback: (checking) => {
+				const focused = this.viewRegistry.getFocused();
+				if (!(focused && focused.viewType === "floating")) return false;
+				if (checking) return true;
+				void this.dockChat(focused.viewId);
+			},
+		});
+
+		this.addCommand({
+			id: "float-chat-view",
+			name: "Float chat view",
+			checkCallback: (checking) => {
+				if (!this.isFloatingChatEnabled()) return false;
+				const focused = this.viewRegistry.getFocused();
+				if (!(focused && focused.viewType === "sidebar")) return false;
+				if (checking) return true;
+				void this.floatChat(focused.viewId);
+			},
+		});
+
+		this.addCommand({
 			id: "close-floating-chat-view",
 			name: "Close floating chat view",
 			checkCallback: (checking) => {
@@ -341,10 +391,13 @@ export default class AgentClientPlugin extends Plugin {
 		this.floatingChatStatusBar = new FloatingChatStatusBar(this);
 		this.floatingChatStatusBar.mount();
 
-		// Mount initial floating chat instance only if enabled
-		if (this.isFloatingChatEnabled()) {
-			this.openNewFloatingChat();
-		}
+		this.app.workspace.onLayoutReady(() => {
+			this.restorePinnedSessions();
+		});
+
+		this.placementHost.installDragListeners(
+			this.app.workspace.containerEl.doc,
+		);
 
 		// Clean up all ACP sessions when Obsidian quits
 		// Note: We don't wait for disconnect to complete to avoid blocking quit
@@ -383,6 +436,8 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	onunload() {
+		this.placementHost.uninstallDragListeners();
+
 		// Flush layout before tearing down React roots
 		this.flushFloatingWindowLayouts();
 
@@ -496,11 +551,59 @@ export default class AgentClientPlugin extends Plugin {
 	async openNewChatViewWithAgent(
 		agentId: string,
 		locationOverride?: "right-pane",
+		restoreSessionId?: string,
 	): Promise<string | null> {
 		return this.chatLeaf.openNewChatViewWithAgent(
 			agentId,
 			locationOverride,
+			restoreSessionId,
 		);
+	}
+
+	/**
+	 * Reopen every pinned history thread that is not already open.
+	 * Floating chat (when enabled) gets one tab per pin; otherwise sidebar views.
+	 * Explicit New chat / + still start blank.
+	 */
+	restorePinnedSessions(): void {
+		const pinned = pinnedSessionsForRestore(
+			this.settings.savedSessions ?? [],
+		);
+		const openIds = new Set<string>();
+		for (const view of this.viewRegistry.getSnapshot().views) {
+			const id = view.getSessionId();
+			if (id) openIds.add(id);
+		}
+		for (const id of this.claimedPinnedRestores) openIds.add(id);
+		const toOpen = selectPinnedSessionsToOpen(pinned, openIds);
+
+		if (this.isFloatingChatEnabled()) {
+			if (toOpen.length === 0) {
+				if (this.getFloatingChatInstances().length === 0) {
+					this.openNewFloatingChat();
+				}
+				return;
+			}
+			for (const saved of toOpen) {
+				this.claimedPinnedRestores.add(saved.sessionId);
+				this.openNewFloatingChat(
+					true,
+					undefined,
+					saved.agentId,
+					saved.sessionId,
+				);
+			}
+			return;
+		}
+
+		for (const saved of toOpen) {
+			this.claimedPinnedRestores.add(saved.sessionId);
+			void this.openNewChatViewWithAgent(
+				saved.agentId,
+				undefined,
+				saved.sessionId,
+			);
+		}
 	}
 
 	/** Open a new floating chat window (or tab when tabs mode is enabled). */
@@ -508,11 +611,13 @@ export default class AgentClientPlugin extends Plugin {
 		initialExpanded = false,
 		initialPosition?: { x: number; y: number },
 		initialAgentId?: string,
+		restoreSessionId?: string,
 	): IChatViewContainer | null {
 		return this.floatingChatHost.openNewFloatingChat(
 			initialExpanded,
 			initialPosition,
 			initialAgentId,
+			restoreSessionId,
 		);
 	}
 
@@ -567,6 +672,19 @@ export default class AgentClientPlugin extends Plugin {
 	/** Expand a specific floating chat window. */
 	expandFloatingChat(viewId: string): void {
 		this.floatingChatHost.expandFloatingChat(viewId);
+	}
+
+	/** Move one floating chat into a docked workspace leaf. */
+	dockChat(
+		viewId: string,
+		target: PlacementOpenTarget = "default",
+	): Promise<boolean> {
+		return this.placementHost.dock(viewId, target);
+	}
+
+	/** Move one docked chat into a floating window or tab. */
+	floatChat(viewId: string): Promise<boolean> {
+		return this.placementHost.float(viewId);
 	}
 
 	/**
@@ -958,10 +1076,7 @@ export default class AgentClientPlugin extends Plugin {
 		);
 		const syncable: AgentClientPluginSettings = {
 			...settingsForSyncedHarnessCommands(
-				settingsForSyncedSave(
-					this.settings,
-					this.syncedDefaultAgentId,
-				),
+				settingsForSyncedSave(this.settings, this.syncedDefaultAgentId),
 			),
 			voiceInput: voiceInputSettingsForSyncedSave(
 				this.settings.voiceInput,

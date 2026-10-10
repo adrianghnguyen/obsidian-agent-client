@@ -10,6 +10,11 @@ import type AgentClientPlugin from "../plugin";
 import { ChatView, VIEW_TYPE_CHAT } from "../ui/ChatView";
 import { VIEW_TYPE_SESSION_MANAGER } from "../ui/SessionManagerView";
 import { getLogger } from "../utils/logger";
+import {
+	armNextSidebarAdoption,
+	disarmNextSidebarAdoption,
+	type PlacementOpenTarget,
+} from "./chat-placement";
 
 export class ChatLeafHost {
 	constructor(private readonly plugin: AgentClientPlugin) {}
@@ -167,6 +172,7 @@ export class ChatLeafHost {
 	async openNewChatViewWithAgent(
 		agentId: string,
 		locationOverride?: "right-pane",
+		restoreSessionId?: string,
 	): Promise<string | null> {
 		const leaf =
 			locationOverride === "right-pane"
@@ -180,7 +186,7 @@ export class ChatLeafHost {
 		await leaf.setViewState({
 			type: VIEW_TYPE_CHAT,
 			active: true,
-			state: { initialAgentId: agentId },
+			state: { initialAgentId: agentId, restoreSessionId },
 		});
 
 		await this.plugin.app.workspace.revealLeaf(leaf);
@@ -200,5 +206,53 @@ export class ChatLeafHost {
 			}, 0);
 		}
 		return viewId;
+	}
+
+	/**
+	 * Open a docked chat that continues a floating chat.
+	 * Live moves reuse the floating view id so the ACP client stays attached.
+	 */
+	async openAdoptedChat(
+		snapshot: {
+			sourceViewId: string;
+			reuseClient: boolean;
+			agentId: string;
+		},
+		target: PlacementOpenTarget,
+	): Promise<void> {
+		const { workspace } = this.plugin.app;
+		let leaf: WorkspaceLeaf | null;
+		if (target === "left" || target === "right") {
+			leaf = this.createSidebarTab(target);
+		} else if (target === "editor") {
+			leaf = workspace.getLeaf("tab");
+		} else {
+			leaf = this.createNewChatLeaf(true);
+		}
+		if (!leaf) {
+			throw new Error("Failed to create a docked chat leaf");
+		}
+
+		if (snapshot.reuseClient) {
+			armNextSidebarAdoption(snapshot.sourceViewId);
+		}
+		try {
+			await leaf.setViewState({
+				type: VIEW_TYPE_CHAT,
+				active: true,
+				state: {
+					initialAgentId: snapshot.agentId,
+					placementKey: snapshot.reuseClient
+						? undefined
+						: snapshot.sourceViewId,
+				},
+			});
+		} catch (error) {
+			if (snapshot.reuseClient) disarmNextSidebarAdoption();
+			throw error;
+		}
+
+		await workspace.revealLeaf(leaf);
+		this.focusTextarea(leaf);
 	}
 }

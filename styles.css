@@ -125,7 +125,12 @@ If your plugin does not need CSS, delete this file.
 .agent-client-session-status-icon.is-unread svg {
 	color: var(--color-blue, var(--text-accent));
 	filter: drop-shadow(
-		0 0 4px color-mix(in srgb, var(--color-blue, var(--text-accent)) 70%, transparent)
+		0 0 4px
+			color-mix(
+				in srgb,
+				var(--color-blue, var(--text-accent)) 70%,
+				transparent
+			)
 	);
 	animation: agent-client-unread-glow 1.8s ease-in-out infinite;
 }
@@ -2896,6 +2901,19 @@ If your plugin does not need CSS, delete this file.
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.agent-client-session-history-item-pin {
+	flex-shrink: 0;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--text-muted);
+	padding: 1px 6px;
+	border-radius: 4px;
+	background: var(--background-modifier-hover);
 }
 
 .agent-client-session-history-item-metadata {
@@ -3417,8 +3435,12 @@ If your plugin does not need CSS, delete this file.
 	border-bottom: none;
 	color: var(--text-muted);
 	font-size: 12px;
-	cursor: pointer;
+	cursor: grab;
 	background: transparent;
+}
+
+.agent-client-floating-tab:active {
+	cursor: grabbing;
 }
 
 .agent-client-floating-tab:hover {
@@ -3437,12 +3459,52 @@ If your plugin does not need CSS, delete this file.
 	color: var(--color-blue, var(--text-accent));
 }
 
+.agent-client-floating-tab.is-pinned {
+	padding-left: 8px;
+}
+
+.agent-client-floating-tab.is-armed,
+.agent-client-floating-tab-close.is-armed {
+	color: var(--text-error, var(--color-red, #e04646));
+}
+
+.agent-client-floating-tab-pin {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 12px;
+	height: 12px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.agent-client-floating-tab-pin svg {
+	width: 12px;
+	height: 12px;
+}
+
 .agent-client-floating-tab-label {
 	flex: 1;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.agent-client-placement-drag-handle {
+	cursor: grab;
+}
+
+.agent-client-placement-drag-handle:active {
+	cursor: grabbing;
+}
+
+.agent-client-placement-drop-target {
+	box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+
+body.agent-client-placement-dragging-floating .agent-client-floating-view-root {
+	pointer-events: none;
 }
 
 .agent-client-floating-tab-close {
@@ -3692,7 +3754,12 @@ If your plugin does not need CSS, delete this file.
 	.agent-client-floating-status-bar-icon
 	svg {
 	filter: drop-shadow(
-		0 0 4px color-mix(in srgb, var(--color-blue, var(--text-accent)) 70%, transparent)
+		0 0 4px
+			color-mix(
+				in srgb,
+				var(--color-blue, var(--text-accent)) 70%,
+				transparent
+			)
 	);
 	animation: agent-client-unread-glow 1.8s ease-in-out infinite;
 }
@@ -3701,12 +3768,22 @@ If your plugin does not need CSS, delete this file.
 	0%,
 	100% {
 		filter: drop-shadow(
-			0 0 2px color-mix(in srgb, var(--color-blue, var(--text-accent)) 45%, transparent)
+			0 0 2px
+				color-mix(
+					in srgb,
+					var(--color-blue, var(--text-accent)) 45%,
+					transparent
+				)
 		);
 	}
 	50% {
 		filter: drop-shadow(
-			0 0 6px color-mix(in srgb, var(--color-blue, var(--text-accent)) 85%, transparent)
+			0 0 6px
+				color-mix(
+					in srgb,
+					var(--color-blue, var(--text-accent)) 85%,
+					transparent
+				)
 		);
 	}
 }

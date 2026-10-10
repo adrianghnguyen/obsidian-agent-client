@@ -103,6 +103,8 @@ export class AcpClient {
 
 	// Prompt state (reset per sendPrompt)
 	private recentStderr = "";
+	/** In-flight session/prompt, so a dock/float handoff can finish the turn. */
+	private inflightPrompt: Promise<void> | null = null;
 
 	private logger: Logger;
 
@@ -640,9 +642,28 @@ export class AcpClient {
 	}
 
 	/**
+	 * Promise for the prompt currently waiting on the agent, if any.
+	 * Cleared when that prompt settles.
+	 */
+	getInflightPrompt(): Promise<void> | null {
+		return this.inflightPrompt;
+	}
+
+	/**
 	 * Send a message to the agent in a specific session.
 	 */
-	async sendPrompt(
+	sendPrompt(sessionId: string, content: PromptContent[]): Promise<void> {
+		const run = this.sendPromptUntracked(sessionId, content);
+		const tracked = run.finally(() => {
+			if (this.inflightPrompt === tracked) {
+				this.inflightPrompt = null;
+			}
+		});
+		this.inflightPrompt = tracked;
+		return tracked;
+	}
+
+	private async sendPromptUntracked(
 		sessionId: string,
 		content: PromptContent[],
 	): Promise<void> {

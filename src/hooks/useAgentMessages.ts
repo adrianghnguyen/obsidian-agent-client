@@ -113,17 +113,49 @@ export function useAgentMessages(
 	vaultAccess: IVaultAccess & IMentionService & IWikilinkResolver,
 	session: ChatSession,
 	setErrorInfo: (error: ErrorInfo | null, agentId?: string) => void,
+	hydration?: { messages: ChatMessage[]; isSending: boolean } | null,
 ): UseAgentMessagesReturn {
 	// ============================================================
 	// Message State
 	// ============================================================
 
-	const [messages, setMessages] = useState<ChatMessage[]>([]);
-	const [isSending, setIsSending] = useState(false);
+	const [messages, setMessages] = useState<ChatMessage[]>(
+		() => hydration?.messages ?? [],
+	);
+	const [isSending, setIsSending] = useState(
+		() => hydration?.isSending ?? false,
+	);
 	const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
 
 	// Tool call index: toolCallId → message index for O(1) lookup
 	const toolCallIndexRef = useRef<Map<string, number>>(new Map());
+	const toolIndexReadyRef = useRef(false);
+	if (!toolIndexReadyRef.current) {
+		toolIndexReadyRef.current = true;
+		if (messages.length > 0) {
+			rebuildToolCallIndex(messages, toolCallIndexRef.current);
+		}
+	}
+
+	const watchInflightRef = useRef(hydration?.isSending === true);
+	useEffect(() => {
+		if (!watchInflightRef.current) return;
+		const inflight = agentClient.getInflightPrompt();
+		if (!inflight) {
+			setIsSending(false);
+			return;
+		}
+		let cancelled = false;
+		void inflight.finally(() => {
+			if (!cancelled) {
+				setIsSending(false);
+				setLastUserMessage(null);
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [agentClient]);
 
 	// Ignore updates flag (used during session/load to skip history replay)
 	const ignoreUpdatesRef = useRef(false);
@@ -294,7 +326,8 @@ export function useAgentMessages(
 				setErrorInfo(
 					{
 						title: "Cannot Send Message",
-						message: "No active session. Please wait for connection.",
+						message:
+							"No active session. Please wait for connection.",
 					},
 					session.agentId,
 				);
@@ -304,7 +337,11 @@ export function useAgentMessages(
 			// Wait for any in-flight send to settle (e.g. after cancel/stop)
 			// before starting a new one to avoid interleaved state updates.
 			if (sendPromiseRef.current) {
-				try { await sendPromiseRef.current; } catch { /* ignore */ }
+				try {
+					await sendPromiseRef.current;
+				} catch {
+					/* ignore */
+				}
 			}
 
 			const currentSessionId = session.sessionId;

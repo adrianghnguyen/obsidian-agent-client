@@ -34,6 +34,13 @@ import type {
 	SessionModeState,
 	SessionConfigOption,
 } from "../types/session";
+
+/** Live session copied across a dock/float move. */
+export interface AgentPlacementHydration {
+	session: ChatSession;
+	messages: ChatMessage[];
+	isSending: boolean;
+}
 import type { AgentDisplayInfo } from "../services/session-helpers";
 
 /**
@@ -109,6 +116,7 @@ export interface UseAgentReturn {
  * @param vaultAccess - Vault access for reading notes (also serves as IMentionService)
  * @param workingDirectory - Working directory for the session
  * @param initialAgentId - Optional initial agent ID (from view persistence)
+ * @param hydration - Adopt an already-connected session instead of spawning one
  */
 export function useAgent(
 	agentClient: AcpClient,
@@ -116,6 +124,7 @@ export function useAgent(
 	vaultAccess: IVaultAccess & IMentionService & IWikilinkResolver,
 	workingDirectory: string,
 	initialAgentId?: string,
+	hydration?: AgentPlacementHydration | null,
 ): UseAgentReturn {
 	// ============================================================
 	// Shared Error State
@@ -144,6 +153,7 @@ export function useAgent(
 		workingDirectory,
 		setErrorInfo,
 		initialAgentId,
+		hydration?.session,
 	);
 
 	const agentMessages = useAgentMessages(
@@ -152,6 +162,12 @@ export function useAgent(
 		vaultAccess,
 		agentSession.session,
 		setErrorInfo,
+		hydration
+			? {
+					messages: hydration.messages,
+					isSending: hydration.isSending,
+				}
+			: null,
 	);
 
 	addMessageRef.current = agentMessages.addMessage;

@@ -20,15 +20,24 @@ Depending on the agent's capabilities, you can perform the following actions:
 
 | Action | Description |
 |--------|-------------|
+| **Pin / Unpin** | Keep a thread so it reopens on the next harness start even if you closed the tab. You can pin as many sessions as you want. Pinned rows stay at the top of the list |
 | **Edit title** | Rename the session from the history modal |
 | **Restore** | Resume the session on the harness that created it |
 | **Fork** | Create a new branch from that point in the conversation |
 | **Delete** | Remove one session from local history |
-| **Clear session history** | Delete local sessions **older than** a chosen age (dropdown: older than 15 minutes, 1 hour, 7 days, or all time). Confirms first; wipes across **all harnesses**. |
+| **Clear session history** | Delete **unpinned** local sessions **older than** a chosen age (dropdown: older than 15 minutes, 1 hour, 7 days, or all time). Confirms first; wipes across **all harnesses**. Pinned sessions are kept |
 
 ::: tip
 Fork still depends on the live agent's capabilities. Restore uses the saved harness and local transcripts when ACP load is unavailable.
 :::
+
+## Pinned sessions
+
+Pin any conversation from Session History (pin icon), the chat **⋮** menu, or the Session Manager. Closing the tab does **not** unpin it. The next time that harness starts (plugin reload, Obsidian restart, or opening chat when those threads are not already open), every pinned session comes back as its own tab.
+
+**New chat**, **+**, and **Open new view** still start a blank session.
+
+Pinned tabs in floating chat cannot be closed with a tap on × or a middle-click. Hold the tab until it arms (~800ms), then release to close. Unpin is a separate action.
 
 ## Session Storage
 

@@ -69,6 +69,16 @@ describe("ChatViewRegistry", () => {
 		expect(b.onActivate).toHaveBeenCalledTimes(1);
 	});
 
+	it("unregisterInstance ignores a view that no longer owns the id", () => {
+		const source = makeView("same");
+		const destination = makeView("same");
+		registry.register(source);
+		registry.register(destination);
+		registry.unregisterInstance(source);
+		expect(registry.get("same")).toBe(destination);
+		expect(source.onDeactivate).not.toHaveBeenCalled();
+	});
+
 	it("nulls focus when the last view unregisters", () => {
 		const a = makeView("a");
 		registry.register(a);

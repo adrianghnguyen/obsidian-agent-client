@@ -185,6 +185,12 @@ export interface UseSessionHistoryReturn {
 		sessionCwd: string,
 	) => Promise<void>;
 
+	setSessionPinned: (
+		sessionId: string,
+		pinned: boolean,
+		sessionCwd: string,
+	) => Promise<void>;
+
 	/**
 	 * Save session metadata locally.
 	 * Called when the first message is sent in a new session.
@@ -326,7 +332,8 @@ export function useSessionHistory(
 						(s, i) =>
 							s.title === prev[i].title &&
 							s.agentId === prev[i].agentId &&
-							s.agentDisplayName === prev[i].agentDisplayName,
+							s.agentDisplayName === prev[i].agentDisplayName &&
+							s.pinned === prev[i].pinned,
 					);
 				return unchanged ? prev : merged;
 			});
@@ -812,6 +819,46 @@ export function useSessionHistory(
 		[settingsAccess, session.agentId, invalidateCache],
 	);
 
+	const setSessionPinned = useCallback(
+		async (sessionId: string, pinned: boolean, sessionCwd: string) => {
+			const previous = settingsAccess
+				.getSavedSessions()
+				.find((s) => s.sessionId === sessionId)?.pinned;
+
+			setSessions((prev) =>
+				prev.map((s) =>
+					s.sessionId === sessionId ? { ...s, pinned } : s,
+				),
+			);
+
+			try {
+				await settingsAccess.setSessionPinned(
+					sessionId,
+					pinned,
+					session.agentId
+						? {
+								agentId: session.agentId,
+								cwd: sessionCwd,
+							}
+						: undefined,
+				);
+				invalidateCache();
+			} catch (err) {
+				setSessions((prev) =>
+					prev.map((s) =>
+						s.sessionId === sessionId
+							? { ...s, pinned: previous }
+							: s,
+					),
+				);
+				const errorMessage = extractErrorMessage(err);
+				setError(`Failed to ${pinned ? "pin" : "unpin"} session: ${errorMessage}`);
+				throw err;
+			}
+		},
+		[settingsAccess, session.agentId, invalidateCache],
+	);
+
 	/**
 	 * Save session metadata locally.
 	 * Called when the first message is sent in a new session.
@@ -901,6 +948,7 @@ export function useSessionHistory(
 			deleteSession,
 			clearSessionsInRange,
 			updateSessionTitle,
+			setSessionPinned,
 			saveSessionLocally,
 			saveSessionMessages,
 			invalidateCache,
@@ -922,6 +970,7 @@ export function useSessionHistory(
 			deleteSession,
 			clearSessionsInRange,
 			updateSessionTitle,
+			setSessionPinned,
 			saveSessionLocally,
 			saveSessionMessages,
 			invalidateCache,

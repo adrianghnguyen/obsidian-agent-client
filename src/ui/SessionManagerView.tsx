@@ -10,6 +10,7 @@ import type {
 	SessionStatus,
 } from "../services/view-registry";
 import { addRenameSessionMenuItem } from "./EditTitleModal";
+import { addPinSessionMenuItem } from "./pin-session-menu";
 import { useSettings } from "../hooks/useSettings";
 import { SessionStatusIcon } from "./shared/SessionStatusIcon";
 
@@ -62,6 +63,8 @@ const SessionItem = React.memo(function SessionItem({
 				view.getSessionTitle(),
 				{ label: "Rename" },
 			);
+
+			addPinSessionMenuItem(menu, plugin, view.getSessionId());
 
 			// Embedded chats are owned by their host note's code block and
 			// cannot be closed from the session list; omit the Close action.

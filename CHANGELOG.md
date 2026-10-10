@@ -4,10 +4,20 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.30.0-rc.1
+
+### Added
+- **Pin session threads** — Pin any number of conversations from Session History, the chat ⋮ menu, or the Session Manager. Pinned threads reopen automatically the next time that harness starts, even if you closed the tab. New chat / + still start a blank session. Pinned rows stay at the top of history and are skipped by clear/eviction.
+- **Hold to close a pinned tab** — A short click or middle-click no longer closes a pinned floating-chat tab. Hold the tab (about a second) until it arms, then release.
+- **Dock and float a chat** — Each chat can move between a floating window and a docked workspace tab without dropping the live session. Use **Dock this chat** on a floating chat, or **Float this chat** on a docked chat (header button or More menu), or the command palette entries **Dock floating chat** and **Float chat view**. Drag a floating tab, or the dock button, onto the sidebar or editor to dock it. Drag the docked chat's float button onto a floating window to float it. In a tabbed floating window, only the tab you move changes place. A connected session keeps the same agent process; moves are blocked while a chat is still connecting or authenticating.
+
+## 0.29.0
+
 ### Added
 - **Jump to top of the latest message** — When the latest message is long enough that its start has scrolled out of view, a "Jump to top" pill sits front and center at the bottom of the conversation (styled like the composer's context chips); click it to scroll back to the beginning of that message. It shows for any long latest message — streaming or finished — and fades once you've scrolled away from the bottom. Works the same in sidebar, floating, and embedded chats.
 - **@-mentioned files as context chips** — Files you reference with `@[[note]]` in the composer now appear in the context chip row next to attached files, so every referenced file is visible at a glance. Each chip's × removes that mention, and hovering a chip reveals the full file name.
 - **Harness boot timer** — While a new chat or floating window is waiting for the agent harness to connect, the empty chat area shows a live elapsed timer (for example `Connecting to Cursor... (0:12)`), which disappears as soon as the session is ready.
+- **Status bar spinner while agents work** — When **Floating chat → Status bar** is enabled, the robot icon becomes a spinning loader whenever any open session is sending or loading history, so in-progress work is obvious at a glance (separate from the blue unread tint when a reply is waiting).
 
 ### Changed
 - **Voice input while the agent connects** — You can start dictation before the harness session is ready; sending dictated text uses the same queued-send strip as typing until the agent is connected.

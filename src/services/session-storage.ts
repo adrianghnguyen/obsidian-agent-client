@@ -80,15 +80,18 @@ function evictLeastRecentlyUsed(
 	cap: number,
 ): void {
 	while (sessions.length > cap) {
-		let oldest = 0;
-		for (let i = 1; i < sessions.length; i++) {
+		let oldest = -1;
+		for (let i = 0; i < sessions.length; i++) {
+			if (sessions[i].pinned) continue;
 			if (
+				oldest < 0 ||
 				new Date(sessions[i].updatedAt).getTime() <
-				new Date(sessions[oldest].updatedAt).getTime()
+					new Date(sessions[oldest].updatedAt).getTime()
 			) {
 				oldest = i;
 			}
 		}
+		if (oldest < 0) break;
 		sessions.splice(oldest, 1);
 	}
 }
@@ -148,7 +151,12 @@ export class SessionStorage {
 			);
 
 			if (existingIndex >= 0) {
-				sessions[existingIndex] = sessionInfo;
+				const existing = sessions[existingIndex];
+				sessions[existingIndex] = {
+					...existing,
+					...sessionInfo,
+					pinned: sessionInfo.pinned ?? existing.pinned,
+				};
 			} else {
 				sessions.unshift(sessionInfo);
 				evictLeastRecentlyUsed(sessions, MAX_SAVED_SESSIONS);
@@ -318,6 +326,46 @@ export class SessionStorage {
 	 * `updatedAt` is set to now unless explicitly provided in `patch`.
 	 * Prefer including `agentId` on activity bumps so legacy rows heal.
 	 */
+	/**
+	 * Pin or unpin a saved session without treating it as activity
+	 * (`updatedAt` is unchanged). Creates a row when `createIfMissing` is set.
+	 */
+	async setSessionPinned(
+		sessionId: string,
+		pinned: boolean,
+		createIfMissing?: { agentId: string; cwd: string; title?: string },
+	): Promise<void> {
+		this.sessionLock = this.sessionLock.then(async () => {
+			const state = this.settingsAccess.getSnapshot();
+			const sessions = [...(state.savedSessions || [])];
+			const idx = sessions.findIndex((s) => s.sessionId === sessionId);
+			if (idx >= 0) {
+				sessions[idx] = {
+					...sessions[idx],
+					...(pinned ? { pinned: true } : { pinned: undefined }),
+				};
+				if (!pinned) delete sessions[idx].pinned;
+			} else if (createIfMissing && pinned) {
+				const now = new Date().toISOString();
+				sessions.unshift({
+					sessionId,
+					agentId: createIfMissing.agentId,
+					cwd: createIfMissing.cwd,
+					title: createIfMissing.title,
+					createdAt: now,
+					updatedAt: now,
+					pinned: true,
+				});
+			} else {
+				return;
+			}
+			await this.settingsAccess.updateSettings({
+				savedSessions: sessions,
+			});
+		});
+		await this.sessionLock;
+	}
+
 	async updateSession(
 		sessionId: string,
 		patch: Partial<Omit<SavedSessionInfo, "sessionId" | "createdAt">>,
