@@ -1911,6 +1911,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 				isUpdateAvailable={isUpdateAvailable}
 				onAgentChange={(agentId) => void handleSwitchAgent(agentId)}
 				onShowMenu={handleShowFloatingMenu}
+				onOpenHistory={handleOpenHistory}
 				onMinimize={onMinimize}
 				onClose={onClose}
 				hideWindowControls={floatingWindowControlsInTabBar}

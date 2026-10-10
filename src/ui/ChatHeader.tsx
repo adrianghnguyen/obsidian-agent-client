@@ -73,6 +73,8 @@ export interface FloatingHeaderProps {
 	onDockChat?: () => void;
 	/** View id carried by the dock drag. */
 	placementViewId?: string;
+	/** Callback to open session history */
+	onOpenHistory?: () => void;
 }
 
 /**
@@ -295,6 +297,7 @@ function FloatingHeader({
 	hideWindowControls,
 	onDockChat,
 	placementViewId,
+	onOpenHistory,
 }: FloatingHeaderProps) {
 	const { plugin } = useChatContext();
 
@@ -328,6 +331,13 @@ function FloatingHeader({
 				{!hideWindowControls && (
 					<>
 						<FloatingTransparencyLockButton plugin={plugin} />
+						{onOpenHistory && (
+							<HeaderButton
+								iconName="history"
+								tooltip="Session history"
+								onClick={() => void onOpenHistory()}
+							/>
+						)}
 						<HeaderButton
 							iconName="more-vertical"
 							tooltip="More"

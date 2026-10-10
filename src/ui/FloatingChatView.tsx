@@ -3,7 +3,7 @@ const { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } =
 	React;
 import { useSyncExternalStore } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { setIcon } from "obsidian";
+import { Menu, setIcon } from "obsidian";
 
 import type AgentClientPlugin from "../plugin";
 import type {
@@ -37,6 +37,7 @@ import { useFloatingIdleOpacity } from "../hooks/useFloatingIdleOpacity";
 import { useLongPress } from "../hooks/useLongPress";
 import { useSettings } from "../hooks/useSettings";
 import { isSessionPinned } from "../services/session-history-pin";
+import { addPinSessionMenuItem } from "./pin-session-menu";
 import {
 	focusChatComposerTextarea,
 	queryChatComposerTextarea,
@@ -472,6 +473,19 @@ export class FloatingTabContainer implements IChatViewContainer {
 
 	getSessionId(): string | null {
 		return this.panelDelegate.getSessionId();
+	}
+
+	/** Agent/cwd for pin menu when the session is not yet in savedSessions. */
+	getPinSessionCreateIfMissing():
+		| { agentId: string; cwd: string; title?: string }
+		| undefined {
+		const snap = this.panelDelegate.capturePlacement();
+		if (!snap) return undefined;
+		return {
+			agentId: snap.agentId,
+			cwd: snap.cwd,
+			title: this.getSessionTitle(),
+		};
 	}
 
 	closeContainer(): void {
@@ -1152,21 +1166,27 @@ function FloatingTabPanel({
 }
 
 function FloatingChatTab({
+	plugin,
 	viewId,
 	label,
 	status,
 	isActive,
 	unread,
 	pinned,
+	sessionId,
+	pinCreateIfMissing,
 	onSelect,
 	onClose,
 }: {
+	plugin: AgentClientPlugin;
 	viewId: string;
 	label: string;
 	status: SessionStatus;
 	isActive: boolean;
 	unread: boolean;
 	pinned: boolean;
+	sessionId: string | null;
+	pinCreateIfMissing?: { agentId: string; cwd: string; title?: string };
 	onSelect: () => void;
 	onClose: () => void;
 }) {
@@ -1188,6 +1208,22 @@ function FloatingChatTab({
 		if (!pinned) onClose();
 	};
 
+	const handleContextMenu = useCallback(
+		(e: React.MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			const menu = new Menu();
+			addPinSessionMenuItem(
+				menu,
+				plugin,
+				sessionId,
+				pinCreateIfMissing,
+			);
+			menu.showAtPosition({ x: e.clientX, y: e.clientY });
+		},
+		[plugin, sessionId, pinCreateIfMissing],
+	);
+
 	const dockHint =
 		" Drag onto the sidebar or editor to dock.";
 	return (
@@ -1207,6 +1243,7 @@ function FloatingChatTab({
 			onPointerUp={tabPress.onPointerUp}
 			onPointerLeave={tabPress.onPointerLeave}
 			onMouseDown={handleMouseDown}
+			onContextMenu={handleContextMenu}
 			title={
 				pinned
 					? `${label} — ${sessionStatusLabel(status)} (hold to close).${dockHint}`
@@ -1317,6 +1354,16 @@ function FloatingTabbedShellComponent({
 			showMenuByTabRef.current.get(tabId)?.(e);
 		},
 		[],
+	);
+
+	const handleTabBarOpenHistory = useCallback(
+		(e: React.MouseEvent<HTMLButtonElement>) => {
+			e.stopPropagation();
+			const tabId = activeTabIdRef.current;
+			if (!tabId) return;
+			getTabContainer(tabId)?.openSessionHistory();
+		},
+		[getTabContainer],
 	);
 
 	useEffect(() => {
@@ -1527,6 +1574,7 @@ function FloatingTabbedShellComponent({
 							return (
 								<FloatingChatTab
 									key={tab.viewId}
+									plugin={plugin}
 									viewId={tab.viewId}
 									label={label}
 									status={status}
@@ -1535,6 +1583,8 @@ function FloatingTabbedShellComponent({
 										tab.viewId,
 									)}
 									pinned={pinned}
+									sessionId={sessionId ?? null}
+									pinCreateIfMissing={container?.getPinSessionCreateIfMissing()}
 									onSelect={() =>
 										handleSelectTab(tab.viewId)
 									}
@@ -1556,6 +1606,12 @@ function FloatingTabbedShellComponent({
 						<FloatingTransparencyLockButton
 							plugin={plugin}
 							className="agent-client-floating-tab-bar-action"
+						/>
+						<HeaderButton
+							iconName="history"
+							tooltip="Session history"
+							className="agent-client-floating-tab-bar-action"
+							onClick={handleTabBarOpenHistory}
 						/>
 						<HeaderButton
 							iconName="more-vertical"

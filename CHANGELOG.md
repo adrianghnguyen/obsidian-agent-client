@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+- **Pin from a floating chat tab** — Right-click a tab in a tabbed floating window for **Pin session** / **Unpin session**, with the same rules as Session History and the chat More menu (including pinning before the first message when the harness is connected).
+
 ## 0.30.0-rc.1
 
 ### Added
@@ -14,6 +17,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 ## 0.29.0
 
 ### Added
+- **Session history in floating chat header** — Floating chat (single window and tabbed window) now has a Session history control beside the transparency toggle, opening the same history modal as the sidebar (restore, fork, delete, and related actions).
 - **Jump to top of the latest message** — When the latest message is long enough that its start has scrolled out of view, a "Jump to top" pill sits front and center at the bottom of the conversation (styled like the composer's context chips); click it to scroll back to the beginning of that message. It shows for any long latest message — streaming or finished — and fades once you've scrolled away from the bottom. Works the same in sidebar, floating, and embedded chats.
 - **@-mentioned files as context chips** — Files you reference with `@[[note]]` in the composer now appear in the context chip row next to attached files, so every referenced file is visible at a glance. Each chip's × removes that mention, and hovering a chip reveals the full file name.
 - **Harness boot timer** — While a new chat or floating window is waiting for the agent harness to connect, the empty chat area shows a live elapsed timer (for example `Connecting to Cursor... (0:12)`), which disappears as soon as the session is ready.
