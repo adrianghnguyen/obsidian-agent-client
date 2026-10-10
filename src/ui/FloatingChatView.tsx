@@ -607,6 +607,9 @@ export class FloatingTabbedShell {
 				onOpenNewTab={() => {
 					this.plugin.openNewFloatingChat(true);
 				}}
+				onDockAllTabs={() => {
+					void this.dockAllTabs();
+				}}
 				onExpandedChange={(expanded) => {
 					this.isExpandedState = expanded;
 				}}
@@ -784,6 +787,15 @@ export class FloatingTabbedShell {
 	closeWindow(): void {
 		this.unmount();
 		this.plugin.clearFloatingTabbedShell(this);
+	}
+
+	/** Dock every tab in this window into the sidebar (sequential). */
+	async dockAllTabs(): Promise<void> {
+		const viewIds = [...this.tabs.keys()];
+		for (const viewId of viewIds) {
+			if (!this.tabs.has(viewId)) continue;
+			await this.plugin.dockChat(viewId);
+		}
 	}
 
 	getTabCount(): number {
@@ -1071,6 +1083,7 @@ interface FloatingTabbedShellComponentProps {
 	onCloseTab: (viewId: string) => void;
 	onCloseWindow: () => void;
 	onOpenNewTab: () => void;
+	onDockAllTabs: () => void;
 	onExpandedChange: (expanded: boolean) => void;
 	onActiveTabChange: (viewId: string | null) => void;
 	onRegisterApi: (api: FloatingTabbedShellApi) => void;
@@ -1088,6 +1101,7 @@ function FloatingTabPanel({
 	onSessionTitleChanged,
 	onRegisterShowMenu,
 	onOpenNewTab,
+	onDockAllTabs,
 	onFloatingHeaderMouseDown,
 }: {
 	plugin: AgentClientPlugin;
@@ -1103,6 +1117,7 @@ function FloatingTabPanel({
 		showMenu: ((e: React.MouseEvent<HTMLElement>) => void) | null,
 	) => void;
 	onOpenNewTab: () => void;
+	onDockAllTabs?: () => void;
 	onFloatingHeaderMouseDown: (e: React.MouseEvent) => void;
 }) {
 	const acpClient = useMemo(
@@ -1157,6 +1172,7 @@ function FloatingTabPanel({
 						onRegisterShowMenu(viewId, showMenu);
 					}}
 					onOpenNewWindow={onOpenNewTab}
+					onDockAllTabs={onDockAllTabs}
 					onFloatingHeaderMouseDown={onFloatingHeaderMouseDown}
 					containerEl={containerEl}
 				/>
@@ -1213,6 +1229,14 @@ function FloatingChatTab({
 			e.preventDefault();
 			e.stopPropagation();
 			const menu = new Menu();
+			menu.addItem((item) => {
+				item.setTitle("Dock this chat")
+					.setIcon("panel-right")
+					.onClick(() => {
+						void plugin.dockChat(viewId);
+					});
+			});
+			menu.addSeparator();
 			addPinSessionMenuItem(
 				menu,
 				plugin,
@@ -1221,7 +1245,7 @@ function FloatingChatTab({
 			);
 			menu.showAtPosition({ x: e.clientX, y: e.clientY });
 		},
-		[plugin, sessionId, pinCreateIfMissing],
+		[plugin, sessionId, pinCreateIfMissing, viewId],
 	);
 
 	const dockHint =
@@ -1290,6 +1314,7 @@ function FloatingTabbedShellComponent({
 	onCloseTab,
 	onCloseWindow,
 	onOpenNewTab,
+	onDockAllTabs,
 	onExpandedChange,
 	onActiveTabChange,
 	onRegisterApi,
@@ -1644,6 +1669,9 @@ function FloatingTabbedShellComponent({
 							}
 							onRegisterShowMenu={registerTabShowMenu}
 							onOpenNewTab={onOpenNewTab}
+							onDockAllTabs={
+								tabs.length > 1 ? onDockAllTabs : undefined
+							}
 							onFloatingHeaderMouseDown={onMouseDown}
 						/>
 					))}

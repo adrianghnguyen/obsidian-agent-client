@@ -4,8 +4,22 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.30.0-rc.2
+
 ### Added
+
+- **Dock from floating tabs** — Right-click a tab for **Dock this chat**; in a tabbed window with more than one tab, the tab bar **More** menu includes **Dock all tabs**.
 - **Pin from a floating chat tab** — Right-click a tab in a tabbed floating window for **Pin session** / **Unpin session**, with the same rules as Session History and the chat More menu (including pinning before the first message when the harness is connected).
+- **Session history on the tab bar** — Tabbed floating windows expose Session history beside transparency on the tab bar (same modal as the sidebar).
+
+### Changed
+
+- **Voice input while the agent connects** — Dictation works before the harness is ready; sends queue like typed input until the session is connected.
+- **Composer toolbar pills size to their labels** — Model/mode dropdown pills grow to fit the longest option label.
+
+### Fixed
+
+- **Drag to dock / float** — Floating chat drag-and-drop onto the sidebar or editor works reliably on Windows/Electron (pointer-events during drag, drop payload when dragend runs before drop).
 
 ## 0.30.0-rc.1
 

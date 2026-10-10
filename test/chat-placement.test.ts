@@ -7,7 +7,10 @@ import {
 	disarmNextSidebarAdoption,
 	dockTargetFromElement,
 	peekPlacementHandoff,
+	placementDragFromDataTransfer,
 	placementKeepsClient,
+	PLACEMENT_DRAG_MIME,
+	PLACEMENT_DRAG_ORIGIN_MIME,
 	releasePlacementHandoff,
 	resetPlacementStateForTests,
 	resolvePlacementDrop,
@@ -254,4 +257,19 @@ describe("chat placement", () => {
 			"[Agent Client] Couldn't move this chat.",
 		);
 	});
+
+	it("reads drag payload from dataTransfer when module state was cleared early", () => {
+		const dt = {
+			getData(type: string) {
+				if (type === PLACEMENT_DRAG_MIME) return "floating-chat-1";
+				if (type === PLACEMENT_DRAG_ORIGIN_MIME) return "floating";
+				return "";
+			},
+		} as DataTransfer;
+		expect(placementDragFromDataTransfer(dt)).toEqual({
+			viewId: "floating-chat-1",
+			origin: "floating",
+		});
+	});
+
 });

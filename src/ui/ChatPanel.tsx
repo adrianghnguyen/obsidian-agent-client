@@ -154,6 +154,8 @@ export interface ChatPanelProps {
 	onMinimize?: () => void;
 	onClose?: () => void;
 	onOpenNewWindow?: () => void;
+	/** Tabbed floating only: dock every tab in the shared window. */
+	onDockAllTabs?: () => void;
 	/** When true (tabbed floating), window chrome lives in the tab bar. */
 	floatingWindowControlsInTabBar?: boolean;
 	/** Registers the active panel's ⋮ menu handler with the tab bar shell. */
@@ -316,6 +318,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 	onMinimize,
 	onClose,
 	onOpenNewWindow,
+	onDockAllTabs,
 	floatingWindowControlsInTabBar,
 	onRegisterShowMenu,
 	onFloatingHeaderMouseDown,
@@ -897,6 +900,16 @@ export const ChatPanel = React.memo(function ChatPanel({
 					});
 			});
 
+			if (onDockAllTabs) {
+				menu.addItem((item: MenuItem) => {
+					item.setTitle("Dock all tabs")
+						.setIcon("columns")
+						.onClick(() => {
+							onDockAllTabs();
+						});
+				});
+			}
+
 			menu.addItem((item: MenuItem) => {
 				item.setTitle("Restart agent")
 					.setIcon("refresh-cw")
@@ -945,6 +958,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			handleOpenHistory,
 			handleExportChat,
 			onOpenNewWindow,
+			onDockAllTabs,
 			handleRestartAgent,
 			agentCwd,
 			handleNewChatInDirectory,

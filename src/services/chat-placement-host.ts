@@ -14,6 +14,7 @@ import {
 	getActivePlacementDrag,
 	placementHighlightSelector,
 	releasePlacementHandoff,
+	resolvePlacementDrag,
 	resolvePlacementDrop,
 	stashPlacementHandoff,
 } from "./chat-placement";
@@ -48,9 +49,16 @@ export class ChatPlacementHost {
 	private readonly onDrop = (event: Event) => {
 		this.handleDrop(event as DragEvent);
 	};
+	private readonly onDragStart = () => {
+		const drag = getActivePlacementDrag();
+		if (drag?.origin === "floating") {
+			this.installedDoc?.body.classList.add(FLOATING_DRAG_CLASS);
+		}
+	};
 	private readonly onDragEnd = () => {
 		this.clearDragChrome();
-		endPlacementDrag();
+		// Chromium may fire dragend before drop; defer clearing activeDrag.
+		setTimeout(() => endPlacementDrag(), 0);
 	};
 
 	constructor(private readonly ports: ChatPlacementPorts) {}
@@ -59,6 +67,7 @@ export class ChatPlacementHost {
 		if (this.installedDoc === doc) return;
 		this.uninstallDragListeners();
 		this.installedDoc = doc;
+		doc.addEventListener("dragstart", this.onDragStart, false);
 		doc.addEventListener("dragover", this.onDragOver, true);
 		doc.addEventListener("drop", this.onDrop, true);
 		doc.addEventListener("dragend", this.onDragEnd, true);
@@ -70,6 +79,7 @@ export class ChatPlacementHost {
 		this.installedDoc = null;
 		endPlacementDrag();
 		if (!doc) return;
+		doc.removeEventListener("dragstart", this.onDragStart, false);
 		doc.removeEventListener("dragover", this.onDragOver, true);
 		doc.removeEventListener("drop", this.onDrop, true);
 		doc.removeEventListener("dragend", this.onDragEnd, true);
@@ -136,7 +146,7 @@ export class ChatPlacementHost {
 	}
 
 	private handleDragOver(event: DragEvent): void {
-		const drag = getActivePlacementDrag();
+		const drag = resolvePlacementDrag(event.dataTransfer);
 		const target = eventTargetElement(event);
 		if (!drag || !target) {
 			this.clearDragChrome();
@@ -159,7 +169,7 @@ export class ChatPlacementHost {
 	}
 
 	private handleDrop(event: DragEvent): void {
-		const drag = getActivePlacementDrag();
+		const drag = resolvePlacementDrag(event.dataTransfer);
 		const target = eventTargetElement(event);
 		const decision =
 			drag && target ? resolvePlacementDrop(drag, target) : null;

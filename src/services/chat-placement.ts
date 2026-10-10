@@ -41,6 +41,8 @@ export type PlacementDrop =
 	| { kind: "float"; viewId: string };
 
 export const PLACEMENT_DRAG_MIME = "application/x-agent-client-chat";
+export const PLACEMENT_DRAG_ORIGIN_MIME =
+	"application/x-agent-client-chat-origin";
 
 const handoffs = new Map<string, ChatPlacementSnapshot>();
 
@@ -156,10 +158,30 @@ export function beginPlacementDrag(
 	dataTransfer.effectAllowed = "move";
 	try {
 		dataTransfer.setData(PLACEMENT_DRAG_MIME, payload.viewId);
+		dataTransfer.setData(PLACEMENT_DRAG_ORIGIN_MIME, payload.origin);
 		dataTransfer.setData("text/plain", payload.viewId);
 	} catch {
 		// Some drag sources reject setData outside dragstart.
 	}
+}
+
+export function placementDragFromDataTransfer(
+	dataTransfer: DataTransfer | null,
+): PlacementDragPayload | null {
+	if (!dataTransfer) return null;
+	const viewId =
+		dataTransfer.getData(PLACEMENT_DRAG_MIME) ||
+		dataTransfer.getData("text/plain");
+	if (!viewId) return null;
+	const originRaw = dataTransfer.getData(PLACEMENT_DRAG_ORIGIN_MIME);
+	if (originRaw !== "sidebar" && originRaw !== "floating") return null;
+	return { viewId, origin: originRaw };
+}
+
+export function resolvePlacementDrag(
+	dataTransfer: DataTransfer | null,
+): PlacementDragPayload | null {
+	return getActivePlacementDrag() ?? placementDragFromDataTransfer(dataTransfer);
 }
 
 export function getActivePlacementDrag(): PlacementDragPayload | null {
