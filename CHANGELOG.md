@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.30.0-rc.3
+
 ### Added
 
 - **Fork from any message** — Hover a chat message and click the branch icon to open a new sibling chat with the transcript up to that point. The original conversation stays open so you can keep going there and take a different direction in the new chat.
