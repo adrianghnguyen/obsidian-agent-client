@@ -2424,27 +2424,19 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 0;
 }
 
-.agent-client-message-renderer.agent-client-message-has-copy.agent-client-message-assistant,
-.agent-client-message-renderer.agent-client-message-has-actions {
-	padding-bottom: 72px;
-}
-
+/* Action buttons are hover-only overlays — no permanent padding (avoids a tall dead band under every reply). */
 .agent-client-message-action-button:disabled {
 	opacity: 0.4;
 	cursor: default;
 }
 
-.agent-client-message-renderer.agent-client-message-assistant
-	.agent-client-message-actions {
-	bottom: 4px;
-}
-
 .agent-client-message-actions {
 	position: absolute;
-	bottom: 4px;
+	bottom: 0;
 	right: 8px;
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
+	align-items: center;
 	gap: 2px;
 	opacity: 0;
 	pointer-events: none;

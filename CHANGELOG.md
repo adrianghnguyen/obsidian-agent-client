@@ -4,6 +4,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Assistant reply action strip** — Copy, fork, and jump-to-top no longer leave a large empty gap under every response; the icons sit in one hover row at the bottom-right instead of a reserved vertical column.
+
 ## 0.30.0
 
 ### Added
