@@ -3,7 +3,10 @@ const { useRef, useState, useEffect, useCallback, useMemo } = React;
 
 import type { ChatMessage } from "../types/chat";
 import type { SessionState } from "../types/session";
-import type { ToolCallFailureAnalysis, TraceVerbosity } from "../types/settings";
+import type {
+	ToolCallFailureAnalysis,
+	TraceVerbosity,
+} from "../types/settings";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
 import type { IChatViewHost } from "./view-host";
@@ -63,6 +66,8 @@ export interface MessageListProps {
 	) => Promise<void>;
 	/** Whether a permission request is currently pending */
 	hasActivePermission: boolean;
+	/** Fork a message into a sibling chat. */
+	onForkFromMessage?: (messageId: string) => void;
 }
 
 /**
@@ -94,11 +99,10 @@ export function MessageList({
 	toolCallFailureAnalysis,
 	onApprovePermission,
 	hasActivePermission,
+	onForkFromMessage,
 }: MessageListProps) {
 	const showConnecting =
-		!isSessionReady &&
-		!isRestoringSession &&
-		sessionState !== "error";
+		!isSessionReady && !isRestoringSession && sessionState !== "error";
 	const bootElapsedMs = useHarnessBootElapsed(
 		showConnecting,
 		showConnecting ? bootStartedAtMs : null,
@@ -339,7 +343,10 @@ export function MessageList({
 	if (displayItems.length === 0) {
 		return (
 			<div className="agent-client-messages-shell">
-				<div ref={containerRef} className="agent-client-chat-view-messages">
+				<div
+					ref={containerRef}
+					className="agent-client-chat-view-messages"
+				>
 					<div className="agent-client-chat-empty-state">
 						{isRestoringSession
 							? "Restoring session..."
@@ -394,8 +401,19 @@ export function MessageList({
 										terminalClient={terminalClient}
 										sessionId={sessionId}
 										traceVerbosity={traceVerbosity}
-										toolCallFailureAnalysis={toolCallFailureAnalysis}
-										onApprovePermission={onApprovePermission}
+										toolCallFailureAnalysis={
+											toolCallFailureAnalysis
+										}
+										onApprovePermission={
+											onApprovePermission
+										}
+										onFork={onForkFromMessage}
+										streamingMessageId={
+											isSending
+												? (messages[messages.length - 1]
+														?.id ?? null)
+												: null
+										}
 									/>
 								) : (
 									<MessageBubble
@@ -404,8 +422,19 @@ export function MessageList({
 										terminalClient={terminalClient}
 										sessionId={sessionId}
 										traceVerbosity={traceVerbosity}
-										toolCallFailureAnalysis={toolCallFailureAnalysis}
-										onApprovePermission={onApprovePermission}
+										toolCallFailureAnalysis={
+											toolCallFailureAnalysis
+										}
+										onApprovePermission={
+											onApprovePermission
+										}
+										onFork={onForkFromMessage}
+										forkDisabled={
+											isSending &&
+											displayItem.message.id ===
+												messages[messages.length - 1]
+													?.id
+										}
 									/>
 								)}
 							</div>

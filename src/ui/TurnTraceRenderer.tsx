@@ -1,12 +1,19 @@
 import * as React from "react";
 const { useState } = React;
-import type { ChatMessage, MessageContent, ToolCallMessageContent } from "../types/chat";
+import type {
+	ChatMessage,
+	MessageContent,
+	ToolCallMessageContent,
+} from "../types/chat";
 import type { TraceVerbosity } from "../types/settings";
 import type { ToolCallFailureAnalysis } from "../types/settings";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
 import type { TurnSegment, ThoughtItem } from "../services/trace-turn";
-import { collectVisibleTurnRows, flattenTurnContents } from "../services/trace-turn";
+import {
+	collectVisibleTurnRows,
+	flattenTurnContents,
+} from "../services/trace-turn";
 import {
 	groupTraceContent,
 	hiddenTraceSummary,
@@ -20,7 +27,9 @@ import { LucideIcon } from "./shared/IconButton";
 import { MarkdownRenderer } from "./shared/MarkdownRenderer";
 import { CopyButton } from "./shared/CopyButton";
 import { JumpToTopButton } from "./shared/JumpToTopButton";
+import { ForkButton } from "./shared/ForkButton";
 import { hasCopyableText } from "../utils/message-copy";
+import { forkThroughMessageIdForTurn } from "../services/conversation-fork";
 import { countFailedToolCalls } from "../services/tool-call-status";
 
 interface TurnTraceRendererProps {
@@ -35,6 +44,10 @@ interface TurnTraceRendererProps {
 		requestId: string,
 		optionId: string,
 	) => Promise<void>;
+	/** Fork this turn (through its last assistant message) into a sibling chat. */
+	onFork?: (messageId: string) => void;
+	/** Message id that is still streaming, if any. */
+	streamingMessageId?: string | null;
 }
 
 function noisyKindIconName(kind: string): string {
@@ -102,7 +115,7 @@ function CollapsibleThought({
 function thoughtText(item: ThoughtItem): string {
 	if (item.type === "agent_thought") return item.text;
 	const block = item.content?.find((c) => c.type === "content");
-	return block?.type === "content" ? block.text : item.title ?? "Thinking";
+	return block?.type === "content" ? block.text : (item.title ?? "Thinking");
 }
 
 function HiddenTurnBuffer({
@@ -136,9 +149,10 @@ function HiddenTurnBuffer({
 			item.type === "tool_call" &&
 			(item.status === "in_progress" || item.status === "pending"),
 	);
-	const label = inFlight && items.length > 0
-		? "Working\u2026"
-		: hiddenTraceSummary(items);
+	const label =
+		inFlight && items.length > 0
+			? "Working\u2026"
+			: hiddenTraceSummary(items);
 	const compactGroups = groupTraceContent(items, "compact");
 
 	return (
@@ -165,7 +179,9 @@ function HiddenTurnBuffer({
 						className="agent-client-noisy-tool-group-icon"
 					/>
 				)}
-				<span className="agent-client-noisy-tool-group-title">{label}</span>
+				<span className="agent-client-noisy-tool-group-title">
+					{label}
+				</span>
 				{failedCount > 0 && (
 					<span className="agent-client-noisy-tool-group-failed">
 						{failedCount} failed
@@ -249,7 +265,9 @@ function NoisyToolGroup({
 						className="agent-client-noisy-tool-group-icon"
 					/>
 				)}
-				<span className="agent-client-noisy-tool-group-title">{label}</span>
+				<span className="agent-client-noisy-tool-group-title">
+					{label}
+				</span>
 				{failedCount > 0 && (
 					<span className="agent-client-noisy-tool-group-failed">
 						{failedCount} failed
@@ -323,7 +341,10 @@ function TraceGroupList({
 				}
 				if (group.type === "attachments") {
 					return (
-						<div key={idx} className="agent-client-message-images-strip">
+						<div
+							key={idx}
+							className="agent-client-message-images-strip"
+						>
 							{group.items.map((content, imgIdx) => (
 								<TurnContentBlock
 									key={imgIdx}
@@ -332,7 +353,9 @@ function TraceGroupList({
 									terminalClient={terminalClient}
 									sessionId={sessionId}
 									traceVerbosity={traceVerbosity}
-									toolCallFailureAnalysis={toolCallFailureAnalysis}
+									toolCallFailureAnalysis={
+										toolCallFailureAnalysis
+									}
 									onApprovePermission={onApprovePermission}
 								/>
 							))}
@@ -417,14 +440,24 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 	traceVerbosity,
 	toolCallFailureAnalysis,
 	onApprovePermission,
+	onFork,
+	streamingMessageId,
 }: TurnTraceRendererProps) {
 	const rows = collectVisibleTurnRows(segment, messages, traceVerbosity);
 	const answerContents = flattenTurnContents(segment, messages);
 	const canCopy = hasCopyableText(answerContents);
+	const forkThroughId = onFork
+		? forkThroughMessageIdForTurn(segment, messages)
+		: null;
+	const showActions = Boolean(forkThroughId) || canCopy;
+	const forkDisabled =
+		Boolean(forkThroughId) &&
+		streamingMessageId != null &&
+		forkThroughId === streamingMessageId;
 
 	return (
 		<div
-			className={`agent-client-message-renderer agent-client-message-assistant agent-client-turn-trace${canCopy ? " agent-client-message-has-copy" : ""}`}
+			className={`agent-client-message-renderer agent-client-message-assistant agent-client-turn-trace${canCopy ? " agent-client-message-has-copy" : ""}${showActions ? " agent-client-message-has-actions" : ""}`}
 		>
 			{rows.map((row, idx) => {
 				if (row.type === "hiddenBuffer") {
@@ -468,7 +501,10 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 				if (row.type === "text") {
 					return (
 						<div key={`text-${idx}`}>
-							<MarkdownRenderer text={row.content.text} plugin={plugin} />
+							<MarkdownRenderer
+								text={row.content.text}
+								plugin={plugin}
+							/>
 						</div>
 					);
 				}
@@ -516,7 +552,9 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 								terminalClient={terminalClient}
 								sessionId={sessionId}
 								traceVerbosity={traceVerbosity}
-								toolCallFailureAnalysis={toolCallFailureAnalysis}
+								toolCallFailureAnalysis={
+									toolCallFailureAnalysis
+								}
 								onApprovePermission={onApprovePermission}
 							/>
 						</div>
@@ -524,10 +562,16 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 				}
 				return null;
 			})}
-			{canCopy && (
+			{showActions && (
 				<div className="agent-client-message-actions">
 					<JumpToTopButton />
-					<CopyButton contents={answerContents} />
+					{canCopy && <CopyButton contents={answerContents} />}
+					{onFork && forkThroughId && (
+						<ForkButton
+							disabled={forkDisabled}
+							onClick={() => onFork(forkThroughId)}
+						/>
+					)}
 				</div>
 			)}
 		</div>

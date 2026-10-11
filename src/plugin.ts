@@ -13,6 +13,11 @@ import {
 	type IChatViewContainer,
 } from "./services/view-registry";
 import { PendingPrompts } from "./services/pending-prompts";
+import {
+	PendingForks,
+	type PendingForkHandler,
+	type PendingForkPayload,
+} from "./services/pending-forks";
 import { AcpClientPool } from "./services/acp-client-pool";
 import { findNearestEmbeddedChat as lookupNearestEmbeddedChat } from "./services/embedded-chat-lookup";
 import {
@@ -154,6 +159,10 @@ export default class AgentClientPlugin extends Plugin {
 	 * Pending-prompt handshake (ChatPanel register ↔ runPromptInChat deliver).
 	 */
 	private pendingPrompts = new PendingPrompts();
+	/**
+	 * Pending per-message-fork handshake (source ChatPanel ↔ sibling view).
+	 */
+	private pendingForks = new PendingForks();
 	/** Markdown agent / agent-client code block renderer */
 	private agentBlocks = new AgentBlockProcessor(this);
 	/** Floating chat window / tab orchestration */
@@ -470,6 +479,7 @@ export default class AgentClientPlugin extends Plugin {
 		void this.acpClientPool.clear();
 
 		this.pendingPrompts.clear();
+		this.pendingForks.clear();
 	}
 
 	/**
@@ -764,6 +774,22 @@ export default class AgentClientPlugin extends Plugin {
 		handler: (prompt: string, autoSend: boolean) => void,
 	): () => void {
 		return this.pendingPrompts.register(viewId, handler);
+	}
+
+	/**
+	 * Register a ChatPanel's pending-fork handler. Queued payloads drain
+	 * synchronously if the sibling panel has not mounted yet.
+	 */
+	registerPendingForkHandler(
+		viewId: string,
+		handler: PendingForkHandler,
+	): () => void {
+		return this.pendingForks.register(viewId, handler);
+	}
+
+	/** Deliver a sliced transcript to a newly opened sibling chat view. */
+	deliverPendingFork(viewId: string, payload: PendingForkPayload): void {
+		this.pendingForks.deliver(viewId, payload);
 	}
 
 	/**

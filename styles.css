@@ -2424,8 +2424,14 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 0;
 }
 
-.agent-client-message-renderer.agent-client-message-has-copy.agent-client-message-assistant {
-	padding-bottom: 44px;
+.agent-client-message-renderer.agent-client-message-has-copy.agent-client-message-assistant,
+.agent-client-message-renderer.agent-client-message-has-actions {
+	padding-bottom: 72px;
+}
+
+.agent-client-message-action-button:disabled {
+	opacity: 0.4;
+	cursor: default;
 }
 
 .agent-client-message-renderer.agent-client-message-assistant

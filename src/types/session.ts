@@ -594,6 +594,12 @@ export interface SavedSessionInfo {
 	 * its tab was closed. Any number of sessions may be pinned.
 	 */
 	pinned?: boolean;
+	/**
+	 * When true, the next prompt in this session should prepend the local
+	 * transcript as agent-only context (per-message fork into a new chat).
+	 * Cleared after a successful send.
+	 */
+	pendingForkContext?: boolean;
 }
 /**
  * Domain Models for Agent Initialization Results

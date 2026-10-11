@@ -96,6 +96,7 @@ export interface UseAgentReturn {
 		}>,
 	) => void;
 	setMessagesFromLocal: (localMessages: ChatMessage[]) => void;
+	setPendingForkContext: (pending: boolean) => void;
 	clearError: () => void;
 	setIgnoreUpdates: (ignore: boolean) => void;
 	// Permission
@@ -235,6 +236,7 @@ export function useAgent(
 			clearMessages: agentMessages.clearMessages,
 			setInitialMessages: agentMessages.setInitialMessages,
 			setMessagesFromLocal: agentMessages.setMessagesFromLocal,
+			setPendingForkContext: agentMessages.setPendingForkContext,
 			clearError: agentMessages.clearError,
 			setIgnoreUpdates: agentMessages.setIgnoreUpdates,
 
@@ -265,6 +267,7 @@ export function useAgent(
 			agentMessages.clearMessages,
 			agentMessages.setInitialMessages,
 			agentMessages.setMessagesFromLocal,
+			agentMessages.setPendingForkContext,
 			agentMessages.clearError,
 			agentMessages.setIgnoreUpdates,
 			agentMessages.activePermission,
