@@ -4,7 +4,7 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
-## 0.30.0-rc.3
+## 0.30.0
 
 ### Added
 
