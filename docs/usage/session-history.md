@@ -67,13 +67,13 @@ Use restore when you want to **continue where you left off**.
 
 ### Fork
 
-Forking creates a new session branching from a previous point:
+There are two ways to branch a conversation:
 
-1. A new session is created with a copy of the conversation up to that point
-2. The original session remains unchanged
-3. New messages go to the forked session
+**From a message** — Hover any bubble and click the branch icon (**Fork into a new chat from here**). A new sibling chat opens with the transcript through that message. The original chat stays open. The new agent session starts fresh; your first prompt in the fork includes that history as context so you can take a different direction from that point.
 
-Use fork when you want to **explore a different direction** without affecting the original conversation.
+**From Session history** — The git-branch button on a history row uses the agent's native session fork when the live agent supports it. That replaces the current chat with the new branch (the original remains in history). It copies the **whole** saved transcript, not a single message.
+
+Use either when you want to **explore a different direction** without affecting the original conversation.
 
 ## Deleting Sessions
 

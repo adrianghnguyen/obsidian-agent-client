@@ -28,6 +28,7 @@ import { PlanBlock } from "./PlanBlock";
 import { LucideIcon } from "./shared/IconButton";
 import { CopyButton } from "./shared/CopyButton";
 import { JumpToTopButton } from "./shared/JumpToTopButton";
+import { ForkButton } from "./shared/ForkButton";
 import { hasCopyableText } from "../utils/message-copy";
 
 // ---------------------------------------------------------------------------
@@ -333,6 +334,10 @@ export interface MessageBubbleProps {
 		requestId: string,
 		optionId: string,
 	) => Promise<void>;
+	/** Fork this message into a sibling chat. */
+	onFork?: (messageId: string) => void;
+	/** True while this message is still streaming. */
+	forkDisabled?: boolean;
 }
 
 function noisyKindIconName(kind: string): string {
@@ -451,12 +456,17 @@ function HiddenTraceGroup({
 									terminalClient={terminalClient}
 									sessionId={sessionId}
 									traceVerbosity="compact"
-									toolCallFailureAnalysis={toolCallFailureAnalysis}
+									toolCallFailureAnalysis={
+										toolCallFailureAnalysis
+									}
 									onApprovePermission={onApprovePermission}
 								/>
 							);
 						}
-						if (group.type === "single" && group.item.type === "agent_thought") {
+						if (
+							group.type === "single" &&
+							group.item.type === "agent_thought"
+						) {
 							return (
 								<CollapsibleThought
 									key={`thought-${gIdx}`}
@@ -466,7 +476,10 @@ function HiddenTraceGroup({
 								/>
 							);
 						}
-						if (group.type === "single" && group.item.type === "tool_call") {
+						if (
+							group.type === "single" &&
+							group.item.type === "tool_call"
+						) {
 							return (
 								<ToolCallBlock
 									key={group.item.toolCallId}
@@ -475,7 +488,9 @@ function HiddenTraceGroup({
 									terminalClient={terminalClient}
 									sessionId={sessionId}
 									traceVerbosity="compact"
-									toolCallFailureAnalysis={toolCallFailureAnalysis}
+									toolCallFailureAnalysis={
+										toolCallFailureAnalysis
+									}
 									onApprovePermission={onApprovePermission}
 								/>
 							);
@@ -568,9 +583,12 @@ export const MessageBubble = React.memo(function MessageBubble({
 	traceVerbosity,
 	toolCallFailureAnalysis,
 	onApprovePermission,
+	onFork,
+	forkDisabled,
 }: MessageBubbleProps) {
 	const groups = groupTraceContent(message.content, traceVerbosity);
 	const canCopy = hasCopyableText(message.content);
+	const showActions = Boolean(onFork) || canCopy;
 	const roleClass =
 		message.role === "user"
 			? "agent-client-message-user"
@@ -578,7 +596,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 
 	return (
 		<div
-			className={`agent-client-message-renderer ${roleClass}${canCopy ? " agent-client-message-has-copy" : ""}`}
+			className={`agent-client-message-renderer ${roleClass}${canCopy ? " agent-client-message-has-copy" : ""}${showActions ? " agent-client-message-has-actions" : ""}`}
 		>
 			{groups.map((group, idx) => {
 				if (group.type === "attachments") {
@@ -596,7 +614,9 @@ export const MessageBubble = React.memo(function MessageBubble({
 									terminalClient={terminalClient}
 									sessionId={sessionId}
 									traceVerbosity={traceVerbosity}
-									toolCallFailureAnalysis={toolCallFailureAnalysis}
+									toolCallFailureAnalysis={
+										toolCallFailureAnalysis
+									}
 									onApprovePermission={onApprovePermission}
 								/>
 							))}
@@ -651,10 +671,16 @@ export const MessageBubble = React.memo(function MessageBubble({
 					</div>
 				);
 			})}
-			{canCopy && (
+			{showActions && (
 				<div className="agent-client-message-actions">
 					{message.role === "assistant" && <JumpToTopButton />}
-					<CopyButton contents={message.content} />
+					{canCopy && <CopyButton contents={message.content} />}
+					{onFork && (
+						<ForkButton
+							disabled={forkDisabled}
+							onClick={() => onFork(message.id)}
+						/>
+					)}
 				</div>
 			)}
 		</div>

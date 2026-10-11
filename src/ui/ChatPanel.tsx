@@ -18,6 +18,12 @@ import {
 	getDefaultAgentId,
 } from "../services/session-helpers";
 import { planHistoryRestore } from "../services/session-history-restore";
+import {
+	forkSessionTitle,
+	sliceMessagesThrough,
+} from "../services/conversation-fork";
+import type { PendingForkPayload } from "../services/pending-forks";
+import { extractErrorMessage } from "../utils/error-utils";
 import { useHistoryModal } from "../hooks/useHistoryModal";
 import { useChatActions } from "../hooks/useChatActions";
 import { ChangeDirectoryModal } from "./ChangeDirectoryModal";
@@ -507,6 +513,20 @@ export const ChatPanel = React.memo(function ChatPanel({
 	const persistRestoreAttemptedRef = useRef(false);
 	const pinRestoreAttemptedRef = useRef(false);
 	const pinRestartedRef = useRef(false);
+	const [forkSeeding, setForkSeeding] = useState(false);
+	const pendingForkPayloadRef = useRef<PendingForkPayload | null>(null);
+	const forkAppliedRef = useRef(false);
+	const forkSavedRef = useRef(false);
+	const forkRestartedRef = useRef(false);
+	const forkingFromMessageRef = useRef(false);
+	const setMessagesFromLocalRef = useRef(agent.setMessagesFromLocal);
+	setMessagesFromLocalRef.current = agent.setMessagesFromLocal;
+	const setPendingForkContextRef = useRef(agent.setPendingForkContext);
+	setPendingForkContextRef.current = agent.setPendingForkContext;
+	const restartSessionRef = useRef(agent.restartSession);
+	restartSessionRef.current = agent.restartSession;
+	const invalidateHistoryRef = useRef(sessionHistory.invalidateCache);
+	invalidateHistoryRef.current = sessionHistory.invalidateCache;
 	// Tracks whether we've already re-spawned the agent to match a saved
 	// conversation before restoring it (prevents a restart loop).
 	const persistRestartedRef = useRef(false);
@@ -627,7 +647,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 		() => ({
 			isSessionReady,
 			isSending,
-			isRestoringSession: sessionHistory.loading,
+			isRestoringSession: sessionHistory.loading || forkSeeding,
 			sessionState: session.state,
 			hasActivePermission: agent.hasActivePermission,
 		}),
@@ -635,6 +655,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			isSessionReady,
 			isSending,
 			sessionHistory.loading,
+			forkSeeding,
 			session.state,
 			agent.hasActivePermission,
 		],
@@ -710,6 +731,74 @@ export const ChatPanel = React.memo(function ChatPanel({
 			agent.clearMessages,
 			agent.restartSession,
 			sessionHistory.invalidateCache,
+		],
+	);
+
+	const handleForkFromMessage = useCallback(
+		async (messageId: string) => {
+			if (forkingFromMessageRef.current) return;
+			const sliced = sliceMessagesThrough(messages, messageId);
+			if (!sliced || sliced.length === 0) {
+				new Notice("[Agent Client] Could not fork from this message");
+				return;
+			}
+			if (!session.agentId) {
+				new Notice("[Agent Client] Wait until the agent is connected");
+				return;
+			}
+
+			forkingFromMessageRef.current = true;
+			try {
+				const sourceTitle = computeSessionTitle(
+					session.sessionId,
+					settings.savedSessions ?? [],
+					messages,
+				);
+				let targetViewId: string | null = null;
+				if (variant === "floating" && plugin.isFloatingChatEnabled()) {
+					const container = plugin.openNewFloatingChat(
+						true,
+						undefined,
+						session.agentId,
+					);
+					targetViewId = container?.viewId ?? null;
+				} else {
+					targetViewId = await plugin.openNewChatViewWithAgent(
+						session.agentId,
+					);
+				}
+				if (!targetViewId) {
+					new Notice("[Agent Client] Failed to open a new chat");
+					return;
+				}
+				plugin.deliverPendingFork(targetViewId, {
+					messages: sliced,
+					agentId: session.agentId,
+					cwd: agentCwd,
+					sourceTitle,
+					throughMessageId: messageId,
+				});
+				new Notice(
+					"[Agent Client] Opened a new chat from this message",
+				);
+			} catch (error) {
+				new Notice(
+					`[Agent Client] Failed to fork: ${extractErrorMessage(error)}`,
+				);
+				logger.error("Message fork error:", error);
+			} finally {
+				forkingFromMessageRef.current = false;
+			}
+		},
+		[
+			messages,
+			session.agentId,
+			session.sessionId,
+			settings.savedSessions,
+			variant,
+			plugin,
+			agentCwd,
+			logger,
 		],
 	);
 
@@ -1148,8 +1237,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 		if (session.state === "initializing") return;
 		// Pinned cold-open must restore local transcript even when spawn fails
 		// (no live sessionId yet). Normal path waits for ready.
-		const connectSettled =
-			isSessionReady || session.state === "error";
+		const connectSettled = isSessionReady || session.state === "error";
 		if (!connectSettled) return;
 		if (pinRestoreAttemptedRef.current) return;
 
@@ -1192,6 +1280,74 @@ export const ChatPanel = React.memo(function ChatPanel({
 		sessionHistory.restoreSession,
 		plugin.settingsService,
 		agent.restartSession,
+	]);
+
+	useEffect(() => {
+		const payload = pendingForkPayloadRef.current;
+		if (!payload) {
+			if (forkSeeding) setForkSeeding(false);
+			return;
+		}
+		if (session.state === "initializing") return;
+		const connectSettled = isSessionReady || session.state === "error";
+		if (!connectSettled) return;
+
+		if (
+			payload.cwd &&
+			!isSameDirectory(payload.cwd, agentCwd) &&
+			!forkRestartedRef.current &&
+			isSessionReady
+		) {
+			forkRestartedRef.current = true;
+			setAgentCwd(payload.cwd);
+			void restartSessionRef.current(payload.agentId, payload.cwd);
+			return;
+		}
+
+		if (!forkAppliedRef.current) {
+			setMessagesFromLocalRef.current(payload.messages);
+			setPendingForkContextRef.current(true);
+			forkAppliedRef.current = true;
+		}
+
+		if (
+			!forkSavedRef.current &&
+			session.sessionId &&
+			(session.agentId || payload.agentId)
+		) {
+			forkSavedRef.current = true;
+			const now = new Date().toISOString();
+			const agentId = session.agentId || payload.agentId;
+			const sessionId = session.sessionId;
+			void plugin.settingsService
+				.saveSession({
+					sessionId,
+					agentId,
+					cwd: payload.cwd,
+					title: forkSessionTitle(payload.sourceTitle),
+					createdAt: now,
+					updatedAt: now,
+					pendingForkContext: true,
+				})
+				.then(() => {
+					void plugin.settingsService.saveSessionMessages(
+						sessionId,
+						agentId,
+						payload.messages,
+					);
+					invalidateHistoryRef.current();
+				});
+		}
+
+		setForkSeeding(false);
+	}, [
+		forkSeeding,
+		isSessionReady,
+		session.state,
+		session.sessionId,
+		session.agentId,
+		agentCwd,
+		plugin.settingsService,
 	]);
 
 	// Apply configured model (a select config option with category "model")
@@ -1650,6 +1806,16 @@ export const ChatPanel = React.memo(function ChatPanel({
 	// broadcast. setInputValue / enqueueOrSendComposerPayloadRef are stable,
 	// so [plugin, viewId] deps suffice.
 	useEffect(() => {
+		return plugin.registerPendingForkHandler(viewId, (payload) => {
+			pendingForkPayloadRef.current = payload;
+			forkAppliedRef.current = false;
+			forkSavedRef.current = false;
+			forkRestartedRef.current = false;
+			setForkSeeding(true);
+		});
+	}, [plugin, viewId]);
+
+	useEffect(() => {
 		return plugin.registerPendingPromptHandler(
 			viewId,
 			(prompt, autoSend) => {
@@ -1985,6 +2151,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			}
 			onApprovePermission={agent.approvePermission}
 			hasActivePermission={agent.hasActivePermission}
+			onForkFromMessage={handleForkFromMessage}
 		/>
 	);
 
