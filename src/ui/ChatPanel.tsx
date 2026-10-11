@@ -2151,7 +2151,9 @@ export const ChatPanel = React.memo(function ChatPanel({
 			}
 			onApprovePermission={agent.approvePermission}
 			hasActivePermission={agent.hasActivePermission}
-			onForkFromMessage={handleForkFromMessage}
+			onForkFromMessage={(messageId) => {
+				void handleForkFromMessage(messageId);
+			}}
 		/>
 	);
 

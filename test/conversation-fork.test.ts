@@ -152,10 +152,12 @@ describe("consumePendingForkContext", () => {
 			agentContent: original,
 		});
 		expect(first.injected).toBe(true);
-		expect(first.agentContent[0]).toEqual({
-			type: "text",
-			text: expect.stringContaining("User:\nprior"),
-		});
+		const firstBlock = first.agentContent[0];
+		expect(firstBlock?.type).toBe("text");
+		if (firstBlock?.type !== "text") {
+			throw new Error("expected a text prompt block");
+		}
+		expect(firstBlock.text).toContain("User:\nprior");
 		expect(first.agentContent.at(-1)).toEqual({
 			type: "text",
 			text: "next",
