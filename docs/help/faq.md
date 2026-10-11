@@ -143,11 +143,15 @@ See [Session History](/usage/session-history) for details.
 
 ### What's the difference between Restore and Fork?
 
-**Restore** continues the existing session—new messages are added to the same conversation. **Fork** creates a new session branching from that point, leaving the original session unchanged.
+**Restore** continues the existing session—new messages are added to the same conversation.
+
+**Fork from a message** (branch icon on a bubble) opens a **new** chat with the transcript through that message and leaves the original open.
+
+**Fork from Session history** (git-branch on a row) uses the agent's native session fork when available and switches the current chat to that branch.
 
 ### The modal says "This agent does not support session restoration"
 
-Not all agents support session restoration. You can still view and delete locally saved sessions, but you won't be able to restore or fork them with that agent.
+Not all agents support session restoration. You can still view and delete locally saved sessions, and you can still **fork from a message** into a sibling chat. History-row Fork stays hidden unless the live agent advertises `session/fork`.
 
 ### Are my sessions saved automatically?
 

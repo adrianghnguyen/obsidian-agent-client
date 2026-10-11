@@ -23,6 +23,7 @@ import type { ISettingsAccess } from "../services/settings-service";
 import type { ErrorInfo } from "../types/errors";
 import type { IMentionService } from "../utils/mention-parser";
 import { preparePrompt, sendPreparedPrompt } from "../services/message-sender";
+import { consumePendingForkContext } from "../services/conversation-fork";
 import { extractErrorMessage, extractErrorCode } from "../utils/error-utils";
 import {
 	enrichCursorErrorInfo,
@@ -85,6 +86,8 @@ export interface UseAgentMessagesReturn {
 		}>,
 	) => void;
 	setMessagesFromLocal: (localMessages: ChatMessage[]) => void;
+	/** Mark this session so the next successful send prepends forked history. */
+	setPendingForkContext: (pending: boolean) => void;
 	clearError: () => void;
 	setIgnoreUpdates: (ignore: boolean) => void;
 	/** Append a message to the transcript (used for Cursor connection errors). */
@@ -159,6 +162,14 @@ export function useAgentMessages(
 
 	// Ignore updates flag (used during session/load to skip history replay)
 	const ignoreUpdatesRef = useRef(false);
+	const messagesRef = useRef(messages);
+	messagesRef.current = messages;
+	/** In-memory fork-context flag so the first send can inject before save completes. */
+	const pendingForkContextRef = useRef(false);
+
+	const setPendingForkContext = useCallback((pending: boolean): void => {
+		pendingForkContextRef.current = pending;
+	}, []);
 
 	// Generation counter to prevent stale async callbacks from overwriting
 	// state after cancel/stop followed by a new send. Each sendMessage()
@@ -377,6 +388,17 @@ export function useAgentMessages(
 				vaultAccess, // IMentionService (same object)
 			);
 
+			const savedPending =
+				(settings.savedSessions ?? []).find(
+					(s) => s.sessionId === currentSessionId,
+				)?.pendingForkContext === true;
+			const forkResult = consumePendingForkContext({
+				inject: pendingForkContextRef.current || savedPending,
+				history: messagesRef.current,
+				agentContent: prepared.agentContent,
+				maxLength: settings.displaySettings.maxNoteLength,
+			});
+
 			const userMessageContent: MessageContent[] = [];
 
 			if (prepared.autoMentionContext) {
@@ -430,7 +452,7 @@ export function useAgentMessages(
 					const result = await sendPreparedPrompt(
 						{
 							sessionId: currentSessionId,
-							agentContent: prepared.agentContent,
+							agentContent: forkResult.agentContent,
 							displayContent: prepared.displayContent,
 							authMethods: session.authMethods,
 						},
@@ -443,6 +465,13 @@ export function useAgentMessages(
 					if (result.success) {
 						setIsSending(false);
 						setLastUserMessage(null);
+						if (forkResult.injected) {
+							pendingForkContextRef.current = false;
+							void settingsAccess.updateSession(
+								currentSessionId,
+								{ pendingForkContext: false },
+							);
+						}
 					} else {
 						setIsSending(false);
 						const agentSettings = findAgentSettings(
@@ -625,6 +654,7 @@ export function useAgentMessages(
 		clearMessages,
 		setInitialMessages,
 		setMessagesFromLocal,
+		setPendingForkContext,
 		clearError,
 		setIgnoreUpdates,
 		clearPendingUpdates,
