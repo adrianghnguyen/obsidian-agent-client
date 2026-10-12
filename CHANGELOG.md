@@ -2,13 +2,27 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
-## [Unreleased]
+## 0.30.0
+
+### Added
+
+- **Pin session threads** — Pin conversations from Session History, the chat ⋮ menu, the Session Manager, or a floating tab (right-click). Pinned threads reopen when that harness starts again; pinned rows stay at the top of history and survive clear/eviction. **Hold to close** a pinned floating tab (~1 s) so a stray click does not dismiss it.
+- **Dock and float a chat** — Move a live session between floating window and docked sidebar/editor tab without reconnecting. **Dock this chat** / **Float this chat** (header, More menu, or command palette), or drag a floating tab or dock button onto a target. Tabbed windows move only the tab you drag; moves block while connecting or authenticating.
+- **Dock from floating tabs** — Right-click a tab for **Dock this chat**; tab bar **More** can **Dock all tabs** when several are open.
+- **Session history on the tab bar** — Tabbed floating windows open Session history beside transparency (same modal as the sidebar).
+- **Fork from any message** — Hover a chat message and click the branch icon to open a sibling chat with the transcript up to that point; the original chat stays open.
+
+### Changed
+
+- **Voice input while the agent connects** — Dictation works before the harness is ready; sends queue like typed input until the session is connected.
+- **Composer toolbar pills size to their labels** — Model/mode dropdown pills grow to fit the longest option label.
 
 ### Fixed
 
+- **Drag to dock / float** — Floating chat drag-and-drop onto the sidebar or editor works reliably on Windows/Electron.
 - **Assistant reply action strip** — Copy, fork, and jump-to-top no longer leave a large empty gap under every response; the icons sit in one hover row at the bottom-right instead of a reserved vertical column.
 
-## 0.30.0
+## 0.30.0-rc.3
 
 ### Added
 
