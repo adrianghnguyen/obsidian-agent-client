@@ -4,10 +4,7 @@
  * Zero runtime deps — types only. Defaults live in services/default-settings.ts.
  */
 
-import type {
-	CustomAgentSettings,
-	PresetAgentUserSettings,
-} from "./agent";
+import type { CustomAgentSettings, PresetAgentUserSettings } from "./agent";
 import type { SavedSessionInfo } from "./session";
 import type { VoiceInputSettings } from "../voice-input/VoiceInputSettings";
 
@@ -146,6 +143,11 @@ export interface AgentClientPluginSettings {
 		 * counts every ACP failure.
 		 */
 		toolCallFailureAnalysis: ToolCallFailureAnalysis;
+		/**
+		 * Show a footer pill strip of `[[wikilinks]]` and edited vault files
+		 * on assistant messages.
+		 */
+		showLinkedNotesOnAssistantMessages: boolean;
 	};
 	// Locally saved session metadata (for agents without session/list support)
 	savedSessions: SavedSessionInfo[];

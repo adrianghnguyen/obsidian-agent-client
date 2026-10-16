@@ -59,6 +59,7 @@ export interface MessageListProps {
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
 	toolCallFailureAnalysis: ToolCallFailureAnalysis;
+	showLinkedNotesOnAssistantMessages: boolean;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -97,6 +98,7 @@ export function MessageList({
 	sessionId,
 	traceVerbosity,
 	toolCallFailureAnalysis,
+	showLinkedNotesOnAssistantMessages,
 	onApprovePermission,
 	hasActivePermission,
 	onForkFromMessage,
@@ -404,6 +406,9 @@ export function MessageList({
 										toolCallFailureAnalysis={
 											toolCallFailureAnalysis
 										}
+										showLinkedNotesOnAssistantMessages={
+											showLinkedNotesOnAssistantMessages
+										}
 										onApprovePermission={
 											onApprovePermission
 										}
@@ -424,6 +429,9 @@ export function MessageList({
 										traceVerbosity={traceVerbosity}
 										toolCallFailureAnalysis={
 											toolCallFailureAnalysis
+										}
+										showLinkedNotesOnAssistantMessages={
+											showLinkedNotesOnAssistantMessages
 										}
 										onApprovePermission={
 											onApprovePermission

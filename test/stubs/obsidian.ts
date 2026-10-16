@@ -80,3 +80,11 @@ export class Notice {
 export function setIcon(el: HTMLElement, icon: string): void {
 	// no-op in tests
 }
+
+/** Stand-in so `adapter instanceof FileSystemAdapter` is testable. */
+export class FileSystemAdapter {
+	constructor(private readonly basePath = "") {}
+	getBasePath(): string {
+		return this.basePath;
+	}
+}

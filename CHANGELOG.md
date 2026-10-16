@@ -2,6 +2,12 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## [Unreleased]
+
+### Added
+
+- **Linked notes on assistant messages** — A footer pill strip under assistant replies lists `[[wikilinks]]` plus files the agent edited, deleted, or moved. Click a pill to open the note. More than three files collapse behind `+N`. Turn it off in **Settings → Display → Show linked notes on assistant messages**.
+
 ## 0.30.0
 
 ### Added

@@ -79,6 +79,12 @@ Toggle it in **Settings → Agent Client → Composer → Mentions & context →
 This setting resolves `[[links]]` **inside your notes** into paths for the agent to read. The separate **Reply formatting → Wikilink formatting** setting instead asks the agent to **write** `[[Note Name]]` links in its replies. See [Prompt Injection](/usage/prompt-injection).
 :::
 
+## Linked notes on assistant messages
+
+Assistant replies show a footer row of pills for `[[wikilinks]]` in the answer and for vault files the agent **edited, deleted, or moved** (including hidden tool traces). Click a pill to open the note, the same way inline `[[wikilinks]]` work. Unresolved titles stay muted and are not clickable. When there are more than three files, `+N` expands the rest.
+
+Toggle it in **Settings → Agent Client → Display → Show linked notes on assistant messages** (on by default). The same row appears in sidebar and floating chat.
+
 ## Length Limits
 
 To prevent excessively large messages, the plugin limits the amount of content included:

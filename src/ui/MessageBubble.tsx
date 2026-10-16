@@ -30,6 +30,7 @@ import { CopyButton } from "./shared/CopyButton";
 import { JumpToTopButton } from "./shared/JumpToTopButton";
 import { ForkButton } from "./shared/ForkButton";
 import { hasCopyableText } from "../utils/message-copy";
+import { AssistantVaultRefsRow } from "./MessageVaultRefsRow";
 
 // ---------------------------------------------------------------------------
 // TextWithMentions (internal helper)
@@ -329,6 +330,7 @@ export interface MessageBubbleProps {
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
 	toolCallFailureAnalysis: ToolCallFailureAnalysis;
+	showLinkedNotesOnAssistantMessages: boolean;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -582,11 +584,13 @@ export const MessageBubble = React.memo(function MessageBubble({
 	sessionId,
 	traceVerbosity,
 	toolCallFailureAnalysis,
+	showLinkedNotesOnAssistantMessages,
 	onApprovePermission,
 	onFork,
 	forkDisabled,
 }: MessageBubbleProps) {
 	const groups = groupTraceContent(message.content, traceVerbosity);
+	const vaultRefMessages = message.role === "assistant" ? [message] : [];
 	const canCopy = hasCopyableText(message.content);
 	const showActions = Boolean(onFork) || canCopy;
 	const roleClass =
@@ -671,6 +675,13 @@ export const MessageBubble = React.memo(function MessageBubble({
 					</div>
 				);
 			})}
+			{message.role === "assistant" && (
+				<AssistantVaultRefsRow
+					messages={vaultRefMessages}
+					plugin={plugin}
+					enabled={showLinkedNotesOnAssistantMessages}
+				/>
+			)}
 			{showActions && (
 				<div className="agent-client-message-actions">
 					{message.role === "assistant" && <JumpToTopButton />}

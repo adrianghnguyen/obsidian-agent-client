@@ -1010,6 +1010,10 @@ export default class AgentClientPlugin extends Plugin {
 				toolCallFailureAnalysis: parseToolCallFailureAnalysis(
 					rd.toolCallFailureAnalysis,
 				),
+				showLinkedNotesOnAssistantMessages: bool(
+					rd.showLinkedNotesOnAssistantMessages,
+					D.displaySettings.showLinkedNotesOnAssistantMessages,
+				),
 			},
 			savedSessions: Array.isArray(raw.savedSessions)
 				? (raw.savedSessions as SavedSessionInfo[])
