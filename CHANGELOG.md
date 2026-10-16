@@ -2,7 +2,7 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
-## [Unreleased]
+## 0.31.0-rc.1
 
 ### Added
 
