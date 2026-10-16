@@ -31,6 +31,7 @@ import { ForkButton } from "./shared/ForkButton";
 import { hasCopyableText } from "../utils/message-copy";
 import { forkThroughMessageIdForTurn } from "../services/conversation-fork";
 import { countFailedToolCalls } from "../services/tool-call-status";
+import { AssistantVaultRefsRow } from "./MessageVaultRefsRow";
 
 interface TurnTraceRendererProps {
 	segment: TurnSegment;
@@ -40,6 +41,7 @@ interface TurnTraceRendererProps {
 	sessionId?: string | null;
 	traceVerbosity: TraceVerbosity;
 	toolCallFailureAnalysis: ToolCallFailureAnalysis;
+	showLinkedNotesOnAssistantMessages: boolean;
 	onApprovePermission?: (
 		requestId: string,
 		optionId: string,
@@ -439,11 +441,15 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 	sessionId,
 	traceVerbosity,
 	toolCallFailureAnalysis,
+	showLinkedNotesOnAssistantMessages,
 	onApprovePermission,
 	onFork,
 	streamingMessageId,
 }: TurnTraceRendererProps) {
 	const rows = collectVisibleTurnRows(segment, messages, traceVerbosity);
+	const assistantMessages = segment.assistantMessageIndices
+		.map((index) => messages[index])
+		.filter((message): message is ChatMessage => message != null);
 	const answerContents = flattenTurnContents(segment, messages);
 	const canCopy = hasCopyableText(answerContents);
 	const forkThroughId = onFork
@@ -562,6 +568,11 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 				}
 				return null;
 			})}
+			<AssistantVaultRefsRow
+				messages={assistantMessages}
+				plugin={plugin}
+				enabled={showLinkedNotesOnAssistantMessages}
+			/>
 			{showActions && (
 				<div className="agent-client-message-actions">
 					<JumpToTopButton />

@@ -2461,6 +2461,47 @@ If your plugin does not need CSS, delete this file.
 	height: 14px;
 }
 
+.agent-client-message-vault-refs {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 72px 4px 0;
+	max-width: 100%;
+}
+
+.agent-client-message-vault-refs .agent-client-vault-ref-pill,
+.agent-client-message-vault-refs .agent-client-vault-ref-overflow {
+	width: auto;
+	max-width: 100%;
+	flex: 0 1 auto;
+	height: 28px;
+	min-height: 28px;
+	padding: 0 8px !important;
+	box-sizing: border-box;
+}
+
+.agent-client-vault-ref-pill.is-missing {
+	cursor: default;
+	pointer-events: none;
+}
+
+.agent-client-vault-ref-pill.is-missing .agent-client-mention-badge {
+	color: var(--text-faint);
+	cursor: default;
+}
+
+.agent-client-vault-ref-edited {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	margin-left: 6px;
+	border-radius: 50%;
+	background: var(--interactive-accent);
+	vertical-align: middle;
+	flex-shrink: 0;
+}
+
 /* Text with Mentions */
 .agent-client-text-with-mentions {
 	user-select: text;

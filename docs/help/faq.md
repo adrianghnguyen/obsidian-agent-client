@@ -28,6 +28,10 @@ Type `@` in the input field and a dropdown appears with matching notes. Select a
 
 See [Note Mentions](/usage/mentions) for details.
 
+### Why do assistant replies show note pills?
+
+Those pills list `[[wikilinks]]` in the answer plus vault files the agent edited. Click a pill to open the note. Turn the row off in **Settings → Display → Show linked notes on assistant messages**.
+
 ### Can I change the character limit for mentions?
 
 Yes. Configure **Max note length** and **Max selection length** in **Settings → Agent Client → Composer → Mentions & context**. The default is 10,000 characters each.

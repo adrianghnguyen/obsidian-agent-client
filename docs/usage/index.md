@@ -20,6 +20,8 @@ The robot icon in the left ribbon cycles the **default agent** (presets then cus
   <img src="/images/sending-messages.webp" alt="Sending Messages"  width="400" />
 </p>
 
+Assistant replies can show a footer row of note pills for `[[wikilinks]]` and edited files. See [Note Mentions](/usage/mentions#linked-notes-on-assistant-messages).
+
 ## Sending Images and Files
 
 You can attach images and files to your messages by pasting or dragging and dropping.

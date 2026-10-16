@@ -1072,6 +1072,31 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						);
 
 					new Setting(nestedEl)
+						.setName("Show linked notes on assistant messages")
+						.setDesc(
+							"Footer pills under assistant replies for [[wikilinks]] and edited vault files. Click a pill to open the note.",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.displaySettings
+										.showLinkedNotesOnAssistantMessages,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											displaySettings: {
+												...this.plugin.settings
+													.displaySettings,
+												showLinkedNotesOnAssistantMessages:
+													value,
+											},
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
 						.setName("Show emojis")
 						.setDesc(
 							"Display emoji icons in tool calls, thoughts, plans, and terminal blocks.",
