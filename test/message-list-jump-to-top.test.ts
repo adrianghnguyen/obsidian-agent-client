@@ -194,9 +194,9 @@ describe("MessageList jump-to-top button", () => {
 		const shell = document.querySelector(".agent-client-messages-shell");
 		expect(button).not.toBeNull();
 		expect(shell).not.toBeNull();
-		expect(shell!.contains(button!)).toBe(true);
+		expect(button && shell && shell.contains(button)).toBe(true);
 		expect(
-			button!.closest(".agent-client-chat-input-container"),
+			button && button.closest(".agent-client-chat-input-container"),
 		).toBeNull();
 		expect(
 			document.querySelector(".agent-client-scroll-to-bottom"),
