@@ -2,6 +2,12 @@
 
 High-level overview of user-facing changes on this fork. Keep entries short — what users get, not implementation detail.
 
+## [Unreleased]
+
+### Changed
+
+- **Jump to top button** — The conversation “Jump to top” pill sits on the right, next to the scrollbar, instead of centered over the composer. File context chips (`@` notes and new-file pills) stay clickable.
+
 ## 0.31.0-rc.1
 
 ### Added

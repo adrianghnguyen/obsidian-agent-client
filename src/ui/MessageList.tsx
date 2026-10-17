@@ -114,7 +114,7 @@ export function MessageList({
 	const [isAtBottom, setIsAtBottom] = useState(true);
 	const isAtBottomRef = useRef(true);
 	// Whether the top of the latest item is scrolled off-screen. Drives the
-	// front-and-center "jump to top of message" button — shown for any long
+	// right-aligned "jump to top of message" overlay — shown for any long
 	// latest message, streaming or not.
 	const [showJumpToTop, setShowJumpToTop] = useState(false);
 	const showJumpToTopRef = useRef(false);
@@ -473,10 +473,10 @@ export function MessageList({
 				</div>
 			</div>
 
-			{/* Jump to top of the latest message — front and center at the
-			    bottom, shown whenever that message's top is off-screen. Same
-			    action as the per-message jump button beside copy. Fades once
-			    the user has scrolled away from the bottom. */}
+			{/* Jump to top of the latest message — right-aligned by the
+			    scrollbar, shown whenever that message's top is off-screen.
+			    Same action as the per-message jump button beside copy. Fades
+			    once the user has scrolled away from the bottom. */}
 			{showJumpToTop && (
 				<button
 					type="button"
