@@ -670,15 +670,14 @@ If your plugin does not need CSS, delete this file.
 	color: var(--interactive-accent);
 }
 
-/* ===== Jump to Top of Latest Message (right, by scrollbar) =====
-   Same chip-like pill as before, pinned to the scroller's trailing edge so
-   it sits next to the vertical scrollbar instead of covering composer
-   context chips or message file pills. Stacked above the 18px
-   scroll-to-bottom control. */
+/* ===== Jump to Top of Latest Message (content box, bottom-right) =====
+   Inside the transcript, inset from the vertical scrollbar track so the
+   pill never sits on the gutter. Left of the 18px scroll-to-bottom
+   control. Does not cover composer file chips (those sit below, left). */
 .agent-client-scroll-to-top {
 	position: absolute;
-	bottom: 22px;
-	right: 0;
+	bottom: 8px;
+	right: calc(var(--scrollbar-size, 12px) + 8px);
 	left: auto;
 	transform: none;
 	display: inline-flex;
@@ -3433,15 +3432,11 @@ If your plugin does not need CSS, delete this file.
 	min-height: 0;
 }
 
-/* Pin overlay controls to the floating chat scrollbar track corner */
+/* Pin jump-to-bottom to the floating chat scrollbar track corner.
+   Jump-to-top stays inset inside the content box (shared rule). */
 .agent-client-floating-messages-container .agent-client-scroll-to-bottom {
 	bottom: 0;
 	right: 0;
-}
-
-.agent-client-floating-messages-container .agent-client-scroll-to-top {
-	right: 0;
-	bottom: 22px;
 }
 
 /* ===== Floating chat tabs ===== */
