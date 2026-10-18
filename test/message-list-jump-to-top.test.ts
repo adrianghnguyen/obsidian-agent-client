@@ -185,4 +185,21 @@ describe("MessageList jump-to-top button", () => {
 			document.querySelector(".agent-client-scroll-to-top-dimmed"),
 		).not.toBeNull();
 	});
+
+	it("keeps the overlay inside the messages shell, not the composer", () => {
+		renderList(true);
+		setScrollerMetrics(true, 200);
+		scrollContainer();
+		const button = document.querySelector(".agent-client-scroll-to-top");
+		const shell = document.querySelector(".agent-client-messages-shell");
+		expect(button).not.toBeNull();
+		expect(shell).not.toBeNull();
+		expect(button && shell && shell.contains(button)).toBe(true);
+		expect(
+			button && button.closest(".agent-client-chat-input-container"),
+		).toBeNull();
+		expect(
+			document.querySelector(".agent-client-scroll-to-bottom"),
+		).not.toBeNull();
+	});
 });
