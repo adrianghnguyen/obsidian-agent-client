@@ -4,6 +4,18 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.31.0
+
+Assistant reply note pills and a clearer jump-to-top control.
+
+### Added
+
+- **Linked notes on assistant messages** — Footer pills under assistant replies list `[[wikilinks]]` plus files the agent edited, deleted, or moved; click to open. More than three files collapse behind `+N`. Disable in **Settings → Display → Show linked notes on assistant messages**.
+
+### Changed
+
+- **Jump to top button** — The conversation **Jump to top** pill sits bottom-right of the transcript, inset so it does not cover the scrollbar or composer file chips (`@` notes and new-file pills).
+
 ## 0.31.0-rc.2
 
 ### Changed
