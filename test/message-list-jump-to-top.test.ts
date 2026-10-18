@@ -142,34 +142,36 @@ beforeEach(() => {
 });
 
 describe("MessageList jump-to-top button", () => {
-	it("mounts the rail for a long latest message but keeps it collapsed at the chat bottom", () => {
+	it("mounts the chip for a long latest message but keeps it hidden at the chat bottom", () => {
 		renderList(true);
 		setScrollerMetrics({ scrollTop: 700, lastItemHeight: 800 });
 		scrollContainer();
-		const rail = document.querySelector(".agent-client-jump-to-top-rail");
-		expect(rail).not.toBeNull();
+		const button = document.querySelector(
+			".agent-client-scroll-to-top",
+		) as HTMLButtonElement;
+		expect(button).not.toBeNull();
 		expect(
-			rail?.classList.contains("agent-client-jump-to-top-rail-visible"),
+			button.classList.contains("agent-client-scroll-to-top-visible"),
 		).toBe(false);
 	});
 
-	it("expands the rail when scrolled up and near the end of the long reply", () => {
+	it("fades the chip in when scrolled up and near the end of the long reply", () => {
 		renderList(false);
 		setScrollerMetrics({ scrollTop: 550, lastItemHeight: 800 });
 		scrollContainer();
 		expect(
 			document.querySelector(
-				".agent-client-jump-to-top-rail.agent-client-jump-to-top-rail-visible",
+				".agent-client-scroll-to-top.agent-client-scroll-to-top-visible",
 			),
 		).not.toBeNull();
 	});
 
-	it("does not mount the rail when the latest message top is visible", () => {
+	it("does not mount the chip when the latest message top is visible", () => {
 		renderList(true);
 		setScrollerMetrics({ scrollTop: 0, lastItemHeight: 800 });
 		scrollContainer();
 		expect(
-			document.querySelector(".agent-client-jump-to-top-rail"),
+			document.querySelector(".agent-client-scroll-to-top"),
 		).toBeNull();
 	});
 
@@ -194,40 +196,38 @@ describe("MessageList jump-to-top button", () => {
 		expect(container.scrollTop).toBe(500);
 	});
 
-	it("keeps the rail collapsed when the viewport is mid-response (not near message bottom)", () => {
+	it("keeps the chip hidden when the viewport is mid-response (not near message bottom)", () => {
 		renderList(true);
 		setScrollerMetrics({ scrollTop: 200, lastItemHeight: 800 });
 		scrollContainer();
-		const rail = document.querySelector(".agent-client-jump-to-top-rail");
-		expect(rail).not.toBeNull();
+		const button = document.querySelector(
+			".agent-client-scroll-to-top",
+		) as HTMLButtonElement;
+		expect(button).not.toBeNull();
 		expect(
-			rail?.classList.contains("agent-client-jump-to-top-rail-visible"),
+			button.classList.contains("agent-client-scroll-to-top-visible"),
 		).toBe(false);
 	});
 
-	it("places the rail as a sibling below the scroller, not inside a virtual item", () => {
+	it("places the chip in the messages shell, not inside the scroller or a virtual item", () => {
 		renderList(true);
 		setScrollerMetrics({ scrollTop: 550, lastItemHeight: 800 });
 		scrollContainer();
 		const scroller = document.querySelector(
 			".agent-client-chat-view-messages",
 		);
-		const rail = document.querySelector(".agent-client-jump-to-top-rail");
+		const button = document.querySelector(".agent-client-scroll-to-top");
 		const shell = document.querySelector(".agent-client-messages-shell");
 		expect(scroller).not.toBeNull();
-		expect(rail).not.toBeNull();
+		expect(button).not.toBeNull();
 		expect(shell).not.toBeNull();
-		expect(rail?.closest(".agent-client-virtual-item")).toBeNull();
+		expect(button?.closest(".agent-client-virtual-item")).toBeNull();
+		expect(scroller?.contains(button!)).toBe(false);
 		expect(
-			scroller?.nextElementSibling?.classList.contains(
-				"agent-client-jump-to-top-rail",
-			),
+			button && shell && shell.contains(button) && !scroller?.contains(button),
 		).toBe(true);
 		expect(
-			rail && shell && shell.contains(rail) && !scroller?.contains(rail),
-		).toBe(true);
-		expect(
-			rail?.closest(".agent-client-chat-input-container"),
+			button?.closest(".agent-client-chat-input-container"),
 		).toBeNull();
 		expect(
 			document.querySelector(".agent-client-scroll-to-bottom"),

@@ -114,8 +114,8 @@ export function MessageList({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [isAtBottom, setIsAtBottom] = useState(true);
 	const isAtBottomRef = useRef(true);
-	// Jump-to-top overlay: mounted for long latest messages; fades in only when
-	// the user scrolls up from the chat bottom and is near the end of the reply.
+	// Jump-to-top chip: mounted for long latest messages; fades in at the top of
+	// the viewport when the user scrolls up from the chat bottom near the reply end.
 	const [jumpToTopLong, setJumpToTopLong] = useState(false);
 	const [jumpToTopVisible, setJumpToTopVisible] = useState(false);
 	const jumpToTopLongRef = useRef(false);
@@ -513,32 +513,28 @@ export function MessageList({
 				</div>
 			</div>
 
-			{/* Bottom chrome rail — reserves space below the scroller so the
-			    pill never covers message text. Fades in when scroll gate met. */}
+			{/* Jump to top — top-center chip over the message viewport (Cursor-style).
+			    Opacity-gated; no layout band. Same scroll threshold as before. */}
 			{jumpToTopLong && (
-				<div
-					className={`agent-client-jump-to-top-rail${jumpToTopVisible ? " agent-client-jump-to-top-rail-visible" : ""}`}
+				<button
+					type="button"
+					className={`agent-client-scroll-to-top${jumpToTopVisible ? " agent-client-scroll-to-top-visible" : ""}`}
+					aria-label="Jump to top of latest message"
+					title="Jump to top of latest message"
 					aria-hidden={jumpToTopVisible ? undefined : true}
+					tabIndex={jumpToTopVisible ? 0 : -1}
+					onClick={jumpToLatestTop}
 				>
-					<button
-						type="button"
-						className="agent-client-scroll-to-top"
-						aria-label="Jump to top of latest message"
-						title="Jump to top of latest message"
-						tabIndex={jumpToTopVisible ? 0 : -1}
-						onClick={jumpToLatestTop}
-					>
-						<span
-							className="agent-client-scroll-to-top-icon"
-							ref={(el) => {
-								if (el) setIcon(el, "arrow-up-to-line");
-							}}
-						/>
-						<span className="agent-client-scroll-to-top-label">
-							Jump to top
-						</span>
-					</button>
-				</div>
+					<span
+						className="agent-client-scroll-to-top-icon"
+						ref={(el) => {
+							if (el) setIcon(el, "arrow-up-to-line");
+						}}
+					/>
+					<span className="agent-client-scroll-to-top-label">
+						Jump to top
+					</span>
+				</button>
 			)}
 
 			{/* Scroll to bottom — pinned to bottom of scrollbar track */}

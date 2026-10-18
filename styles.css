@@ -618,7 +618,7 @@ If your plugin does not need CSS, delete this file.
 	min-width: 0;
 }
 
-/* Messages shell: scroller + bottom jump rail + scroll-to-bottom control.
+/* Messages shell: scroller + top jump chip + scroll-to-bottom control.
    Clip overflow so chrome cannot paint over the composer chips. */
 .agent-client-messages-shell {
 	flex: 1;
@@ -670,46 +670,33 @@ If your plugin does not need CSS, delete this file.
 	color: var(--interactive-accent);
 }
 
-/* ===== Jump to Top rail (below scroller, bottom center) =====
-   Collapsed until scroll gate opens; reserves band so the pill never covers
-   virtualized message text. Scroll-to-bottom stays on the scrollbar corner. */
-.agent-client-jump-to-top-rail {
-	flex-shrink: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	max-height: 0;
-	min-height: 0;
-	padding: 0 calc(var(--scrollbar-size, 12px) + 8px) 0 8px;
-	overflow: hidden;
-	opacity: 0;
-	pointer-events: none;
-	transition:
-		max-height 0.2s ease,
-		min-height 0.2s ease,
-		opacity 0.2s ease,
-		padding 0.2s ease;
-}
-
-.agent-client-jump-to-top-rail.agent-client-jump-to-top-rail-visible {
-	max-height: 40px;
-	min-height: 40px;
-	padding-top: 4px;
-	padding-bottom: 6px;
-	opacity: 1;
-	pointer-events: auto;
-}
-
+/* ===== Jump to Top chip (top center of message viewport) =====
+   Floats over the scroller inside the shell; opacity gated by scroll position.
+   Shifted slightly left of center so the pill clears the scrollbar track. */
 .agent-client-scroll-to-top {
+	position: absolute;
+	top: 10px;
+	left: calc(50% - var(--scrollbar-size, 12px) / 2);
+	transform: translateX(-50%);
+	z-index: 12;
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	height: 30px;
-	padding: 0 12px !important;
+	height: 28px;
+	padding: 0 10px !important;
 	margin: 0 !important;
-	border: 1px solid var(--background-modifier-border) !important;
-	border-radius: 16px;
-	background-color: var(--background-secondary) !important;
+	border: 1px solid
+		color-mix(
+			in srgb,
+			var(--interactive-accent) 40%,
+			var(--background-modifier-border)
+		) !important;
+	border-radius: 14px;
+	background-color: color-mix(
+		in srgb,
+		var(--interactive-accent) 12%,
+		var(--background-secondary)
+	) !important;
 	color: var(--text-normal);
 	font-size: var(--font-ui-smaller);
 	cursor: pointer;
@@ -718,17 +705,25 @@ If your plugin does not need CSS, delete this file.
 	box-shadow: var(--shadow-s) !important;
 	min-width: unset !important;
 	min-height: unset !important;
+	opacity: 0;
+	pointer-events: none;
 	transition:
+		opacity 0.2s ease,
 		background-color 0.15s ease,
 		border-color 0.15s ease,
 		color 0.15s ease;
+}
+
+.agent-client-scroll-to-top.agent-client-scroll-to-top-visible {
+	opacity: 1;
+	pointer-events: auto;
 }
 
 .agent-client-scroll-to-top-icon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--text-muted);
+	color: var(--interactive-accent);
 }
 
 .agent-client-scroll-to-top-icon svg {
