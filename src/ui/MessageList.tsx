@@ -20,6 +20,7 @@ import { useHarnessBootElapsed } from "../hooks/useHarnessBootElapsed";
 import {
 	computeJumpToTopVisible,
 	isLatestMessageLong,
+	readVirtualItemMetrics,
 } from "../services/jump-to-top-visibility";
 
 // How long (ms) after a tab is re-shown we refuse to shrink measured item
@@ -215,11 +216,8 @@ export function MessageList({
 		const inner = container.querySelector<HTMLElement>(
 			".agent-client-virtual-list-inner",
 		);
-		const items = inner?.querySelectorAll<HTMLElement>(
-			".agent-client-virtual-item",
-		);
-		const lastItem = items?.[items.length - 1];
-		if (!lastItem || items.length === 0) {
+		const lastIndex = displayItems.length - 1;
+		if (lastIndex < 0) {
 			if (jumpToTopLongRef.current) {
 				jumpToTopLongRef.current = false;
 				setJumpToTopLong(false);
@@ -231,17 +229,41 @@ export function MessageList({
 			return;
 		}
 
-		const containerRect = container.getBoundingClientRect();
-		const itemRect = lastItem.getBoundingClientRect();
+		const lastKey = displayItems[lastIndex]?.key;
+		const renderedItems =
+			inner?.querySelectorAll<HTMLElement>(".agent-client-virtual-item");
+		const lastItemByKey = lastKey
+			? inner?.querySelector<HTMLElement>(`[data-msg-id="${lastKey}"]`)
+			: null;
+		const lastItem =
+			lastItemByKey ??
+			renderedItems?.[(renderedItems?.length ?? 1) - 1];
+		const metrics = readVirtualItemMetrics(lastItem);
+		if (!metrics) {
+			if (jumpToTopLongRef.current) {
+				jumpToTopLongRef.current = false;
+				setJumpToTopLong(false);
+			}
+			if (jumpToTopVisibleRef.current) {
+				jumpToTopVisibleRef.current = false;
+				setJumpToTopVisible(false);
+			}
+			return;
+		}
+
+		const { itemStart, itemHeight } = metrics;
+		const scrollTop = container.scrollTop;
+		const clientHeight = container.clientHeight;
+
 		const nextLong = isLatestMessageLong({
-			containerTop: containerRect.top,
-			itemTop: itemRect.top,
+			scrollTop,
+			latestItemStart: itemStart,
 		});
 		const nextVisible = computeJumpToTopVisible({
-			containerTop: containerRect.top,
-			containerBottom: containerRect.bottom,
-			itemTop: itemRect.top,
-			itemBottom: itemRect.bottom,
+			scrollTop,
+			clientHeight,
+			latestItemStart: itemStart,
+			latestItemHeight: itemHeight,
 			isAtConversationBottom: isAtBottomRef.current,
 		});
 
@@ -253,7 +275,7 @@ export function MessageList({
 			jumpToTopVisibleRef.current = nextVisible;
 			setJumpToTopVisible(nextVisible);
 		}
-	}, []);
+	}, [displayItems]);
 
 	/**
 	 * Instant scroll of the scroller to the top of the latest item. Assigning

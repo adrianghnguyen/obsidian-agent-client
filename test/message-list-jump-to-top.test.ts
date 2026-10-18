@@ -4,6 +4,7 @@ import * as React from "react";
 import { cleanup, render, act } from "@testing-library/react";
 
 const scrollToIndex = vi.fn();
+let lastItemHeight = 100;
 
 vi.mock("../src/ui/MessageBubble", () => ({
 	MessageBubble: ({ message }: { message: ChatMessage }) =>
@@ -26,7 +27,15 @@ vi.mock("@tanstack/react-virtual", () => ({
 				end: i * 100 + 100,
 				size: 100,
 			})),
-		getTotalSize: () => opts.count * 100,
+		getTotalSize: () =>
+			opts.count > 0
+				? (opts.count - 1) * 100 + lastItemHeight
+				: 0,
+		getOffsetForIndex: (index: number) => {
+			if (index < 0 || index >= opts.count) return undefined;
+			const start = index * 100;
+			return [start, "start"] as const;
+		},
 		measureElement: () => {},
 		scrollToIndex,
 		shouldAdjustScrollPositionOnItemSizeChange: undefined,
@@ -81,21 +90,13 @@ function renderList(isSending: boolean) {
 }
 
 interface ScrollerLayout {
-	itemTopAbove: boolean;
 	scrollTop?: number;
-	itemBottom?: number;
+	lastItemHeight?: number;
 }
 
-/**
- * Force the scroller's layout metrics so the component sees a tall, scrolled
- * container whose last item top sits above the viewport.
- */
-function setScrollerMetrics(layout: ScrollerLayout) {
-	const {
-		itemTopAbove,
-		scrollTop = 0,
-		itemBottom = itemTopAbove ? 350 : 450,
-	} = layout;
+function setScrollerMetrics(layout: ScrollerLayout = {}) {
+	const { scrollTop = 0, lastItemHeight: height = 100 } = layout;
+	lastItemHeight = height;
 	const container = document.querySelector(
 		".agent-client-chat-view-messages",
 	) as HTMLElement;
@@ -116,14 +117,13 @@ function setScrollerMetrics(layout: ScrollerLayout) {
 		".agent-client-virtual-list-inner",
 	) as HTMLElement;
 	const items = inner.querySelectorAll(".agent-client-virtual-item");
-	const last = items[items.length - 1] as HTMLElement;
-	container.getBoundingClientRect = () =>
-		({ top: 0, bottom: 300 }) as DOMRect;
-	last.getBoundingClientRect = () =>
-		({
-			top: itemTopAbove ? -50 : 150,
-			bottom: itemBottom,
-		}) as DOMRect;
+	const last = items[items.length - 1] as HTMLElement | undefined;
+	if (last) {
+		Object.defineProperty(last, "offsetHeight", {
+			configurable: true,
+			value: height,
+		});
+	}
 	return container;
 }
 
@@ -136,12 +136,15 @@ function scrollContainer() {
 }
 
 afterEach(cleanup);
-beforeEach(() => scrollToIndex.mockClear());
+beforeEach(() => {
+	scrollToIndex.mockClear();
+	lastItemHeight = 100;
+});
 
 describe("MessageList jump-to-top button", () => {
 	it("mounts the rail for a long latest message but keeps it collapsed at the chat bottom", () => {
 		renderList(true);
-		setScrollerMetrics({ itemTopAbove: true, scrollTop: 700 });
+		setScrollerMetrics({ scrollTop: 700, lastItemHeight: 800 });
 		scrollContainer();
 		const rail = document.querySelector(".agent-client-jump-to-top-rail");
 		expect(rail).not.toBeNull();
@@ -152,7 +155,7 @@ describe("MessageList jump-to-top button", () => {
 
 	it("expands the rail when scrolled up and near the end of the long reply", () => {
 		renderList(false);
-		setScrollerMetrics({ itemTopAbove: true, scrollTop: 200 });
+		setScrollerMetrics({ scrollTop: 550, lastItemHeight: 800 });
 		scrollContainer();
 		expect(
 			document.querySelector(
@@ -163,7 +166,7 @@ describe("MessageList jump-to-top button", () => {
 
 	it("does not mount the rail when the latest message top is visible", () => {
 		renderList(true);
-		setScrollerMetrics({ itemTopAbove: false });
+		setScrollerMetrics({ scrollTop: 0, lastItemHeight: 800 });
 		scrollContainer();
 		expect(
 			document.querySelector(".agent-client-jump-to-top-rail"),
@@ -173,25 +176,27 @@ describe("MessageList jump-to-top button", () => {
 	it("scrolls the container to the top of the last item when clicked", () => {
 		renderList(false);
 		const container = setScrollerMetrics({
-			itemTopAbove: true,
-			scrollTop: 200,
+			scrollTop: 550,
+			lastItemHeight: 800,
 		});
 		scrollContainer();
+		const inner = container.querySelector(
+			".agent-client-virtual-list-inner",
+		) as HTMLElement;
+		const items = inner.querySelectorAll(".agent-client-virtual-item");
+		const last = items[items.length - 1] as HTMLElement;
+		container.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+		last.getBoundingClientRect = () => ({ top: -50 }) as DOMRect;
 		const button = document.querySelector(
 			".agent-client-scroll-to-top",
 		) as HTMLButtonElement;
 		button.click();
-		// delta = lastTop(-50) - containerTop(0) => scrollTop 200 + (-50) = 150
-		expect(container.scrollTop).toBe(150);
+		expect(container.scrollTop).toBe(500);
 	});
 
 	it("keeps the rail collapsed when the viewport is mid-response (not near message bottom)", () => {
 		renderList(true);
-		setScrollerMetrics({
-			itemTopAbove: true,
-			scrollTop: 200,
-			itemBottom: 800,
-		});
+		setScrollerMetrics({ scrollTop: 200, lastItemHeight: 800 });
 		scrollContainer();
 		const rail = document.querySelector(".agent-client-jump-to-top-rail");
 		expect(rail).not.toBeNull();
@@ -202,7 +207,7 @@ describe("MessageList jump-to-top button", () => {
 
 	it("places the rail as a sibling below the scroller, not inside a virtual item", () => {
 		renderList(true);
-		setScrollerMetrics({ itemTopAbove: true, scrollTop: 200 });
+		setScrollerMetrics({ scrollTop: 550, lastItemHeight: 800 });
 		scrollContainer();
 		const scroller = document.querySelector(
 			".agent-client-chat-view-messages",

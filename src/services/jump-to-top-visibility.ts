@@ -5,10 +5,10 @@ export const JUMP_TOP_TOLERANCE_PX = 4;
 export const JUMP_TO_TOP_NEAR_MESSAGE_END_PX = 100;
 
 export interface JumpToTopVisibilityInput {
-	containerTop: number;
-	containerBottom: number;
-	itemTop: number;
-	itemBottom: number;
+	scrollTop: number;
+	clientHeight: number;
+	latestItemStart: number;
+	latestItemHeight: number;
 	isAtConversationBottom: boolean;
 	jumpTopTolerancePx?: number;
 	nearMessageEndPx?: number;
@@ -16,22 +16,25 @@ export interface JumpToTopVisibilityInput {
 
 /**
  * Whether the conversation-level "Jump to top" pill should be shown (full opacity).
- * Requires a long latest message, the user scrolled up from the chat bottom, and
- * the viewport is reading within the last ~100px of that response.
+ * Uses scroll coordinates so tall virtualized rows (one item = whole reply) still
+ * gate correctly. Requires a long latest message, scrolling up from the chat bottom,
+ * and the viewport bottom within ~100px of that reply's end.
  */
 export function computeJumpToTopVisible(
 	input: JumpToTopVisibilityInput,
 ): boolean {
 	const tolerance = input.jumpTopTolerancePx ?? JUMP_TOP_TOLERANCE_PX;
 	const nearEndPx = input.nearMessageEndPx ?? JUMP_TO_TOP_NEAR_MESSAGE_END_PX;
+	const latestItemEnd = input.latestItemStart + input.latestItemHeight;
+	const viewportBottom = input.scrollTop + input.clientHeight;
 
 	// Short message or user already at the start of the latest response.
-	if (input.itemTop >= input.containerTop - tolerance) {
+	if (input.scrollTop <= input.latestItemStart + tolerance) {
 		return false;
 	}
 
 	// Latest message no longer intersects the viewport (scrolled past it).
-	if (input.itemBottom <= input.containerTop + tolerance) {
+	if (latestItemEnd <= input.scrollTop + tolerance) {
 		return false;
 	}
 
@@ -41,20 +44,32 @@ export function computeJumpToTopVisible(
 	}
 
 	// Viewport bottom must be within the tail of the long response.
-	const gapToMessageBottom = input.itemBottom - input.containerBottom;
-	if (gapToMessageBottom > nearEndPx) {
+	const gapToMessageEnd = latestItemEnd - viewportBottom;
+	if (gapToMessageEnd > nearEndPx) {
 		return false;
 	}
 
 	return true;
 }
 
+/** Read scroll-space position from a rendered virtual row (translateY + height). */
+export function readVirtualItemMetrics(
+	element: HTMLElement | null | undefined,
+): { itemStart: number; itemHeight: number } | null {
+	if (!element) return null;
+	const match = element.style.transform.match(/translateY\(([-\d.]+)px\)/);
+	const itemStart = match ? Number.parseFloat(match[1]) : 0;
+	const itemHeight = element.offsetHeight;
+	if (itemHeight <= 0) return null;
+	return { itemStart, itemHeight };
+}
+
 /** Whether the latest item is tall enough that its start can scroll off-screen. */
 export function isLatestMessageLong(input: {
-	containerTop: number;
-	itemTop: number;
+	scrollTop: number;
+	latestItemStart: number;
 	jumpTopTolerancePx?: number;
 }): boolean {
 	const tolerance = input.jumpTopTolerancePx ?? JUMP_TOP_TOLERANCE_PX;
-	return input.itemTop < input.containerTop - tolerance;
+	return input.scrollTop > input.latestItemStart + tolerance;
 }
