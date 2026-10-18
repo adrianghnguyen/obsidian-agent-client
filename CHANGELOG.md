@@ -4,6 +4,8 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.31.0-rc.2
+
 ### Changed
 
 - **Jump to top button** — The conversation “Jump to top” pill sits in the bottom-right of the transcript, inset so it does not cover the scrollbar or composer file chips (`@` notes and new-file pills).
