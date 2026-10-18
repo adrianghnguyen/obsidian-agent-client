@@ -222,7 +222,7 @@ describe("MessageList jump-to-top button", () => {
 		expect(button).not.toBeNull();
 		expect(shell).not.toBeNull();
 		expect(button?.closest(".agent-client-virtual-item")).toBeNull();
-		expect(scroller?.contains(button!)).toBe(false);
+		expect(scroller?.contains(button)).toBe(false);
 		expect(
 			button && shell && shell.contains(button) && !scroller?.contains(button),
 		).toBe(true);
