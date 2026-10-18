@@ -618,8 +618,8 @@ If your plugin does not need CSS, delete this file.
 	min-width: 0;
 }
 
-/* Messages shell: flex child that hosts scroller + overlay controls.
-   Clip overflow so jump-to-top cannot paint over the composer chips. */
+/* Messages shell: scroller + top jump chip + scroll-to-bottom control.
+   Clip overflow so chrome cannot paint over the composer chips. */
 .agent-client-messages-shell {
 	flex: 1;
 	min-height: 0;
@@ -670,25 +670,33 @@ If your plugin does not need CSS, delete this file.
 	color: var(--interactive-accent);
 }
 
-/* ===== Jump to Top of Latest Message (content box, bottom-right) =====
-   Inside the transcript, inset from the vertical scrollbar track so the
-   pill never sits on the gutter. Left of the 18px scroll-to-bottom
-   control. Does not cover composer file chips (those sit below, left). */
+/* ===== Jump to Top chip (top center of message viewport) =====
+   Floats over the scroller inside the shell; opacity gated by scroll position.
+   Shifted slightly left of center so the pill clears the scrollbar track. */
 .agent-client-scroll-to-top {
 	position: absolute;
-	bottom: 8px;
-	right: calc(var(--scrollbar-size, 12px) + 8px);
-	left: auto;
-	transform: none;
+	top: 10px;
+	left: calc(50% - var(--scrollbar-size, 12px) / 2);
+	transform: translateX(-50%);
+	z-index: 12;
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	height: 30px;
-	padding: 0 12px !important;
+	height: 28px;
+	padding: 0 10px !important;
 	margin: 0 !important;
-	border: 1px solid var(--background-modifier-border) !important;
-	border-radius: 16px;
-	background-color: var(--background-secondary) !important;
+	border: 1px solid
+		color-mix(
+			in srgb,
+			var(--interactive-accent) 40%,
+			var(--background-modifier-border)
+		) !important;
+	border-radius: 14px;
+	background-color: color-mix(
+		in srgb,
+		var(--interactive-accent) 12%,
+		var(--background-secondary)
+	) !important;
 	color: var(--text-normal);
 	font-size: var(--font-ui-smaller);
 	cursor: pointer;
@@ -697,8 +705,8 @@ If your plugin does not need CSS, delete this file.
 	box-shadow: var(--shadow-s) !important;
 	min-width: unset !important;
 	min-height: unset !important;
-	z-index: 10;
-	opacity: 1;
+	opacity: 0;
+	pointer-events: none;
 	transition:
 		opacity 0.2s ease,
 		background-color 0.15s ease,
@@ -706,21 +714,16 @@ If your plugin does not need CSS, delete this file.
 		color 0.15s ease;
 }
 
-/* Fade while the user pages back through the response themselves so the
-   button stays out of the way of the text. */
-.agent-client-scroll-to-top.agent-client-scroll-to-top-dimmed {
-	opacity: 0.28;
-}
-
-.agent-client-scroll-to-top.agent-client-scroll-to-top-dimmed:hover {
+.agent-client-scroll-to-top.agent-client-scroll-to-top-visible {
 	opacity: 1;
+	pointer-events: auto;
 }
 
 .agent-client-scroll-to-top-icon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--text-muted);
+	color: var(--interactive-accent);
 }
 
 .agent-client-scroll-to-top-icon svg {
@@ -3433,7 +3436,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Pin jump-to-bottom to the floating chat scrollbar track corner.
-   Jump-to-top stays inset inside the content box (shared rule). */
+   Jump-to-top uses the shared bottom-center rule above. */
 .agent-client-floating-messages-container .agent-client-scroll-to-bottom {
 	bottom: 0;
 	right: 0;

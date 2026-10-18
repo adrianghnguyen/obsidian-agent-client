@@ -4,6 +4,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Changed
+
+- **Jump to top button** — **Top-center chip** over the message viewport (Cursor-style), with accent-tinted styling. It **fades in only after you scroll up** from the chat bottom and are within about **100px of the end** of a long assistant reply, so the **tail of the reply stays clear**; click jumps to the start of that message.
+
 ## 0.31.0
 
 Assistant reply note pills and a clearer jump-to-top control.

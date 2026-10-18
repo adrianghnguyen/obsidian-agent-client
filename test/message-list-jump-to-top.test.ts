@@ -4,6 +4,7 @@ import * as React from "react";
 import { cleanup, render, act } from "@testing-library/react";
 
 const scrollToIndex = vi.fn();
+let lastItemHeight = 100;
 
 vi.mock("../src/ui/MessageBubble", () => ({
 	MessageBubble: ({ message }: { message: ChatMessage }) =>
@@ -26,7 +27,15 @@ vi.mock("@tanstack/react-virtual", () => ({
 				end: i * 100 + 100,
 				size: 100,
 			})),
-		getTotalSize: () => opts.count * 100,
+		getTotalSize: () =>
+			opts.count > 0
+				? (opts.count - 1) * 100 + lastItemHeight
+				: 0,
+		getOffsetForIndex: (index: number) => {
+			if (index < 0 || index >= opts.count) return undefined;
+			const start = index * 100;
+			return [start, "start"] as const;
+		},
 		measureElement: () => {},
 		scrollToIndex,
 		shouldAdjustScrollPositionOnItemSizeChange: undefined,
@@ -80,11 +89,14 @@ function renderList(isSending: boolean) {
 	);
 }
 
-/**
- * Force the scroller's layout metrics so the component sees a tall, scrolled
- * container whose last item top sits above the viewport.
- */
-function setScrollerMetrics(itemTopAbove: boolean, scrollTop = 0) {
+interface ScrollerLayout {
+	scrollTop?: number;
+	lastItemHeight?: number;
+}
+
+function setScrollerMetrics(layout: ScrollerLayout = {}) {
+	const { scrollTop = 0, lastItemHeight: height = 100 } = layout;
+	lastItemHeight = height;
 	const container = document.querySelector(
 		".agent-client-chat-view-messages",
 	) as HTMLElement;
@@ -105,10 +117,13 @@ function setScrollerMetrics(itemTopAbove: boolean, scrollTop = 0) {
 		".agent-client-virtual-list-inner",
 	) as HTMLElement;
 	const items = inner.querySelectorAll(".agent-client-virtual-item");
-	const last = items[items.length - 1] as HTMLElement;
-	container.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
-	last.getBoundingClientRect = () =>
-		({ top: itemTopAbove ? -50 : 150 }) as DOMRect;
+	const last = items[items.length - 1] as HTMLElement | undefined;
+	if (last) {
+		Object.defineProperty(last, "offsetHeight", {
+			configurable: true,
+			value: height,
+		});
+	}
 	return container;
 }
 
@@ -121,30 +136,39 @@ function scrollContainer() {
 }
 
 afterEach(cleanup);
-beforeEach(() => scrollToIndex.mockClear());
+beforeEach(() => {
+	scrollToIndex.mockClear();
+	lastItemHeight = 100;
+});
 
 describe("MessageList jump-to-top button", () => {
-	it("shows the button while streaming when the latest message top is off-screen", () => {
+	it("mounts the chip for a long latest message but keeps it hidden at the chat bottom", () => {
 		renderList(true);
-		setScrollerMetrics(true);
+		setScrollerMetrics({ scrollTop: 700, lastItemHeight: 800 });
 		scrollContainer();
+		const button = document.querySelector(
+			".agent-client-scroll-to-top",
+		) as HTMLButtonElement;
+		expect(button).not.toBeNull();
 		expect(
-			document.querySelector(".agent-client-scroll-to-top"),
-		).not.toBeNull();
+			button.classList.contains("agent-client-scroll-to-top-visible"),
+		).toBe(false);
 	});
 
-	it("shows the button for a long latest message even when not streaming", () => {
+	it("fades the chip in when scrolled up and near the end of the long reply", () => {
 		renderList(false);
-		setScrollerMetrics(true);
+		setScrollerMetrics({ scrollTop: 550, lastItemHeight: 800 });
 		scrollContainer();
 		expect(
-			document.querySelector(".agent-client-scroll-to-top"),
+			document.querySelector(
+				".agent-client-scroll-to-top.agent-client-scroll-to-top-visible",
+			),
 		).not.toBeNull();
 	});
 
-	it("hides the button when the latest message top is visible", () => {
+	it("does not mount the chip when the latest message top is visible", () => {
 		renderList(true);
-		setScrollerMetrics(false);
+		setScrollerMetrics({ scrollTop: 0, lastItemHeight: 800 });
 		scrollContainer();
 		expect(
 			document.querySelector(".agent-client-scroll-to-top"),
@@ -153,50 +177,57 @@ describe("MessageList jump-to-top button", () => {
 
 	it("scrolls the container to the top of the last item when clicked", () => {
 		renderList(false);
-		const container = setScrollerMetrics(true, 200);
+		const container = setScrollerMetrics({
+			scrollTop: 550,
+			lastItemHeight: 800,
+		});
 		scrollContainer();
+		const inner = container.querySelector(
+			".agent-client-virtual-list-inner",
+		) as HTMLElement;
+		const items = inner.querySelectorAll(".agent-client-virtual-item");
+		const last = items[items.length - 1] as HTMLElement;
+		container.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+		last.getBoundingClientRect = () => ({ top: -50 }) as DOMRect;
 		const button = document.querySelector(
 			".agent-client-scroll-to-top",
 		) as HTMLButtonElement;
 		button.click();
-		// delta = lastTop(-50) - containerTop(0) => scrollTop 200 + (-50) = 150
-		expect(container.scrollTop).toBe(150);
+		expect(container.scrollTop).toBe(500);
 	});
 
-	it("stays solid while pinned to the bottom of the conversation", () => {
+	it("keeps the chip hidden when the viewport is mid-response (not near message bottom)", () => {
 		renderList(true);
-		// scrollTop 700 + clientHeight 300 === scrollHeight 1000 => at bottom.
-		setScrollerMetrics(true, 700);
+		setScrollerMetrics({ scrollTop: 200, lastItemHeight: 800 });
 		scrollContainer();
 		const button = document.querySelector(
 			".agent-client-scroll-to-top",
 		) as HTMLButtonElement;
 		expect(button).not.toBeNull();
-		expect(button.classList.contains("agent-client-scroll-to-top-dimmed")).toBe(
-			false,
-		);
-	});
-
-	it("fades once the user has scrolled away from the bottom", () => {
-		renderList(true);
-		setScrollerMetrics(true, 200);
-		scrollContainer();
 		expect(
-			document.querySelector(".agent-client-scroll-to-top-dimmed"),
-		).not.toBeNull();
+			button.classList.contains("agent-client-scroll-to-top-visible"),
+		).toBe(false);
 	});
 
-	it("keeps the overlay inside the messages shell, not the composer", () => {
+	it("places the chip in the messages shell, not inside the scroller or a virtual item", () => {
 		renderList(true);
-		setScrollerMetrics(true, 200);
+		setScrollerMetrics({ scrollTop: 550, lastItemHeight: 800 });
 		scrollContainer();
+		const scroller = document.querySelector(
+			".agent-client-chat-view-messages",
+		);
 		const button = document.querySelector(".agent-client-scroll-to-top");
 		const shell = document.querySelector(".agent-client-messages-shell");
+		expect(scroller).not.toBeNull();
 		expect(button).not.toBeNull();
 		expect(shell).not.toBeNull();
-		expect(button && shell && shell.contains(button)).toBe(true);
+		expect(button?.closest(".agent-client-virtual-item")).toBeNull();
+		expect(scroller?.contains(button)).toBe(false);
 		expect(
-			button && button.closest(".agent-client-chat-input-container"),
+			button && shell && shell.contains(button) && !scroller?.contains(button),
+		).toBe(true);
+		expect(
+			button?.closest(".agent-client-chat-input-container"),
 		).toBeNull();
 		expect(
 			document.querySelector(".agent-client-scroll-to-bottom"),
