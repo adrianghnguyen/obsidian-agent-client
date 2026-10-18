@@ -4,6 +4,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Changed
+
+- **Jump to top button** — **Bottom center** pill in a dedicated rail **below** the message scroller (does not cover reply text). It **fades in only after you scroll up** from the chat bottom and are within about **100px of the end** of a long assistant reply; click still jumps to the start of that message.
+
 ## 0.31.0
 
 Assistant reply note pills and a clearer jump-to-top control.

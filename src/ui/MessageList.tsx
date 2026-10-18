@@ -17,6 +17,10 @@ import { TurnTraceRenderer } from "./TurnTraceRenderer";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatHarnessConnectingEmptyState } from "../services/harness-connecting-message";
 import { useHarnessBootElapsed } from "../hooks/useHarnessBootElapsed";
+import {
+	computeJumpToTopVisible,
+	isLatestMessageLong,
+} from "../services/jump-to-top-visibility";
 
 // How long (ms) after a tab is re-shown we refuse to shrink measured item
 // sizes. Right after re-show the items briefly re-measure small while their
@@ -24,10 +28,6 @@ import { useHarnessBootElapsed } from "../hooks/useHarnessBootElapsed";
 // total size, which clamps scrollTop to 0 and loses the position. Riding out
 // this window keeps total stable so the scroll position is preserved. (#321)
 const SHOW_SETTLE_MS = 500;
-
-// Pixels of slack when deciding whether the top of the latest item is still
-// on screen. A top within this distance of the viewport edge counts as visible.
-const JUMP_TOP_TOLERANCE = 4;
 
 /**
  * Props for MessageList component
@@ -113,11 +113,12 @@ export function MessageList({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [isAtBottom, setIsAtBottom] = useState(true);
 	const isAtBottomRef = useRef(true);
-	// Whether the top of the latest item is scrolled off-screen. Drives the
-	// jump-to-top overlay in the transcript's bottom-right (inset from the
-	// scrollbar) — shown for any long latest message, streaming or not.
-	const [showJumpToTop, setShowJumpToTop] = useState(false);
-	const showJumpToTopRef = useRef(false);
+	// Jump-to-top overlay: mounted for long latest messages; fades in only when
+	// the user scrolls up from the chat bottom and is near the end of the reply.
+	const [jumpToTopLong, setJumpToTopLong] = useState(false);
+	const [jumpToTopVisible, setJumpToTopVisible] = useState(false);
+	const jumpToTopLongRef = useRef(false);
+	const jumpToTopVisibleRef = useRef(false);
 	const prevIsSendingRef = useRef(false);
 	// Last measured height per message id. Used to keep the virtualizer's total
 	// size stable while the tab is hidden (display:none) so scrollTop isn't
@@ -208,14 +209,9 @@ export function MessageList({
 		return isNearBottom;
 	}, []);
 
-	/**
-	 * Whether the top of the latest (last) rendered item has scrolled above
-	 * the viewport. Drives the front-and-center "jump to top of message"
-	 * button — shown for any long latest message, streaming or not.
-	 */
-	const isLatestTopOffscreen = useCallback((): boolean => {
+	const updateJumpToTop = useCallback(() => {
 		const container = containerRef.current;
-		if (!container) return false;
+		if (!container) return;
 		const inner = container.querySelector<HTMLElement>(
 			".agent-client-virtual-list-inner",
 		);
@@ -223,19 +219,41 @@ export function MessageList({
 			".agent-client-virtual-item",
 		);
 		const lastItem = items?.[items.length - 1];
-		if (!lastItem || items.length === 0) return false;
-		const containerTop = container.getBoundingClientRect().top;
-		const itemTop = lastItem.getBoundingClientRect().top;
-		return itemTop < containerTop - JUMP_TOP_TOLERANCE;
-	}, []);
-
-	const updateJumpToTop = useCallback(() => {
-		const next = isLatestTopOffscreen();
-		if (next !== showJumpToTopRef.current) {
-			showJumpToTopRef.current = next;
-			setShowJumpToTop(next);
+		if (!lastItem || items.length === 0) {
+			if (jumpToTopLongRef.current) {
+				jumpToTopLongRef.current = false;
+				setJumpToTopLong(false);
+			}
+			if (jumpToTopVisibleRef.current) {
+				jumpToTopVisibleRef.current = false;
+				setJumpToTopVisible(false);
+			}
+			return;
 		}
-	}, [isLatestTopOffscreen]);
+
+		const containerRect = container.getBoundingClientRect();
+		const itemRect = lastItem.getBoundingClientRect();
+		const nextLong = isLatestMessageLong({
+			containerTop: containerRect.top,
+			itemTop: itemRect.top,
+		});
+		const nextVisible = computeJumpToTopVisible({
+			containerTop: containerRect.top,
+			containerBottom: containerRect.bottom,
+			itemTop: itemRect.top,
+			itemBottom: itemRect.bottom,
+			isAtConversationBottom: isAtBottomRef.current,
+		});
+
+		if (nextLong !== jumpToTopLongRef.current) {
+			jumpToTopLongRef.current = nextLong;
+			setJumpToTopLong(nextLong);
+		}
+		if (nextVisible !== jumpToTopVisibleRef.current) {
+			jumpToTopVisibleRef.current = nextVisible;
+			setJumpToTopVisible(nextVisible);
+		}
+	}, []);
 
 	/**
 	 * Instant scroll of the scroller to the top of the latest item. Assigning
@@ -473,29 +491,32 @@ export function MessageList({
 				</div>
 			</div>
 
-			{/* Jump to top of the latest message — bottom-right of the
-			    transcript, inset from the scrollbar, shown whenever that
-			    message's top is off-screen. Same action as the per-message
-			    jump button beside copy. Fades once the user has scrolled
-			    away from the bottom. */}
-			{showJumpToTop && (
-				<button
-					type="button"
-					className={`agent-client-scroll-to-top${!isAtBottom ? " agent-client-scroll-to-top-dimmed" : ""}`}
-					aria-label="Jump to top of latest message"
-					title="Jump to top of latest message"
-					onClick={jumpToLatestTop}
+			{/* Bottom chrome rail — reserves space below the scroller so the
+			    pill never covers message text. Fades in when scroll gate met. */}
+			{jumpToTopLong && (
+				<div
+					className={`agent-client-jump-to-top-rail${jumpToTopVisible ? " agent-client-jump-to-top-rail-visible" : ""}`}
+					aria-hidden={jumpToTopVisible ? undefined : true}
 				>
-					<span
-						className="agent-client-scroll-to-top-icon"
-						ref={(el) => {
-							if (el) setIcon(el, "arrow-up-to-line");
-						}}
-					/>
-					<span className="agent-client-scroll-to-top-label">
-						Jump to top
-					</span>
-				</button>
+					<button
+						type="button"
+						className="agent-client-scroll-to-top"
+						aria-label="Jump to top of latest message"
+						title="Jump to top of latest message"
+						tabIndex={jumpToTopVisible ? 0 : -1}
+						onClick={jumpToLatestTop}
+					>
+						<span
+							className="agent-client-scroll-to-top-icon"
+							ref={(el) => {
+								if (el) setIcon(el, "arrow-up-to-line");
+							}}
+						/>
+						<span className="agent-client-scroll-to-top-label">
+							Jump to top
+						</span>
+					</button>
+				</div>
 			)}
 
 			{/* Scroll to bottom — pinned to bottom of scrollbar track */}
