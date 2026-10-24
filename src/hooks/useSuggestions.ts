@@ -7,6 +7,7 @@ import {
 } from "../utils/mention-parser";
 import type { SlashCommand } from "../types/session";
 import type AgentClientPlugin from "../plugin";
+import { createSimpleSearchFilter } from "../utils/simple-search";
 
 // ============================================================================
 // Types
@@ -241,11 +242,11 @@ export function useSuggestions(
 				return;
 			}
 
-			const query = afterSlash.toLowerCase();
+			const query = afterSlash;
+			const matchesQuery = createSimpleSearchFilter(query);
 
-			// Filter available commands
 			const filtered = availableCommands.filter((cmd) =>
-				cmd.name.toLowerCase().includes(query),
+				matchesQuery(cmd.name),
 			);
 
 			setCommandSuggestions(filtered);

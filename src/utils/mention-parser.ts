@@ -1,5 +1,6 @@
 import { TFile } from "obsidian";
 import { getLogger } from "./logger";
+import { basenameMatchesMentionTitle } from "./simple-search";
 
 // Interface for mention service to avoid circular dependency
 export interface IMentionService {
@@ -117,10 +118,12 @@ export function extractMentionedNotes(
 		}
 		seen.add(noteTitle);
 
-		// Find the file by basename
-		const file = noteMentionService
-			.getAllFiles()
-			.find((f: TFile) => f.basename === noteTitle);
+		const files = noteMentionService.getAllFiles();
+		const file =
+			files.find((f: TFile) => f.basename === noteTitle) ??
+			files.find((f: TFile) =>
+				basenameMatchesMentionTitle(f.basename, noteTitle),
+			);
 
 		result.push({ noteTitle, file });
 	}

@@ -80,3 +80,48 @@ export class Notice {
 export function setIcon(el: HTMLElement, icon: string): void {
 	// no-op in tests
 }
+
+/** Strip combining marks — approximates Obsidian 1.15 Latin folding in unit tests. */
+function foldForSearch(text: string): string {
+	return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+export interface SearchResult {
+	score: number;
+	matches: [number, number][];
+}
+
+function simpleSearchMatch(
+	query: string,
+	text: string,
+): SearchResult | null {
+	const words = query.trim().split(/\s+/).filter(Boolean);
+	if (words.length === 0) {
+		return { score: 1, matches: [[0, text.length]] };
+	}
+	const foldedText = foldForSearch(text);
+	let from = 0;
+	const matches: [number, number][] = [];
+	for (const word of words) {
+		const foldedWord = foldForSearch(word);
+		const idx = foldedText.indexOf(foldedWord, from);
+		if (idx === -1) {
+			return null;
+		}
+		matches.push([idx, idx + foldedWord.length]);
+		from = idx + foldedWord.length;
+	}
+	return { score: 1, matches };
+}
+
+export function prepareSimpleSearch(
+	query: string,
+): (text: string) => SearchResult | null {
+	return (text: string) => simpleSearchMatch(query, text);
+}
+
+export function prepareFuzzySearch(
+	query: string,
+): (text: string) => SearchResult | null {
+	return prepareSimpleSearch(query);
+}

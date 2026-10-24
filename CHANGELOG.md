@@ -4,6 +4,9 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Fixed
+- Slash-command suggester and `@[[title]]` resolution use Obsidian `prepareSimpleSearch` / fold-safe basename matching so unaccented typing can match diacritic note titles on 1.15+ (graceful on 1.14).
+
 ## 0.22.0
 
 ### Added
