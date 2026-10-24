@@ -8,6 +8,7 @@ import {
 import type { SlashCommand } from "../types/session";
 import type { ActiveNoteOverride } from "../services/floating-note-context";
 import type AgentClientPlugin from "../plugin";
+import { createSimpleSearchFilter } from "../utils/simple-search";
 
 // ============================================================================
 // Types
@@ -240,11 +241,11 @@ export function useSuggestions(
 				return;
 			}
 
-			const query = afterSlash.toLowerCase();
+			const query = afterSlash;
+			const matchesQuery = createSimpleSearchFilter(query);
 
-			// Filter available commands
 			const filtered = availableCommands.filter((cmd) =>
-				cmd.name.toLowerCase().includes(query),
+				matchesQuery(cmd.name),
 			);
 
 			setCommandSuggestions(filtered);
