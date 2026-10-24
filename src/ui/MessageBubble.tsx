@@ -8,6 +8,7 @@ import type {
 } from "../types/chat";
 import type { AcpClient } from "../acp/acp-client";
 import type AgentClientPlugin from "../plugin";
+import { basenameMatchesMentionTitle } from "../utils/simple-search";
 import type {
 	ToolCallFailureAnalysis,
 	TraceVerbosity,
@@ -95,9 +96,12 @@ function TextWithMentions({
 		const noteName = match[1];
 
 		// Check if file actually exists
-		const file = plugin.app.vault
-			.getMarkdownFiles()
-			.find((f) => f.basename === noteName);
+		const markdownFiles = plugin.app.vault.getMarkdownFiles();
+		const file =
+			markdownFiles.find((f) => f.basename === noteName) ??
+			markdownFiles.find((f) =>
+				basenameMatchesMentionTitle(f.basename, noteName),
+			);
 
 		if (file) {
 			// File exists - render as clickable mention
