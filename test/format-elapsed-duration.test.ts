@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { formatElapsedDuration } from "../src/utils/format-elapsed-duration";
 import { applyTurnDurationToLastAssistant } from "../src/services/message-state";
+import {
+	resolveTurnDurationMs,
+	segmentAssistantTurns,
+} from "../src/services/trace-turn";
 import type { ChatMessage } from "../src/types/chat";
 
 describe("formatElapsedDuration", () => {
@@ -57,5 +61,26 @@ describe("applyTurnDurationToLastAssistant", () => {
 	it("no-ops when there is no assistant message", () => {
 		const next = applyTurnDurationToLastAssistant([user], 1000);
 		expect(next).toEqual([user]);
+	});
+});
+
+describe("resolveTurnDurationMs", () => {
+	it("reads duration from the last assistant bubble in the turn", () => {
+		const user: ChatMessage = {
+			id: "u",
+			role: "user",
+			content: [{ type: "text", text: "hi" }],
+			timestamp: new Date(),
+		};
+		const assistant: ChatMessage = {
+			id: "a",
+			role: "assistant",
+			content: [{ type: "text", text: "ok" }],
+			timestamp: new Date(),
+			turnDurationMs: 4500,
+		};
+		const messages = [user, assistant];
+		const segment = segmentAssistantTurns(messages)[0];
+		expect(resolveTurnDurationMs(segment, messages)).toBe(4500);
 	});
 });

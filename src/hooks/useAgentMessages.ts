@@ -195,13 +195,8 @@ export function useAgentMessages(
 	const pendingUpdatesRef = useRef<SessionUpdate[]>([]);
 	const flushScheduledRef = useRef(false);
 
-	const flushPendingUpdates = useCallback(() => {
-		flushScheduledRef.current = false;
-		const updates = pendingUpdatesRef.current;
-		if (updates.length === 0) return;
-		pendingUpdatesRef.current = [];
-
-		setMessages((prev) => {
+	const applyUpdatesToMessages = useCallback(
+		(prev: ChatMessage[], updates: SessionUpdate[]): ChatMessage[] => {
 			let result = prev;
 			for (const update of updates) {
 				result = applySingleUpdate(
@@ -211,8 +206,32 @@ export function useAgentMessages(
 				);
 			}
 			return result;
-		});
-	}, []);
+		},
+		[],
+	);
+
+	const flushPendingUpdates = useCallback(() => {
+		flushScheduledRef.current = false;
+		const updates = pendingUpdatesRef.current;
+		if (updates.length === 0) return;
+		pendingUpdatesRef.current = [];
+
+		setMessages((prev) => applyUpdatesToMessages(prev, updates));
+	}, [applyUpdatesToMessages]);
+
+	const flushPendingUpdatesAndApplyTurnDuration = useCallback(
+		(turnDurationMs: number) => {
+			flushScheduledRef.current = false;
+			const updates = pendingUpdatesRef.current;
+			pendingUpdatesRef.current = [];
+
+			setMessages((prev) => {
+				const merged = applyUpdatesToMessages(prev, updates);
+				return applyTurnDurationToLastAssistant(merged, turnDurationMs);
+			});
+		},
+		[applyUpdatesToMessages],
+	);
 
 	const enqueueUpdate = useCallback(
 		(update: SessionUpdate) => {
@@ -483,11 +502,8 @@ export function useAgentMessages(
 						) {
 							const turnDurationMs =
 								Date.now() - timing.startedAtMs;
-							setMessages((prev) =>
-								applyTurnDurationToLastAssistant(
-									prev,
-									turnDurationMs,
-								),
+							flushPendingUpdatesAndApplyTurnDuration(
+								turnDurationMs,
 							);
 						}
 						activeTurnTimingRef.current = null;

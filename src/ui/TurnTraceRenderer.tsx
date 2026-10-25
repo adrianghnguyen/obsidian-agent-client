@@ -13,7 +13,9 @@ import type { TurnSegment, ThoughtItem } from "../services/trace-turn";
 import {
 	collectVisibleTurnRows,
 	flattenTurnContents,
+	resolveTurnDurationMs,
 } from "../services/trace-turn";
+import { formatElapsedDuration } from "../utils/format-elapsed-duration";
 import {
 	groupTraceContent,
 	hiddenTraceSummary,
@@ -460,11 +462,27 @@ export const TurnTraceRenderer = React.memo(function TurnTraceRenderer({
 		Boolean(forkThroughId) &&
 		streamingMessageId != null &&
 		forkThroughId === streamingMessageId;
+	const turnDurationMs = resolveTurnDurationMs(segment, messages);
+	const turnDurationLabel =
+		turnDurationMs != null ? formatElapsedDuration(turnDurationMs) : null;
 
 	return (
 		<div
-			className={`agent-client-message-renderer agent-client-message-assistant agent-client-turn-trace${canCopy ? " agent-client-message-has-copy" : ""}${showActions ? " agent-client-message-has-actions" : ""}`}
+			className={`agent-client-message-renderer agent-client-message-assistant agent-client-turn-trace${canCopy ? " agent-client-message-has-copy" : ""}${showActions ? " agent-client-message-has-actions" : ""}${turnDurationLabel ? " agent-client-message-has-turn-duration" : ""}`}
+			title={
+				turnDurationLabel
+					? `Turn completed in ${turnDurationLabel}`
+					: undefined
+			}
 		>
+			{turnDurationLabel && (
+				<span
+					className="agent-client-message-turn-duration"
+					aria-hidden="true"
+				>
+					{turnDurationLabel}
+				</span>
+			)}
 			{rows.map((row, idx) => {
 				if (row.type === "hiddenBuffer") {
 					return (

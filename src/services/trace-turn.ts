@@ -235,6 +235,20 @@ export function collectVisibleTurnRows(
 	return rows;
 }
 
+/** Measured prompt duration stored on the last assistant bubble in a turn. */
+export function resolveTurnDurationMs(
+	segment: TurnSegment,
+	messages: ChatMessage[],
+): number | undefined {
+	for (let i = segment.assistantMessageIndices.length - 1; i >= 0; i--) {
+		const ms = messages[segment.assistantMessageIndices[i]]?.turnDurationMs;
+		if (ms != null && Number.isFinite(ms)) {
+			return ms;
+		}
+	}
+	return undefined;
+}
+
 export type DisplayListItem =
 	| { type: "message"; key: string; message: ChatMessage; messageIndex: number }
 	| {
