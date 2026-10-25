@@ -39,6 +39,7 @@ import { Platform } from "obsidian";
 import {
 	rebuildToolCallIndex,
 	applySingleUpdate,
+	applyTurnDurationToLastAssistant,
 	findActivePermission,
 	selectOption,
 } from "../services/message-state";
@@ -177,6 +178,12 @@ export function useAgentMessages(
 	// generation hasn't changed (fixes Issue #200).
 	const generationRef = useRef(0);
 
+	/** Cleared on cancel so aborted turns do not record duration. */
+	const activeTurnTimingRef = useRef<{
+		generation: number;
+		startedAtMs: number;
+	} | null>(null);
+
 	// Track the current send promise so a new sendMessage() can wait for
 	// the previous one to settle before starting (avoids interleaved sends).
 	const sendPromiseRef = useRef<Promise<void> | null>(null);
@@ -247,6 +254,7 @@ export function useAgentMessages(
 	 * instead of staying stuck (#326).
 	 */
 	const clearPendingUpdates = useCallback((): void => {
+		activeTurnTimingRef.current = null;
 		const queued = pendingUpdatesRef.current;
 		pendingUpdatesRef.current = [];
 		flushScheduledRef.current = false;
@@ -446,6 +454,10 @@ export function useAgentMessages(
 
 			setIsSending(true);
 			setLastUserMessage(content);
+			activeTurnTimingRef.current = {
+				generation,
+				startedAtMs: Date.now(),
+			};
 
 			const sendPromise = (async () => {
 				try {
@@ -463,6 +475,22 @@ export function useAgentMessages(
 					if (generationRef.current !== generation) return;
 
 					if (result.success) {
+						const timing = activeTurnTimingRef.current;
+						if (
+							timing &&
+							timing.generation === generation &&
+							generationRef.current === generation
+						) {
+							const turnDurationMs =
+								Date.now() - timing.startedAtMs;
+							setMessages((prev) =>
+								applyTurnDurationToLastAssistant(
+									prev,
+									turnDurationMs,
+								),
+							);
+						}
+						activeTurnTimingRef.current = null;
 						setIsSending(false);
 						setLastUserMessage(null);
 						if (forkResult.injected) {
@@ -473,6 +501,7 @@ export function useAgentMessages(
 							);
 						}
 					} else {
+						activeTurnTimingRef.current = null;
 						setIsSending(false);
 						const agentSettings = findAgentSettings(
 							settings,
@@ -528,6 +557,7 @@ export function useAgentMessages(
 					}
 				} catch (error) {
 					if (generationRef.current !== generation) return;
+					activeTurnTimingRef.current = null;
 					setIsSending(false);
 					const settings = settingsAccess.getSnapshot();
 					const agentSettings = findAgentSettings(

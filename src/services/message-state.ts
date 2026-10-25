@@ -564,3 +564,24 @@ export function selectOption(
 	}
 	return options[0];
 }
+
+/**
+ * Attach measured prompt duration to the last assistant message in the transcript.
+ * No-op when there is no assistant message (e.g. empty agent response).
+ */
+export function applyTurnDurationToLastAssistant(
+	messages: ChatMessage[],
+	turnDurationMs: number,
+): ChatMessage[] {
+	if (!Number.isFinite(turnDurationMs) || turnDurationMs < 0) {
+		return messages;
+	}
+	for (let i = messages.length - 1; i >= 0; i--) {
+		if (messages[i].role === "assistant") {
+			const next = [...messages];
+			next[i] = { ...messages[i], turnDurationMs };
+			return next;
+		}
+	}
+	return messages;
+}

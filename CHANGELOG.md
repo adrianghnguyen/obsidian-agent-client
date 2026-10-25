@@ -4,6 +4,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+
+- **Turn duration on hover** — Completed assistant replies store end-to-end prompt timing; hover the response to see a muted `M:SS` label (also in restored session history).
+
 ### Fixed
 
 - Slash-command suggester and `@[[title]]` resolution use Obsidian `prepareSimpleSearch` / fold-safe basename matching so unaccented typing can match diacritic note titles on 1.15+ (graceful on 1.14).

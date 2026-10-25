@@ -2430,6 +2430,24 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 0;
 }
 
+.agent-client-message-turn-duration {
+	position: absolute;
+	top: 0;
+	right: 8px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	font-variant-numeric: tabular-nums;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.15s ease;
+	user-select: none;
+}
+
+.agent-client-message-renderer.agent-client-message-assistant:hover
+	.agent-client-message-turn-duration {
+	opacity: 1;
+}
+
 /* Action buttons are hover-only overlays — no permanent padding (avoids a tall dead band under every reply). */
 .agent-client-message-action-button:disabled {
 	opacity: 0.4;
