@@ -193,6 +193,8 @@ export interface ChatMessage {
 	role: Role;
 	content: MessageContent[];
 	timestamp: Date;
+	/** End-to-end session/prompt duration for this assistant turn (ms). Hover-only in UI. */
+	turnDurationMs?: number;
 }
 
 /**

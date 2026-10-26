@@ -31,6 +31,7 @@ import { CopyButton } from "./shared/CopyButton";
 import { JumpToTopButton } from "./shared/JumpToTopButton";
 import { ForkButton } from "./shared/ForkButton";
 import { hasCopyableText } from "../utils/message-copy";
+import { formatElapsedDuration } from "../utils/format-elapsed-duration";
 import { AssistantVaultRefsRow } from "./MessageVaultRefsRow";
 
 // ---------------------------------------------------------------------------
@@ -601,11 +602,31 @@ export const MessageBubble = React.memo(function MessageBubble({
 		message.role === "user"
 			? "agent-client-message-user"
 			: "agent-client-message-assistant";
+	const turnDurationMs = message.turnDurationMs;
+	const turnDurationLabel =
+		message.role === "assistant" &&
+		turnDurationMs != null &&
+		Number.isFinite(turnDurationMs)
+			? formatElapsedDuration(turnDurationMs)
+			: null;
 
 	return (
 		<div
-			className={`agent-client-message-renderer ${roleClass}${canCopy ? " agent-client-message-has-copy" : ""}${showActions ? " agent-client-message-has-actions" : ""}`}
+			className={`agent-client-message-renderer ${roleClass}${canCopy ? " agent-client-message-has-copy" : ""}${showActions ? " agent-client-message-has-actions" : ""}${turnDurationLabel ? " agent-client-message-has-turn-duration" : ""}`}
+			title={
+				turnDurationLabel
+					? `Turn completed in ${turnDurationLabel}`
+					: undefined
+			}
 		>
+			{turnDurationLabel && (
+				<span
+					className="agent-client-message-turn-duration"
+					aria-hidden="true"
+				>
+					{turnDurationLabel}
+				</span>
+			)}
 			{groups.map((group, idx) => {
 				if (group.type === "attachments") {
 					return (
