@@ -4,6 +4,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.32.0-beta.1
+
+Turn duration on hover and accent-insensitive slash / `@[[title]]` matching.
+
 ### Added
 
 - **Turn duration on hover** — Completed assistant replies store end-to-end prompt timing; hover the response to see a muted `M:SS` label (also in restored session history).
