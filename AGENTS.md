@@ -30,8 +30,8 @@ User-facing changes: log under `CHANGELOG.md` `[Unreleased]` when ready; version
 Setup is owned by `obsidian-plugin-development`. This repo ships the shared pointer plus its own secret-id map. **Do not copy script bodies here.**
 
 - Pointer: `.cursor/environment.json` (same `install` / `start` / `repositoryDependencies` on all plugin `main`s — see [`.cursor/rules/cloud-environment-alignment.mdc`](.cursor/rules/cloud-environment-alignment.mdc))
-- **`repositoryDependencies` must include `github.com/adrianghnguyen/obsidian-plugin-development`** whenever install/start point at `/agent/repos/obsidian-plugin-development/...`; otherwise Cloud builds fail with exit 127 before any Obsidian setup runs.
-- Scripts (plugin-development only): `scripts/cloud-e2e/env-install.sh`, `env-start.sh`, `install-acp-agents.sh`, `paths.env`
+- **`install` / `start`** run `.cursor/cloud-bootstrap.sh`, which symlinks or clones `/agent/repos/*` then calls orchestrator `env-install.sh` / `env-start.sh`. Keep **`repositoryDependencies`** listing every sibling checkout (token scope + agent runs); orchestrator-primary builds may not pre-clone `/agent/repos` — bootstrap covers that.
+- Scripts (plugin-development only): `scripts/cloud-e2e/bootstrap-cloud-repos.sh`, `env-install.sh`, `env-start.sh`, `install-acp-agents.sh`, `paths.env`
 - Walkthrough: `scripts/cloud-e2e/README.md`, `GETTING-STARTED.md`
 - Secret **ids**: this repo’s `.cloud-e2e/secret-bindings.json`; fallbacks `obsidian-plugin-development/scripts/cloud-e2e/bindings/*.json` via `load-bindings.mjs`
 - Identity gate: `env-start.sh` CDP eval + `paths.env` (no separate id file)
