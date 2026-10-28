@@ -109,6 +109,26 @@ describe("VoiceTranscriptAccumulator", () => {
 		expect(acc.applyFinal("new")).toBe("fresh new");
 	});
 
+	it("highlight parts keep locked text and the pending interim suffix", () => {
+		const acc = new VoiceTranscriptAccumulator();
+		acc.begin("Explain");
+		expect(acc.getHighlightParts()).toEqual({ locked: "Explain", pending: "" });
+		acc.applyInterim("this");
+		expect(acc.getHighlightParts()).toEqual({
+			locked: "Explain",
+			pending: " this",
+		});
+		acc.applyFinal("this");
+		expect(acc.getHighlightParts()).toEqual({
+			locked: "Explain this",
+			pending: "",
+		});
+		acc.applyInterim("next");
+		const parts = acc.getHighlightParts();
+		expect(parts.locked + parts.pending).toBe(acc.getPreview());
+		expect(parts.pending).toBe(" next");
+	});
+
 	it("clear drops committed text so the next turn starts empty", () => {
 		const acc = new VoiceTranscriptAccumulator();
 		acc.begin("typed ");
