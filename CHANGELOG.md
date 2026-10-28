@@ -4,6 +4,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.32.0-beta.2
+
+Voice mic on the right of the composer, with pending Live transcript highlight.
+
 ### Changed
 
 - **Voice mic on the right** — The composer microphone sits on the **right** of the chat input, beside the textarea.
