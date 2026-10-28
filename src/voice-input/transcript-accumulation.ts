@@ -50,12 +50,25 @@ export class VoiceTranscriptAccumulator {
 		this.interim = "";
 	}
 
+	/** Locked prompt + committed finals (no in-flight interim). */
+	getLockedPreview(): string {
+		return joinWithBoundarySpace(this.preVoiceInput, this.committed);
+	}
+
 	/** Text to show in the input right now. */
 	getPreview(): string {
-		return joinWithBoundarySpace(
-			joinWithBoundarySpace(this.preVoiceInput, this.committed),
-			this.interim,
-		);
+		return joinWithBoundarySpace(this.getLockedPreview(), this.interim);
+	}
+
+	/**
+	 * Split the current preview into locked text vs the in-flight
+	 * interim suffix (including any inserted boundary space). The two
+	 * parts concatenate to `getPreview()`.
+	 */
+	getHighlightParts(): { locked: string; pending: string } {
+		const locked = this.getLockedPreview();
+		const preview = this.getPreview();
+		return { locked, pending: preview.slice(locked.length) };
 	}
 
 	/**

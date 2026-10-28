@@ -368,6 +368,8 @@ export function InputArea({
 
 	const [isVoiceListening, setIsVoiceListening] = useState(false);
 	const [audioLevel, setAudioLevel] = useState(0);
+	const [voicePending, setVoicePending] = useState("");
+	const [voiceLocked, setVoiceLocked] = useState("");
 	const voiceAccumulatorRef = useRef(new VoiceTranscriptAccumulator());
 	const voiceSinkGenerationRef = useRef({ current: 0 });
 	const inputValueRef = useRef(inputValue);
@@ -376,9 +378,17 @@ export function InputArea({
 	isVoiceListeningRef.current = isVoiceListening;
 	const presenceLatch = useFloatingPresence();
 
+	const syncVoiceHighlight = useCallback(() => {
+		const parts = voiceAccumulatorRef.current.getHighlightParts();
+		setVoiceLocked(parts.locked);
+		setVoicePending(parts.pending);
+	}, []);
+
 	const finishVoiceListeningUi = useCallback(() => {
 		setIsVoiceListening(false);
 		setAudioLevel(0);
+		setVoicePending("");
+		setVoiceLocked("");
 		presenceLatch?.release(ENGAGEMENT_VOICE_INPUT);
 	}, [presenceLatch]);
 
@@ -406,9 +416,10 @@ export function InputArea({
 			if (restoreTranscript) {
 				onInputChange(voiceAccumulatorRef.current.discardInterim());
 			}
+			syncVoiceHighlight();
 			finishVoiceListeningUi();
 		},
-		[plugin, onInputChange, finishVoiceListeningUi],
+		[plugin, onInputChange, finishVoiceListeningUi, syncVoiceHighlight],
 	);
 
 	// Clear attached files when agent changes
@@ -860,6 +871,7 @@ export function InputArea({
 
 		const acc = voiceAccumulatorRef.current;
 		acc.begin(inputValue);
+		syncVoiceHighlight();
 		const sinkGeneration = voiceSinkGenerationRef.current;
 		sinkGeneration.current += 1;
 		const sinkId = sinkGeneration.current;
@@ -868,15 +880,18 @@ export function InputArea({
 				if (!isCurrentVoiceSink(sinkGeneration, sinkId)) return;
 				const preview = acc.applyInterim(text);
 				if (preview !== null) onInputChange(preview);
+				syncVoiceHighlight();
 			},
 			onFinal: (text) => {
 				if (!isCurrentVoiceSink(sinkGeneration, sinkId)) return;
 				const committed = acc.applyFinal(text);
 				if (committed !== null) onInputChange(committed);
+				syncVoiceHighlight();
 			},
 			onError: (error) => {
 				if (!isCurrentVoiceSink(sinkGeneration, sinkId)) return;
 				onInputChange(acc.discardInterim());
+				syncVoiceHighlight();
 				new Notice("[Agent Client] Voice: " + error);
 				finishVoiceListeningUi();
 			},
@@ -892,6 +907,7 @@ export function InputArea({
 		isVoiceListening,
 		presenceLatch,
 		finishVoiceListeningUi,
+		syncVoiceHighlight,
 	]);
 
 	const handleVoiceStopAndSend = useCallback(async () => {
@@ -1258,18 +1274,11 @@ export function InputArea({
 					onRemoveMention={removeMention}
 				/>
 
-				{/* Inline voice controls + textarea with Hint Overlay */}
+				{/* Textarea with Hint Overlay + inline voice controls (right) */}
 				<div className="agent-client-input-main-row">
-					{plugin.voiceInput && (
-						<VoiceInputInline
-							isListening={isVoiceListening}
-							audioLevel={audioLevel}
-							onStart={handleStartVoice}
-							onStop={() => void stopVoiceListening()}
-							disabled={isRestoringSession}
-						/>
-					)}
-					<div className="agent-client-textarea-wrapper">
+					<div
+						className={`agent-client-textarea-wrapper${voicePending ? " is-voice-pending" : ""}`}
+					>
 						<textarea
 							ref={textareaRef}
 							value={inputValue}
@@ -1281,7 +1290,19 @@ export function InputArea({
 							rows={1}
 							spellCheck={obsidianSpellcheck}
 						/>
-						{hintText && (
+						{voicePending ? (
+							<div
+								className="agent-client-voice-transcript-overlay"
+								aria-hidden="true"
+							>
+								<span className="agent-client-voice-locked">
+									{voiceLocked}
+								</span>
+								<mark className="agent-client-voice-pending">
+									{voicePending}
+								</mark>
+							</div>
+						) : hintText ? (
 							<div
 								className="agent-client-hint-overlay"
 								aria-hidden="true"
@@ -1293,8 +1314,17 @@ export function InputArea({
 									{hintText}
 								</span>
 							</div>
-						)}
+						) : null}
 					</div>
+					{plugin.voiceInput && (
+						<VoiceInputInline
+							isListening={isVoiceListening}
+							audioLevel={audioLevel}
+							onStart={handleStartVoice}
+							onStop={() => void stopVoiceListening()}
+							disabled={isRestoringSession}
+						/>
+					)}
 				</div>
 
 				{/* Attachment Preview Strip (images + file references) */}

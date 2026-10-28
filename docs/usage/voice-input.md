@@ -12,7 +12,7 @@ Voice input uses Google's Gemini Live API, so it needs a Google AI Studio API ke
 2. Turn on **Enable voice input**
 3. Paste your Google AI Studio API key into **Gemini API key**
 
-A microphone button then appears on the chat input for every chat variant (sidebar, floating, and embedded). While listening, the button shows a live level wave; click **Stop** to finish dictation.
+A microphone button then appears on the **right** of the chat input for every chat variant (sidebar, floating, and embedded). While listening, the button shows a live level wave; click **Stop** to finish dictation. In-flight transcript stays **highlighted** until that clip locks in as committed composer text.
 
 Dictation works while the agent is still connecting. If you send before the harness is ready, the message joins the same queued-send strip as a typed prompt and goes out when the session is ready.
 

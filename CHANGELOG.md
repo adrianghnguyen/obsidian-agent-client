@@ -4,6 +4,11 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Changed
+
+- **Voice mic on the right** — The composer microphone sits on the **right** of the chat input, beside the textarea.
+- **Voice pending highlight** — While Gemini Live is still transcribing a clip, the in-flight text is **highlighted** until that segment locks in as committed composer text.
+
 ## 0.32.0-beta.1
 
 Turn duration on hover and accent-insensitive slash / `@[[title]]` matching.

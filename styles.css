@@ -1614,8 +1614,7 @@ If your plugin does not need CSS, delete this file.
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
-	/* Left padding matches .agent-client-voice-inline so the mode control
-	   lines up with the mic in the row below. */
+	/* Left padding matches the textarea; the mic sits on the right. */
 	padding: 6px 8px 0 12px;
 	width: 100%;
 	box-sizing: border-box;
@@ -1881,6 +1880,38 @@ If your plugin does not need CSS, delete this file.
 
 .agent-client-hint-overlay .agent-client-hint-text {
 	color: var(--text-faint);
+}
+
+/* In-flight voice transcript: overlay locked text + highlighted pending */
+.agent-client-voice-transcript-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+	padding: 12px;
+	box-sizing: border-box;
+	font-family: inherit;
+	font-size: var(--ac-chat-font-size);
+	line-height: var(--line-height-normal);
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	overflow: hidden;
+	color: var(--text-normal);
+}
+
+.agent-client-voice-transcript-overlay .agent-client-voice-pending {
+	background-color: var(--text-highlight-bg, var(--text-selection));
+	color: var(--text-normal);
+	border-radius: 2px;
+	font-style: inherit;
+}
+
+.agent-client-textarea-wrapper.is-voice-pending
+	.agent-client-chat-input-textarea {
+	color: transparent;
+	caret-color: var(--text-normal);
 }
 
 /* Input Actions Container */
@@ -2181,7 +2212,7 @@ If your plugin does not need CSS, delete this file.
 	align-items: center;
 	gap: 8px;
 	flex-shrink: 0;
-	padding-left: 12px;
+	padding-right: 12px;
 	align-self: center;
 }
 
