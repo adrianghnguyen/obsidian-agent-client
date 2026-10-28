@@ -4,18 +4,45 @@ import {
 	TARGET_SAMPLE_RATE,
 } from "./LiveProtocol";
 
+const PCM_CAPTURE_WORKLET_NAME = "agent-client-pcm-capture";
+
+const PCM_CAPTURE_WORKLET_SOURCE = `
+class PcmCaptureProcessor extends AudioWorkletProcessor {
+	process(inputs) {
+		const channel = inputs[0] && inputs[0][0];
+		if (channel && channel.length) {
+			this.port.postMessage(channel.slice());
+		}
+		return true;
+	}
+}
+registerProcessor("${PCM_CAPTURE_WORKLET_NAME}", PcmCaptureProcessor);
+`;
+
+async function addPcmCaptureWorklet(audioContext: AudioContext): Promise<void> {
+	const blob = new Blob([PCM_CAPTURE_WORKLET_SOURCE], {
+		type: "application/javascript",
+	});
+	const url = URL.createObjectURL(blob);
+	try {
+		await audioContext.audioWorklet.addModule(url);
+	} finally {
+		URL.revokeObjectURL(url);
+	}
+}
+
 /**
  * Streaming PCM audio recorder.
  *
- * Captures raw audio from the microphone via AudioContext, resamples to
- * 16 kHz mono 16-bit linear PCM, and delivers chunks to a callback.
- * Used by LiveTranscriber for the WebSocket Live API.
+ * Captures raw audio from the microphone via AudioContext + AudioWorklet,
+ * resamples to 16 kHz mono 16-bit linear PCM, and delivers chunks to a
+ * callback. Used by LiveTranscriber for the WebSocket Live API.
  */
 export class AudioCapture {
 	private audioContext: AudioContext | null = null;
 	private mediaStream: MediaStream | null = null;
 	private source: MediaStreamAudioSourceNode | null = null;
-	private processor: ScriptProcessorNode | null = null;
+	private worklet: AudioWorkletNode | null = null;
 	private analyser: AnalyserNode | null = null;
 	private silentGain: GainNode | null = null;
 	private frequencyData: Uint8Array<ArrayBuffer> | null = null;
@@ -44,60 +71,74 @@ export class AudioCapture {
 		});
 
 		try {
-			this.audioContext = new AudioContext({
-				sampleRate: TARGET_SAMPLE_RATE,
-			});
-		} catch {
-			this.audioContext = new AudioContext();
+			try {
+				this.audioContext = new AudioContext({
+					sampleRate: TARGET_SAMPLE_RATE,
+				});
+			} catch {
+				this.audioContext = new AudioContext();
+			}
+
+			if (this.audioContext.state === "suspended") {
+				await this.audioContext.resume();
+			}
+
+			this.source = this.audioContext.createMediaStreamSource(
+				this.mediaStream,
+			);
+
+			this.analyser = this.audioContext.createAnalyser();
+			this.analyser.fftSize = 256;
+			this.analyser.smoothingTimeConstant = 0.7;
+			this.frequencyData = new Uint8Array(
+				new ArrayBuffer(this.analyser.frequencyBinCount),
+			);
+
+			await addPcmCaptureWorklet(this.audioContext);
+			this.worklet = new AudioWorkletNode(
+				this.audioContext,
+				PCM_CAPTURE_WORKLET_NAME,
+				{
+					numberOfInputs: 1,
+					numberOfOutputs: 1,
+					outputChannelCount: [1],
+					channelCount: 1,
+				},
+			);
+			this.worklet.port.onmessage = (event: MessageEvent<Float32Array>) => {
+				if (!this.isRecording) return;
+				const input = event.data;
+				if (!input?.length) return;
+				const rate = this.audioContext?.sampleRate || TARGET_SAMPLE_RATE;
+				const resampled = resampleTo16k(input, rate);
+				if (!resampled.length) return;
+				this.onChunk?.(floatToPcm16Base64(resampled));
+			};
+
+			this.silentGain = this.audioContext.createGain();
+			this.silentGain.gain.value = 0;
+			this.source.connect(this.analyser);
+			this.source.connect(this.worklet);
+			this.worklet.connect(this.silentGain);
+			this.silentGain.connect(this.audioContext.destination);
+			this.isRecording = true;
+		} catch (error) {
+			this.releaseResources();
+			throw error;
 		}
-
-		if (this.audioContext.state === "suspended") {
-			await this.audioContext.resume();
-		}
-
-		this.source = this.audioContext.createMediaStreamSource(
-			this.mediaStream,
-		);
-
-		this.analyser = this.audioContext.createAnalyser();
-		this.analyser.fftSize = 256;
-		this.analyser.smoothingTimeConstant = 0.7;
-		this.frequencyData = new Uint8Array(
-			new ArrayBuffer(this.analyser.frequencyBinCount),
-		);
-
-		// ScriptProcessorNode for PCM access
-		const bufferSize = 4096;
-		this.processor = this.audioContext.createScriptProcessor(
-			bufferSize,
-			1,
-			1,
-		);
-
-		this.processor.onaudioprocess = (event) => {
-			if (!this.isRecording) return;
-			const input = event.inputBuffer.getChannelData(0);
-			const rate = this.audioContext?.sampleRate || TARGET_SAMPLE_RATE;
-			const resampled = resampleTo16k(input, rate);
-			if (!resampled.length) return;
-			this.onChunk?.(floatToPcm16Base64(resampled));
-		};
-
-		// Keep the processor graph alive without playing through speakers
-		this.silentGain = this.audioContext.createGain();
-		this.silentGain.gain.value = 0;
-		this.source.connect(this.analyser);
-		this.source.connect(this.processor);
-		this.processor.connect(this.silentGain);
-		this.silentGain.connect(this.audioContext.destination);
-		this.isRecording = true;
 	}
 
 	stop(): void {
 		if (!this.isRecording) return;
 		this.isRecording = false;
+		this.releaseResources();
+	}
 
-		this.processor?.disconnect();
+	private releaseResources(): void {
+		if (this.worklet) {
+			this.worklet.port.onmessage = null;
+			this.worklet.disconnect();
+		}
 		this.analyser?.disconnect();
 		this.source?.disconnect();
 		this.silentGain?.disconnect();
@@ -110,7 +151,7 @@ export class AudioCapture {
 		this.audioContext = null;
 		this.mediaStream = null;
 		this.source = null;
-		this.processor = null;
+		this.worklet = null;
 		this.analyser = null;
 		this.frequencyData = null;
 		this.silentGain = null;
