@@ -115,26 +115,3 @@ export function createFakeMediaStream(): MediaStream {
 	} as unknown as MediaStream;
 	return stream;
 }
-
-/**
- * Fake AudioProcessingEvent for ScriptProcessorNode tests.
- */
-export function createFakeAudioEvent(
-	channelData: Float32Array,
-	rate = 48000,
-): AudioProcessingEvent {
-	const buffer = {
-		getChannelData: vi.fn(() => channelData),
-		numberOfChannels: 1,
-		sampleRate: rate,
-		duration: channelData.length / rate,
-	} as unknown as AudioBuffer;
-
-	return {
-		inputBuffer: buffer,
-		outputBuffer: {
-			getChannelData: vi.fn(() => new Float32Array(channelData.length)),
-		},
-		playbackTime: 0,
-	} as unknown as AudioProcessingEvent;
-}

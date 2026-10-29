@@ -126,7 +126,7 @@ describe("VoiceInputModule", () => {
 			sampleRate: 16000,
 			state: "running",
 			createMediaStreamSource: () => ({ connect: vi.fn(), disconnect: vi.fn() }),
-			createScriptProcessor: () => ({ connect: vi.fn(), disconnect: vi.fn() }),
+			audioWorklet: { addModule: vi.fn(async () => undefined) },
 			createAnalyser: () => ({
 				fftSize: 256,
 				smoothingTimeConstant: 0.7,
@@ -142,6 +142,21 @@ describe("VoiceInputModule", () => {
 		} as unknown as AudioContext;
 		(globalThis as unknown as Record<string, unknown>).AudioContext = function () {
 			return fakeCtx;
+		};
+		(globalThis as unknown as Record<string, unknown>).AudioWorkletNode =
+			function () {
+				return {
+					port: { onmessage: null },
+					connect: vi.fn(),
+					disconnect: vi.fn(),
+				};
+			};
+		(globalThis as unknown as Record<string, unknown>).Blob = class {
+			constructor(public readonly parts: unknown[]) {}
+		};
+		(globalThis as unknown as Record<string, unknown>).URL = {
+			createObjectURL: vi.fn(() => "blob:agent-client-pcm-capture"),
+			revokeObjectURL: vi.fn(),
 		};
 
 		expect(module.isTestingMic).toBe(false);

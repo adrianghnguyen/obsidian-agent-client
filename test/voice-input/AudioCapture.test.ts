@@ -2,11 +2,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AudioCapture } from "../../src/voice-input/AudioCapture";
 import { createFakeMediaStream } from "./fixtures";
 
+interface FakeWorkletNode {
+	port: { onmessage: ((event: MessageEvent<Float32Array>) => void) | null };
+	disconnect: ReturnType<typeof vi.fn>;
+	connect: ReturnType<typeof vi.fn>;
+}
+
 interface FakeAudioContextBundle {
 	ctx: AudioContext;
 	frequencySnapshot: Uint8Array;
 	analyser: AnalyserNode & { disconnect: ReturnType<typeof vi.fn> };
-	processor: ScriptProcessorNode;
+	worklet: FakeWorkletNode;
+	addModule: ReturnType<typeof vi.fn>;
 	/** Sync analyser bins from the last PCM buffer (simulates live metering). */
 	syncLevelFromPcm: (samples: Float32Array) => void;
 }
@@ -27,11 +34,11 @@ function createFakeAudioContext(): FakeAudioContextBundle {
 		frequencySnapshot.fill(byte);
 	};
 
-	const processor = {
-		onaudioprocess: null as unknown as (event: AudioProcessingEvent) => void,
+	const worklet: FakeWorkletNode = {
+		port: { onmessage: null },
 		disconnect: vi.fn(),
 		connect: vi.fn(),
-	} as unknown as ScriptProcessorNode;
+	};
 
 	const analyser = {
 		fftSize: 256,
@@ -55,37 +62,31 @@ function createFakeAudioContext(): FakeAudioContextBundle {
 		connect: vi.fn((dest: AudioNode) => dest),
 	};
 
+	const addModule = vi.fn(async () => undefined);
+
 	const ctx = {
 		sampleRate: 16000,
 		state: "running",
 		createMediaStreamSource: vi.fn(() => source as MediaStreamAudioSourceNode),
-		createScriptProcessor: vi.fn(() => processor),
 		createAnalyser: vi.fn(() => analyser),
 		createGain: vi.fn(() => gain as GainNode),
+		audioWorklet: { addModule },
 		resume: vi.fn(async () => undefined),
 		close: vi.fn(async () => undefined),
 		destination: {} as AudioDestinationNode,
 	} as unknown as AudioContext;
 
-	return { ctx, frequencySnapshot, analyser, processor, syncLevelFromPcm };
+	return { ctx, frequencySnapshot, analyser, worklet, addModule, syncLevelFromPcm };
 }
 
-function fireProcess(
+function fireWorkletChunk(
 	bundle: FakeAudioContextBundle,
 	channelData: Float32Array,
 ): void {
 	bundle.syncLevelFromPcm(channelData);
-	const event = {
-		inputBuffer: {
-			getChannelData: vi.fn(() => channelData),
-			numberOfChannels: 1,
-			sampleRate: 16000,
-		},
-		outputBuffer: {
-			getChannelData: vi.fn(() => new Float32Array(channelData.length)),
-		},
-	} as unknown as AudioProcessingEvent;
-	bundle.processor.onaudioprocess(event);
+	bundle.worklet.port.onmessage?.({
+		data: channelData,
+	} as MessageEvent<Float32Array>);
 }
 
 function makeSine(amplitude: number, length = 512): Float32Array {
@@ -120,6 +121,17 @@ describe("AudioCapture", () => {
 			function () {
 				return bundle.ctx;
 			};
+		(globalThis as unknown as Record<string, unknown>).AudioWorkletNode =
+			function () {
+				return bundle.worklet;
+			};
+		(globalThis as unknown as Record<string, unknown>).Blob = class {
+			constructor(public readonly parts: unknown[]) {}
+		};
+		(globalThis as unknown as Record<string, unknown>).URL = {
+			createObjectURL: vi.fn(() => "blob:agent-client-pcm-capture"),
+			revokeObjectURL: vi.fn(),
+		};
 	});
 
 	it("is idle after construction", () => {
@@ -171,43 +183,48 @@ describe("AudioCapture", () => {
 		audioCapture.stop();
 	});
 
-	it("creates AudioContext and ScriptProcessor", async () => {
+	it("loads the PCM capture AudioWorklet module", async () => {
 		await audioCapture.start(vi.fn());
-		expect(bundle.ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+		expect(bundle.addModule).toHaveBeenCalledWith(
+			"blob:agent-client-pcm-capture",
+		);
+		expect(URL.revokeObjectURL).toHaveBeenCalledWith(
+			"blob:agent-client-pcm-capture",
+		);
 	});
 
-	it("calls onChunk with base64 PCM when onaudioprocess fires", async () => {
+	it("calls onChunk with base64 PCM when the worklet posts samples", async () => {
 		const onChunk = vi.fn();
 		await audioCapture.start(onChunk);
-		fireProcess(bundle, new Float32Array([0.1, -0.2, 0.3]));
+		fireWorkletChunk(bundle, new Float32Array([0.1, -0.2, 0.3]));
 		expect(onChunk).toHaveBeenCalledWith(expect.any(String));
 		expect(onChunk.mock.calls[0][0]).toBeTruthy();
 	});
 
 	it("getLevel stays near 0 for silence", async () => {
 		await audioCapture.start(vi.fn());
-		fireProcess(bundle, new Float32Array(512));
+		fireWorkletChunk(bundle, new Float32Array(512));
 		expect(audioCapture.getLevel()).toBeLessThan(0.05);
 	});
 
 	it("getLevel exceeds floor for a loud signal", async () => {
 		await audioCapture.start(vi.fn());
-		fireProcess(bundle, makeSine(0.8));
+		fireWorkletChunk(bundle, makeSine(0.8));
 		expect(audioCapture.getLevel()).toBeGreaterThan(0.1);
 	});
 
 	it("getLevel rises with louder PCM", async () => {
 		await audioCapture.start(vi.fn());
-		fireProcess(bundle, makeSine(0.2));
+		fireWorkletChunk(bundle, makeSine(0.2));
 		const quiet = audioCapture.getLevel();
-		fireProcess(bundle, makeSine(0.9));
+		fireWorkletChunk(bundle, makeSine(0.9));
 		const loud = audioCapture.getLevel();
 		expect(loud).toBeGreaterThan(quiet);
 	});
 
 	it("getLevel returns 0 after stop and disconnects analyser", async () => {
 		await audioCapture.start(vi.fn());
-		fireProcess(bundle, makeSine(0.8));
+		fireWorkletChunk(bundle, makeSine(0.8));
 		expect(audioCapture.getLevel()).toBeGreaterThan(0.1);
 
 		audioCapture.stop();
@@ -226,6 +243,7 @@ describe("AudioCapture", () => {
 			expect(track.stop).toHaveBeenCalled();
 		}
 		expect(bundle.ctx.close).toHaveBeenCalled();
+		expect(bundle.worklet.disconnect).toHaveBeenCalled();
 	});
 
 	it("second start() is a no-op when already recording", async () => {
@@ -253,5 +271,14 @@ describe("AudioCapture", () => {
 
 	it("stop() is safe when not recording", () => {
 		expect(() => audioCapture.stop()).not.toThrow();
+	});
+
+	it("releases the mic if the worklet fails to load", async () => {
+		bundle.addModule.mockRejectedValueOnce(new Error("worklet blocked"));
+		await expect(audioCapture.start(vi.fn())).rejects.toThrow("worklet blocked");
+		expect(audioCapture.isActive).toBe(false);
+		for (const track of fakeMediaStream.getTracks()) {
+			expect(track.stop).toHaveBeenCalled();
+		}
 	});
 });

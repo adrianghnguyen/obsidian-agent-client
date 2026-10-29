@@ -34,16 +34,6 @@ export default defineConfig([
 		},
 	},
 	{
-		files: [
-			"src/voice-input/**/*.ts",
-			"test/voice-input/**/*.ts",
-		],
-		rules: {
-			// ScriptProcessorNode path until AudioWorklet migration; tests mirror production API.
-			"@typescript-eslint/no-deprecated": "off",
-		},
-	},
-	{
 		files: ["scripts/**/*.mjs"],
 		languageOptions: {
 			globals: globals.node,
