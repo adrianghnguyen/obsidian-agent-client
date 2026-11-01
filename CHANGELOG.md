@@ -4,6 +4,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.32.0-beta.3
+
+Composer voice capture uses AudioWorklet instead of the deprecated ScriptProcessorNode.
+
 ### Fixed
 
 - Composer voice capture uses **AudioWorklet** instead of the deprecated ScriptProcessorNode, so starting the mic no longer logs a Chromium deprecation warning.
