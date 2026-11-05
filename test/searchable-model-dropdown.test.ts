@@ -45,9 +45,9 @@ describe("SearchableModelDropdown", () => {
 		});
 		const options = screen.getAllByRole("option");
 		expect(options).toHaveLength(2);
-		expect(
-			options.some((el) => el.textContent?.includes("Model 1")),
-		).toBe(false);
+		expect(options.some((el) => el.textContent?.includes("Model 1"))).toBe(
+			false,
+		);
 		const marks = document.querySelectorAll(
 			".agent-client-model-search-match",
 		);
@@ -78,6 +78,10 @@ describe("SearchableModelDropdown", () => {
 		fireEvent.keyDown(input, { key: "Enter" });
 		expect(onChange).toHaveBeenCalledWith("model-4");
 		expect(screen.queryByLabelText("Search models")).toBeNull();
+		expect(
+			document.querySelector(".agent-client-toolbar-dropdown-label")
+				?.textContent,
+		).toBe("Claude Opus");
 		fireEvent.click(screen.getByTitle("Model"));
 		expect(
 			(screen.getByLabelText("Search models") as HTMLInputElement).value,

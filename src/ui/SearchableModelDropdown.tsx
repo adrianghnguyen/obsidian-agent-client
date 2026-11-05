@@ -76,6 +76,13 @@ export function SearchableModelDropdown({
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [highlighted, setHighlighted] = useState<string | null>(null);
+	const [pickedValue, setPickedValue] = useState<string | undefined>(
+		currentValue,
+	);
+
+	useEffect(() => {
+		setPickedValue(currentValue);
+	}, [currentValue]);
 
 	useEffect(() => {
 		if (chevronRef.current) {
@@ -98,6 +105,7 @@ export function SearchableModelDropdown({
 
 	const selectValue = useCallback(
 		(value: string) => {
+			setPickedValue(value);
 			onChange(value);
 			closeMenu();
 		},
@@ -153,13 +161,17 @@ export function SearchableModelDropdown({
 		selected?.scrollIntoView({ block: "nearest" });
 	}, [open, highlighted]);
 
+	const chipValue = pickedValue ?? currentValue;
+	const chipLabel =
+		items.find((item) => item.value === chipValue)?.label ?? label;
+
 	const onSearchKeyDown = useCallback(
 		(event: React.KeyboardEvent<HTMLInputElement>) => {
 			const action = handleModelSearchKey({
 				key: event.key,
 				visibleValues: values,
 				highlighted,
-				currentValue,
+				currentValue: chipValue,
 			});
 			if (action.type === "none") return;
 			event.preventDefault();
@@ -176,7 +188,7 @@ export function SearchableModelDropdown({
 				selectValue(action.value);
 			}
 		},
-		[values, highlighted, currentValue, closeMenu, selectValue],
+		[values, highlighted, chipValue, closeMenu, selectValue],
 	);
 
 	const wrapperClass = ["agent-client-toolbar-dropdown", className]
@@ -221,8 +233,7 @@ export function SearchableModelDropdown({
 										</div>
 									);
 								}
-								const selected =
-									row.item.value === currentValue;
+								const selected = row.item.value === chipValue;
 								const isHighlighted =
 									row.item.value === highlighted;
 								return (
@@ -294,7 +305,7 @@ export function SearchableModelDropdown({
 						</span>
 					))}
 					<span className="agent-client-toolbar-dropdown-label">
-						{label}
+						{chipLabel}
 					</span>
 				</span>
 				<span
