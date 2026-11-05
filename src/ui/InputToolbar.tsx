@@ -21,6 +21,8 @@ import {
 	shouldShowVerbosityControl,
 	type TraceVerbosity,
 } from "../services/trace-verbosity";
+import { shouldSearchModelList } from "../utils/model-select-search";
+import { SearchableModelDropdown } from "./SearchableModelDropdown";
 
 // ============================================================================
 // ToolbarDropdown — themed dropdown using Obsidian's Menu
@@ -348,21 +350,29 @@ export function InputToolbar({
 					const isModeOption =
 						option.category === "mode" ||
 						findModeConfigOption([option]) !== undefined;
+					const isModelOption = option.category === "model";
 					const selectorClass = option.category
 						? `agent-client-config-selector-${option.category}`
 						: undefined;
+					const dropdownProps = {
+						key: option.id,
+						label,
+						title,
+						items,
+						currentValue: option.currentValue,
+						onChange: (value: string) => {
+							onConfigOptionChange?.(option.id, value);
+						},
+						className: selectorClass,
+					};
+
+					if (shouldSearchModelList(isModelOption, items.length)) {
+						return <SearchableModelDropdown {...dropdownProps} />;
+					}
 
 					return (
 						<ToolbarDropdown
-							key={option.id}
-							label={label}
-							title={title}
-							items={items}
-							currentValue={option.currentValue}
-							onChange={(value) => {
-								onConfigOptionChange?.(option.id, value);
-							}}
-							className={selectorClass}
+							{...dropdownProps}
 							modePill={isModeOption}
 						/>
 					);

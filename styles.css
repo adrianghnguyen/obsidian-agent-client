@@ -2059,6 +2059,81 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 }
 
+/* Searchable model picker (lists with more than 10 models). */
+.agent-client-model-search-popover {
+	position: fixed;
+	left: var(--ac-model-search-left, 8px);
+	bottom: var(--ac-model-search-bottom, 40px);
+	width: var(--ac-model-search-width, 280px);
+	max-height: var(--ac-model-search-max-height, 320px);
+	z-index: var(--layer-popover, 100);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	padding: 6px;
+}
+
+.agent-client-model-search-input {
+	width: 100%;
+	margin: 0 0 6px 0;
+	padding: 4px 8px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+}
+
+.agent-client-model-search-list {
+	overflow-y: auto;
+	min-height: 0;
+	flex: 1;
+}
+
+.agent-client-model-search-empty {
+	padding: 8px 6px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.agent-client-model-search-header {
+	padding: 6px 6px 2px;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+}
+
+.agent-client-model-search-option {
+	display: flex;
+	width: 100%;
+	text-align: left;
+	padding: 4px 6px;
+	margin: 0;
+	border: none;
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+}
+
+.agent-client-model-search-option.is-highlighted,
+.agent-client-model-search-option:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.agent-client-model-search-option.is-checked {
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.agent-client-model-search-match {
+	background-color: var(--text-highlight-bg);
+	color: var(--text-normal);
+}
+
 /* Context Usage Indicator */
 .agent-client-usage-indicator {
 	font-size: var(--font-smallest);
