@@ -83,9 +83,10 @@ describe("SearchableModelDropdown", () => {
 				?.textContent,
 		).toBe("Claude Opus");
 		fireEvent.click(screen.getByTitle("Model"));
-		expect(
-			(screen.getByLabelText("Search models") as HTMLInputElement).value,
-		).toBe("");
+		expect(screen.getByLabelText("Search models")).toHaveProperty(
+			"value",
+			"",
+		);
 	});
 
 	it("does nothing on Enter when several rows remain unhighlighted", () => {
