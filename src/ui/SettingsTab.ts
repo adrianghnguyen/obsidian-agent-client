@@ -907,6 +907,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						);
 
 					new Setting(nestedEl)
+						.setName("Model picker search")
+						.setDesc(
+							"When a session lists more than 10 models, the model chip opens a searchable list. Type part of a name or id; extra words each narrow the list. Mode and verbosity menus stay unchanged.",
+						);
+
+					new Setting(nestedEl)
 						.setName("Chat font size")
 						.setDesc(
 							`Adjust the font size of the chat message area (${CHAT_FONT_SIZE_MIN}-${CHAT_FONT_SIZE_MAX}px).`,

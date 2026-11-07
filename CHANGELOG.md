@@ -4,6 +4,10 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+### Added
+
+- **Model picker search** — When a session lists more than 10 models, the model chip opens a searchable list. Type a substring of the display name or model id; extra words each narrow the list. Matching text is highlighted; empty search shows `No models match`. Mode and verbosity menus are unchanged. See **Settings → Appearance → Model picker search**.
+
 ## 0.32.0-beta.3
 
 Composer voice capture uses AudioWorklet instead of the deprecated ScriptProcessorNode.
