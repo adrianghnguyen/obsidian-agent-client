@@ -4,6 +4,25 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.32.0
+
+Searchable model picker, composer voice on the right, turn duration, and accent-folding slash / `@[[title]]` matching.
+
+### Added
+
+- **Model picker search** — When a session lists more than 10 models, the model chip opens a searchable list. Type a substring of the display name or model id; extra words each narrow the list. Matching text is highlighted; empty search shows `No models match`. Mode and verbosity menus are unchanged. See **Settings → Appearance → Model picker search**.
+- **Turn duration on hover** — Completed assistant replies store end-to-end prompt timing; hover the response to see a muted `M:SS` label (also in restored session history).
+
+### Changed
+
+- **Voice mic on the right** — The composer microphone sits on the **right** of the chat input, beside the textarea.
+- **Voice pending highlight** — While Gemini Live is still transcribing a clip, the in-flight text is **highlighted** until that segment locks in as committed composer text.
+
+### Fixed
+
+- Composer voice capture uses **AudioWorklet** instead of the deprecated ScriptProcessorNode, so starting the mic no longer logs a Chromium deprecation warning.
+- Slash-command suggester and `@[[title]]` resolution use Obsidian `prepareSimpleSearch` / fold-safe basename matching so unaccented typing can match diacritic note titles on 1.15+ (graceful on 1.14).
+
 ## 0.32.0-beta.4
 
 Searchable model picker when a session lists more than 10 models.
