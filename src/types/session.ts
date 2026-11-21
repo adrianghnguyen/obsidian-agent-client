@@ -65,6 +65,19 @@ export interface AuthenticationMethod {
  * Commands can be invoked by users by typing `/` followed by the command
  * name and optional input in the chat input field.
  */
+/**
+ * Where a slash command was discovered.
+ * ACP-advertised commands are `"acp"` (or omitted). Local vault/host skills
+ * are tagged so the composer can show provenance without mixing sources
+ * into `ChatSession.availableCommands`.
+ */
+export type SlashCommandSource =
+	| "acp"
+	| "agents-skills"
+	| "gemini-skills"
+	| "gemini-global"
+	| "cursor-commands";
+
 export interface SlashCommand {
 	/** Command name (e.g., "web", "test", "plan") */
 	name: string;
@@ -79,6 +92,9 @@ export interface SlashCommand {
 	 * Example: "query to search for" for the /web command
 	 */
 	hint?: string | null;
+
+	/** Discovery source. Omitted or `"acp"` means the agent advertised it. */
+	source?: SlashCommandSource;
 }
 
 // ============================================================================

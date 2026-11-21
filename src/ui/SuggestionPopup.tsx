@@ -2,6 +2,7 @@ import * as React from "react";
 const { useRef, useEffect } = React;
 import type { NoteMetadata } from "../services/vault-service";
 import type { SlashCommand } from "../types/session";
+import { slashCommandProvenanceLabel } from "../services/local-slash-commands";
 
 /**
  * Dropdown type for suggestion display.
@@ -109,6 +110,7 @@ export function SuggestionPopup({
 		} else {
 			// type === "slash-command"
 			const command = item as SlashCommand;
+			const provenance = slashCommandProvenanceLabel(command.source);
 			return (
 				<div
 					key={`command-${index}`}
@@ -124,6 +126,7 @@ export function SuggestionPopup({
 					<div className="agent-client-mention-dropdown-item-path">
 						{command.description}
 						{command.hint && ` (${command.hint})`}
+						{provenance ? ` · ${provenance}` : ""}
 					</div>
 				</div>
 			);

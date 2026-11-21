@@ -87,6 +87,12 @@ import {
 	releasePlacementHandoff,
 	type ChatPlacementSnapshot,
 } from "../services/chat-placement";
+import {
+	adaptVaultAdapter,
+	createNodeHostFs,
+	discoverLocalSlashCommands,
+	mergeSlashCommands,
+} from "../services/local-slash-commands";
 
 /** Stable empty array for useSuggestions when no commands available */
 const EMPTY_COMMANDS: SlashCommand[] = [];
@@ -444,10 +450,41 @@ export const ChatPanel = React.memo(function ChatPanel({
 		}
 	}, [variant, messages.length, settings.floatingNoteContextMode]);
 
+	const [localSlashCommands, setLocalSlashCommands] =
+		useState<SlashCommand[]>(EMPTY_COMMANDS);
+
+	const refreshLocalSlashCommands = useCallback(async () => {
+		try {
+			const cmds = await discoverLocalSlashCommands({
+				agentId: session.agentId,
+				vault: adaptVaultAdapter(plugin.app.vault.adapter),
+				host: createNodeHostFs(),
+			});
+			setLocalSlashCommands(cmds.length > 0 ? cmds : EMPTY_COMMANDS);
+		} catch (err) {
+			logger.log(
+				`[ChatPanel] Local slash command scan failed: ${String(err)}`,
+			);
+			setLocalSlashCommands(EMPTY_COMMANDS);
+		}
+	}, [plugin, session.agentId]);
+
+	useEffect(() => {
+		void refreshLocalSlashCommands();
+	}, [refreshLocalSlashCommands]);
+
+	const availableCommands = useMemo(() => {
+		const merged = mergeSlashCommands(
+			session.availableCommands,
+			localSlashCommands,
+		);
+		return merged.length > 0 ? merged : EMPTY_COMMANDS;
+	}, [session.availableCommands, localSlashCommands]);
+
 	const suggestions = useSuggestions(
 		vaultService,
 		plugin,
-		session.availableCommands || EMPTY_COMMANDS,
+		availableCommands,
 		pinnedActiveNote,
 	);
 
@@ -1915,6 +1952,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 	useEffect(() => {
 		const handleFocus = () => {
 			plugin.setLastActiveChatViewId(viewId);
+			void refreshLocalSlashCommands();
 		};
 
 		const container = containerElProp ?? containerRef.current;
@@ -1930,7 +1968,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			container.removeEventListener("focus", handleFocus, true);
 			container.removeEventListener("click", handleFocus);
 		};
-	}, [plugin, viewId, containerElProp]);
+	}, [plugin, viewId, containerElProp, refreshLocalSlashCommands]);
 
 	// ============================================================
 	// Callback Registration for IChatViewContainer
@@ -2171,7 +2209,7 @@ export const ChatPanel = React.memo(function ChatPanel({
 			isRestoringSession={sessionHistory.loading}
 			hasActivePermission={agent.hasActivePermission}
 			agentLabel={activeAgentLabel}
-			availableCommands={session.availableCommands || []}
+			availableCommands={availableCommands}
 			chatVariant={variant}
 			floatingNoteContextMode={floatingNoteContextMode}
 			attachActiveNote={attachActiveNote}
