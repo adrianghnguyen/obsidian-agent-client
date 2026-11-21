@@ -50,6 +50,7 @@ export class AcpTypeConverter {
 			name: cmd.name,
 			description: cmd.description,
 			hint: cmd.input?.hint ?? null,
+			source: "acp" as const,
 		}));
 	}
 

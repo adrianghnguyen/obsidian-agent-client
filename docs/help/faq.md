@@ -99,11 +99,11 @@ No. Features like slash commands, modes, and models depend on the agent. The plu
 
 ### Why don't I see slash commands?
 
-Slash commands are provided by the agent, not the plugin. If the input placeholder doesn't show `/ for commands`, your current agent doesn't support slash commands.
+Agents advertise their own commands over ACP. Antigravity chats also list vault skills from `.agents/skills` and `.gemini/skills` (plus `~/.gemini/skills` when present). Cursor chats also list `.cursor/commands` and `.agents/skills`. If the input placeholder doesn't show `/ for commands`, this session has neither agent commands nor matching local skills.
 
 ### Why are the commands different from what I expected?
 
-Each agent provides its own commands. Claude Code, Codex, Cursor, and Antigravity all have different command sets. Refer to your agent's documentation for available commands.
+Each agent provides its own commands. Claude Code, Codex, Cursor, and Antigravity all have different command sets. Refer to your agent's documentation for available commands. For Antigravity and Cursor, Agent Client also merges matching vault skill files into the `/` menu; the agent's advertised command wins when names collide.
 
 ## Permissions
 
