@@ -4,12 +4,16 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
-## [Unreleased]
+## 0.34.0-beta.1
 
 ### Added
 
 - **Stream responses downwards** — Optional toggle at the bottom-right of the chat viewport (and in **Settings → Display → Stream responses downwards**) that pins newly sent prompts to the top of the viewport so replies stream downwards into view without auto-scrolling to the bottom.
 - **Scrollbar turn navigator rail** — Subtle tick marks along the right edge of multi-turn chats show your conversation turns; hover a tick to preview your prompt and click to jump straight to that turn.
+
+### Improved
+
+- **Faster plugin startup** — Lazy-load the ACP SDK until a chat session connects and skip mounting the floating button DOM root unless the floating button entry mode is enabled.
 
 ## 0.33.0
 
