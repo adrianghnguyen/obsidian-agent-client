@@ -4,6 +4,14 @@ High-level overview of user-facing changes on this fork. Keep entries short — 
 
 ## [Unreleased]
 
+## 0.33.0
+
+Vault skill slash commands in the Antigravity (and Cursor) composer `/` menu.
+
+### Added
+
+- **Vault skill slash commands** — On Antigravity, typing `/` in the composer lists skills from the vault’s `.agents/skills` and `.gemini/skills` folders (and `~/.gemini/skills` when present). Cursor chats also list `.cursor/commands` plus `.agents/skills`. Agent-advertised commands still win on name; picking a skill inserts `/name` as plain text. New skills show up after focusing the chat — no Obsidian restart.
+
 ## 0.33.0-beta.1
 
 Vault skill slash commands in the Antigravity (and Cursor) composer `/` menu.
