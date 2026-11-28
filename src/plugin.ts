@@ -187,6 +187,7 @@ export default class AgentClientPlugin extends Plugin {
 	});
 	/** Floating button container (independent from chat view instances) */
 	private floatingButton: FloatingButtonContainer | null = null;
+	private floatingButtonUnsubscribe: (() => void) | null = null;
 	/** Status-bar entry for floating chat (Session Manager hover popover) */
 	private floatingChatStatusBar: FloatingChatStatusBar | null = null;
 	/** Voice Input module (Gemini Live). */
@@ -392,9 +393,11 @@ export default class AgentClientPlugin extends Plugin {
 			this.agentBlocks.render(source, el, ctx),
 		);
 
-		// Mount floating button (always present; visibility controlled by settings inside component)
-		this.floatingButton = new FloatingButtonContainer(this);
-		this.floatingButton.mount();
+		// Mount floating button only when enabled (and sync on settings change)
+		this.syncFloatingButtonMount();
+		this.floatingButtonUnsubscribe = this.settingsService.subscribe(() => {
+			this.syncFloatingButtonMount();
+		});
 
 		// Status-bar entry (visibility controlled by floatingChatEntry)
 		this.floatingChatStatusBar = new FloatingChatStatusBar(this);
@@ -451,6 +454,8 @@ export default class AgentClientPlugin extends Plugin {
 		this.flushFloatingWindowLayouts();
 
 		// Unmount floating button
+		this.floatingButtonUnsubscribe?.();
+		this.floatingButtonUnsubscribe = null;
 		this.floatingButton?.unmount();
 		this.floatingButton = null;
 
@@ -480,6 +485,17 @@ export default class AgentClientPlugin extends Plugin {
 
 		this.pendingPrompts.clear();
 		this.pendingForks.clear();
+	}
+
+	private syncFloatingButtonMount(): void {
+		const shouldMount = this.settings.floatingChatEntry === "button";
+		if (shouldMount && !this.floatingButton) {
+			this.floatingButton = new FloatingButtonContainer(this);
+			this.floatingButton.mount();
+		} else if (!shouldMount && this.floatingButton) {
+			this.floatingButton.unmount();
+			this.floatingButton = null;
+		}
 	}
 
 	/**

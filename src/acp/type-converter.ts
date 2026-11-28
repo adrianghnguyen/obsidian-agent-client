@@ -1,4 +1,4 @@
-import * as acp from "@agentclientprotocol/sdk";
+import type * as acp from "@agentclientprotocol/sdk";
 import type { ToolCallContent, PromptContent } from "../types/chat";
 import type {
 	InitializeResult,

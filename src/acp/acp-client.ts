@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from "child_process";
-import * as acp from "@agentclientprotocol/sdk";
+import type * as acp from "@agentclientprotocol/sdk";
 import { Platform } from "obsidian";
 
 import type {
@@ -437,6 +437,7 @@ export class AcpClient {
 			config.workingDirectory,
 		);
 
+		const acp = await import("@agentclientprotocol/sdk");
 		const stream = acp.ndJsonStream(input, output);
 		// Build the client app by registering handlers by ACP method name, then
 		// hold the persistent connection. This is the same builder the deprecated

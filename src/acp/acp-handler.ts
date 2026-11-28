@@ -1,4 +1,4 @@
-import * as acp from "@agentclientprotocol/sdk";
+import type * as acp from "@agentclientprotocol/sdk";
 
 import type { SessionUpdate } from "../types/session";
 import { AcpTypeConverter } from "./type-converter";
