@@ -14,6 +14,7 @@ import { setIcon } from "obsidian";
 import { buildDisplayListItems } from "../services/trace-turn";
 import { MessageBubble } from "./MessageBubble";
 import { TurnTraceRenderer } from "./TurnTraceRenderer";
+import { TurnNavRail } from "./TurnNavRail";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatHarnessConnectingEmptyState } from "../services/harness-connecting-message";
 import { useHarnessBootElapsed } from "../hooks/useHarnessBootElapsed";
@@ -22,6 +23,15 @@ import {
 	isLatestMessageLong,
 	readVirtualItemMetrics,
 } from "../services/jump-to-top-visibility";
+import {
+	computeStreamDownwardsSpacerHeight,
+	findLastUserDisplayIndex,
+	STREAM_DOWNWARDS_TOP_INSET_PX,
+} from "../services/stream-downwards";
+import {
+	buildTurnNavEntries,
+	findActiveTurnIndex,
+} from "../services/turn-navigation";
 
 // How long (ms) after a tab is re-shown we refuse to shrink measured item
 // sizes. Right after re-show the items briefly re-measure small while their
@@ -61,6 +71,10 @@ export interface MessageListProps {
 	traceVerbosity: TraceVerbosity;
 	toolCallFailureAnalysis: ToolCallFailureAnalysis;
 	showLinkedNotesOnAssistantMessages: boolean;
+	/** Anchor newly sent prompts at the top of the viewport so replies stream downwards */
+	streamResponsesDownwards?: boolean;
+	/** Toggle stream-downwards mode */
+	onToggleStreamResponsesDownwards?: () => void;
 	/** Callback to approve a permission request */
 	onApprovePermission?: (
 		requestId: string,
@@ -100,6 +114,8 @@ export function MessageList({
 	traceVerbosity,
 	toolCallFailureAnalysis,
 	showLinkedNotesOnAssistantMessages,
+	streamResponsesDownwards = false,
+	onToggleStreamResponsesDownwards,
 	onApprovePermission,
 	hasActivePermission,
 	onForkFromMessage,
@@ -114,6 +130,13 @@ export function MessageList({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [isAtBottom, setIsAtBottom] = useState(true);
 	const isAtBottomRef = useRef(true);
+	const streamDownwardsRef = useRef(streamResponsesDownwards);
+	streamDownwardsRef.current = streamResponsesDownwards;
+	const [viewportHeight, setViewportHeight] = useState(0);
+	const viewportHeightRef = useRef(0);
+	const [activeTurnIndex, setActiveTurnIndex] = useState(-1);
+	const activeTurnIndexRef = useRef(-1);
+	const lastAnchoredUserKeyRef = useRef<string | null>(null);
 	// Jump-to-top chip: mounted for long latest messages; fades in at the top of
 	// the viewport when the user scrolls up from the chat bottom near the reply end.
 	const [jumpToTopLong, setJumpToTopLong] = useState(false);
@@ -181,14 +204,44 @@ export function MessageList({
 		},
 	});
 
-	// Suppress scroll position correction when user has scrolled up.
-	// By default, the virtualizer adjusts scrollTop when an item before
-	// the scroll offset changes size (to keep visible content stable).
-	// During streaming, this causes the viewport to creep down as the
-	// last message grows. Our auto-scroll effect handles following new
-	// content when isAtBottom, so corrections are only needed there.
+	// Suppress scroll position correction when user has scrolled up or when
+	// stream-downwards mode is active so responses stream downwards in place.
 	virtualizer.shouldAdjustScrollPositionOnItemSizeChange = () =>
-		isAtBottomRef.current;
+		!streamDownwardsRef.current && isAtBottomRef.current;
+
+	const totalVirtualSize = virtualizer.getTotalSize();
+
+	const getTurnItemStart = useCallback(
+		(displayIndex: number): number | undefined => {
+			return virtualizer.getOffsetForIndex(displayIndex, "start")?.[0];
+		},
+		[virtualizer],
+	);
+
+	const turnEntries = useMemo(
+		() =>
+			buildTurnNavEntries(
+				displayItems,
+				getTurnItemStart,
+				totalVirtualSize,
+			),
+		[displayItems, getTurnItemStart, totalVirtualSize],
+	);
+
+	const lastUserIndex = useMemo(
+		() => findLastUserDisplayIndex(displayItems),
+		[displayItems],
+	);
+	const lastUserStart =
+		lastUserIndex >= 0 ? (getTurnItemStart(lastUserIndex) ?? -1) : -1;
+
+	const spacerHeight = computeStreamDownwardsSpacerHeight({
+		enabled: streamResponsesDownwards,
+		clientHeight: viewportHeight,
+		lastUserStart,
+		totalContentHeight: totalVirtualSize,
+		loadingIndicatorHeight: isSending ? 36 : 0,
+	});
 
 	// ============================================================
 	// Scroll management
@@ -308,11 +361,12 @@ export function MessageList({
 		if (displayItems.length === 0) {
 			setIsAtBottom(true);
 			isAtBottomRef.current = true;
+			lastAnchoredUserKeyRef.current = null;
 			sizeCacheRef.current.clear();
 		}
 	}, [displayItems.length]);
 
-	// Track when user just sent a message (for smooth scroll)
+	// Track when user just sent a message (for smooth scroll / top-anchoring)
 	const scrollSmoothRef = useRef(false);
 	useEffect(() => {
 		if (isSending && !prevIsSendingRef.current) {
@@ -322,11 +376,55 @@ export function MessageList({
 		prevIsSendingRef.current = isSending;
 	}, [isSending]);
 
-	// Auto-scroll to bottom when new messages arrive or content changes
+	// Auto-scroll on send or streaming updates
 	useEffect(() => {
 		if (displayItems.length === 0) return;
 
 		if (scrollSmoothRef.current) {
+			if (streamDownwardsRef.current) {
+				const userIdx = findLastUserDisplayIndex(displayItems);
+				const userKey = userIdx >= 0 ? displayItems[userIdx]?.key : null;
+				if (
+					userIdx >= 0 &&
+					userKey &&
+					userKey !== lastAnchoredUserKeyRef.current
+				) {
+					scrollSmoothRef.current = false;
+					lastAnchoredUserKeyRef.current = userKey;
+					window.requestAnimationFrame(() => {
+						virtualizer.scrollToIndex(userIdx, {
+							align: "start",
+						});
+						window.requestAnimationFrame(() => {
+							const container = containerRef.current;
+							const target =
+								container?.querySelector<HTMLElement>(
+									`[data-index="${userIdx}"]`,
+								);
+							if (container && target) {
+								const targetRect =
+									target.getBoundingClientRect();
+								const containerRect =
+									container.getBoundingClientRect();
+								if (targetRect.height > 0) {
+									container.scrollTop = Math.max(
+										0,
+										container.scrollTop +
+											(targetRect.top -
+												containerRect.top -
+												STREAM_DOWNWARDS_TOP_INSET_PX),
+									);
+								}
+							}
+							checkIfAtBottom();
+						});
+					});
+				} else if (!isSending) {
+					scrollSmoothRef.current = false;
+				}
+				return;
+			}
+
 			// User sent a message — smooth scroll regardless of isAtBottom
 			scrollSmoothRef.current = false;
 			window.requestAnimationFrame(() => {
@@ -338,7 +436,7 @@ export function MessageList({
 			return;
 		}
 
-		if (isAtBottomRef.current) {
+		if (!streamDownwardsRef.current && isAtBottomRef.current) {
 			// Use requestAnimationFrame to ensure virtualizer has measured
 			window.requestAnimationFrame(() => {
 				virtualizer.scrollToIndex(displayItems.length - 1, {
@@ -346,36 +444,124 @@ export function MessageList({
 				});
 			});
 		}
-	}, [displayItems, virtualizer]);
+	}, [displayItems, isSending, virtualizer, checkIfAtBottom]);
+
+	const turnEntriesRef = useRef(turnEntries);
+	turnEntriesRef.current = turnEntries;
+	const getTurnItemStartRef = useRef(getTurnItemStart);
+	getTurnItemStartRef.current = getTurnItemStart;
+
+	const updateActiveTurn = useCallback(() => {
+		const container = containerRef.current;
+		if (!container) return;
+		const nextActive = findActiveTurnIndex(
+			turnEntriesRef.current,
+			container.scrollTop,
+			getTurnItemStartRef.current,
+		);
+		if (nextActive !== activeTurnIndexRef.current) {
+			activeTurnIndexRef.current = nextActive;
+			setActiveTurnIndex(nextActive);
+		}
+	}, []);
+
+	const jumpToTurn = useCallback(
+		(displayIndex: number) => {
+			const container = containerRef.current;
+			if (!container) return;
+			virtualizer.scrollToIndex(displayIndex, { align: "start" });
+			window.requestAnimationFrame(() => {
+				virtualizer.scrollToIndex(displayIndex, { align: "start" });
+				const target = container.querySelector<HTMLElement>(
+					`[data-index="${displayIndex}"]`,
+				);
+				if (target) {
+					const targetRect = target.getBoundingClientRect();
+					const containerRect = container.getBoundingClientRect();
+					if (targetRect.height > 0) {
+						container.scrollTop = Math.max(
+							0,
+							container.scrollTop +
+								(targetRect.top -
+									containerRect.top -
+									STREAM_DOWNWARDS_TOP_INSET_PX),
+						);
+					}
+				}
+				checkIfAtBottom();
+				updateActiveTurn();
+			});
+		},
+		[virtualizer, checkIfAtBottom, updateActiveTurn],
+	);
 
 	// Latest scroll handler without re-registering the listener on each
 	// isSending/streaming change (sidebar registerDomEvent has no per-effect
 	// cleanup, so re-running the effect would stack listeners).
 	const updateJumpToTopRef = useRef(updateJumpToTop);
 	updateJumpToTopRef.current = updateJumpToTop;
+	const updateActiveTurnRef = useRef(updateActiveTurn);
+	updateActiveTurnRef.current = updateActiveTurn;
 
-	// Set up scroll event listener for isAtBottom detection
+	// Set up scroll event listener and viewport height tracking
 	useEffect(() => {
 		const container = containerRef.current;
 		if (!container) return;
 
+		const syncViewportHeight = () => {
+			const nextHeight = container.clientHeight;
+			if (nextHeight !== viewportHeightRef.current) {
+				viewportHeightRef.current = nextHeight;
+				setViewportHeight(nextHeight);
+			}
+		};
+
 		const handleScroll = () => {
+			syncViewportHeight();
 			checkIfAtBottom();
 			updateJumpToTopRef.current();
+			updateActiveTurnRef.current();
 		};
 
 		view.registerDomEvent(container, "scroll", handleScroll);
 
+		let resizeObserver: ResizeObserver | null = null;
+		if (typeof ResizeObserver !== "undefined") {
+			resizeObserver = new ResizeObserver(() => {
+				syncViewportHeight();
+				checkIfAtBottom();
+			});
+			resizeObserver.observe(container);
+		}
+
 		// Initial check
+		syncViewportHeight();
 		checkIfAtBottom();
 		updateJumpToTopRef.current();
+		updateActiveTurnRef.current();
+
+		return () => {
+			resizeObserver?.disconnect();
+		};
 	}, [view, checkIfAtBottom]);
 
-	// Re-evaluate the jump-to-top button as streaming starts/stops and as new
-	// content changes the latest item's top position.
+	// Re-evaluate jump-to-top, active turn, and bottom state when items update
 	useEffect(() => {
 		updateJumpToTop();
-	}, [isSending, displayItems, updateJumpToTop]);
+		updateActiveTurn();
+		checkIfAtBottom();
+	}, [isSending, displayItems, turnEntries, updateJumpToTop, updateActiveTurn, checkIfAtBottom]);
+
+	const streamToggleIconRef = useCallback(
+		(el: HTMLButtonElement | null) => {
+			if (el) setIcon(el, "arrow-down-from-line");
+		},
+		[],
+	);
+
+	const streamToggleLabel = streamResponsesDownwards
+		? "Stream downwards: ON (click to follow bottom)"
+		: "Stream downwards: OFF (click to anchor prompts at top)";
 
 	// ============================================================
 	// Render
@@ -401,6 +587,19 @@ export function MessageList({
 								: `Start a conversation with ${agentLabel}...`}
 					</div>
 				</div>
+				{onToggleStreamResponsesDownwards && (
+					<div className="agent-client-scroll-controls">
+						<button
+							type="button"
+							ref={streamToggleIconRef}
+							className={`agent-client-stream-mode-toggle${streamResponsesDownwards ? " is-active" : ""}`}
+							aria-pressed={streamResponsesDownwards}
+							aria-label={streamToggleLabel}
+							title={streamToggleLabel}
+							onClick={onToggleStreamResponsesDownwards}
+						/>
+					</div>
+				)}
 			</div>
 		);
 	}
@@ -511,7 +710,21 @@ export function MessageList({
 						</span>
 					)}
 				</div>
+
+				{/* Dynamic bottom spacer when stream-downwards mode anchors prompts at top */}
+				<div
+					className="agent-client-stream-spacer"
+					style={{ height: spacerHeight }}
+					aria-hidden="true"
+				/>
 			</div>
+
+			{/* Scrollbar turn navigator rail (Antigravity-style) */}
+			<TurnNavRail
+				entries={turnEntries}
+				activeTurnIndex={activeTurnIndex}
+				onJumpToTurn={jumpToTurn}
+			/>
 
 			{/* Jump to top — top-center chip over the message viewport (Cursor-style).
 			    Opacity-gated; no layout band. Same scroll threshold as before. */}
@@ -537,23 +750,41 @@ export function MessageList({
 				</button>
 			)}
 
-			{/* Scroll to bottom — pinned to bottom of scrollbar track */}
-			{!isAtBottom && (
-				<button
-					type="button"
-					className="agent-client-scroll-to-bottom"
-					aria-label="Scroll to bottom"
-					title="Scroll to bottom"
-					onClick={() => {
-						virtualizer.scrollToIndex(displayItems.length - 1, {
-							align: "end",
-							behavior: "smooth",
-						});
-					}}
-					ref={(el) => {
-						if (el) setIcon(el, "chevron-down");
-					}}
-				/>
+			{/* Bottom-right scroll controls (stream downwards toggle + scroll to bottom) */}
+			{(onToggleStreamResponsesDownwards || !isAtBottom) && (
+				<div className="agent-client-scroll-controls">
+					{onToggleStreamResponsesDownwards && (
+						<button
+							type="button"
+							ref={streamToggleIconRef}
+							className={`agent-client-stream-mode-toggle${streamResponsesDownwards ? " is-active" : ""}`}
+							aria-pressed={streamResponsesDownwards}
+							aria-label={streamToggleLabel}
+							title={streamToggleLabel}
+							onClick={onToggleStreamResponsesDownwards}
+						/>
+					)}
+					{!isAtBottom && (
+						<button
+							type="button"
+							className="agent-client-scroll-to-bottom"
+							aria-label="Scroll to bottom"
+							title="Scroll to bottom"
+							onClick={() => {
+								virtualizer.scrollToIndex(
+									displayItems.length - 1,
+									{
+										align: "end",
+										behavior: "smooth",
+									},
+								);
+							}}
+							ref={(el) => {
+								if (el) setIcon(el, "chevron-down");
+							}}
+						/>
+					)}
+				</div>
 			)}
 		</div>
 	);

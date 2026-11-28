@@ -58,6 +58,7 @@ export const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 		traceVerbosity: "compact",
 		toolCallFailureAnalysis: "lenient",
 		showLinkedNotesOnAssistantMessages: true,
+		streamResponsesDownwards: false,
 	},
 	savedSessions: [],
 	lastUsedModels: {},

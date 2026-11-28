@@ -148,6 +148,12 @@ export interface AgentClientPluginSettings {
 		 * on assistant messages.
 		 */
 		showLinkedNotesOnAssistantMessages: boolean;
+		/**
+		 * Anchor newly sent user prompts at the top of the viewport so
+		 * assistant responses stream downwards into view without
+		 * auto-scrolling to the bottom.
+		 */
+		streamResponsesDownwards: boolean;
 	};
 	// Locally saved session metadata (for agents without session/list support)
 	savedSessions: SavedSessionInfo[];

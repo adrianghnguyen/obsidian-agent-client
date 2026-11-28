@@ -629,11 +629,20 @@ If your plugin does not need CSS, delete this file.
 	overflow: hidden;
 }
 
-/* ===== Scroll to Bottom Button (bottom of scrollbar track) ===== */
-.agent-client-scroll-to-bottom {
+/* ===== Bottom-Right Scroll Controls (stream toggle + scroll-to-bottom) ===== */
+.agent-client-scroll-controls {
 	position: absolute;
 	bottom: 2px;
 	right: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	z-index: 12;
+}
+
+.agent-client-scroll-to-bottom,
+.agent-client-stream-mode-toggle {
 	width: 18px;
 	height: 18px;
 	padding: 2px !important;
@@ -651,23 +660,137 @@ If your plugin does not need CSS, delete this file.
 	box-shadow: var(--shadow-s) !important;
 	min-width: unset !important;
 	min-height: unset !important;
-	z-index: 10;
 }
 
-.agent-client-scroll-to-bottom svg {
+.agent-client-scroll-to-bottom svg,
+.agent-client-stream-mode-toggle svg {
 	width: 14px;
 	height: 14px;
 	color: var(--text-muted);
 	transition: color 0.15s ease;
 }
 
-.agent-client-scroll-to-bottom:hover {
+.agent-client-scroll-to-bottom:hover,
+.agent-client-stream-mode-toggle:hover {
 	background-color: var(--background-modifier-hover) !important;
 	border-color: var(--interactive-accent) !important;
 }
 
-.agent-client-scroll-to-bottom:hover svg {
+.agent-client-scroll-to-bottom:hover svg,
+.agent-client-stream-mode-toggle:hover svg {
 	color: var(--interactive-accent);
+}
+
+.agent-client-stream-mode-toggle.is-active {
+	border-color: var(--interactive-accent) !important;
+	background-color: color-mix(
+		in srgb,
+		var(--interactive-accent) 16%,
+		var(--background-primary)
+	) !important;
+}
+
+.agent-client-stream-mode-toggle.is-active svg {
+	color: var(--interactive-accent);
+}
+
+.agent-client-stream-spacer {
+	flex-shrink: 0;
+	pointer-events: none;
+}
+
+/* ===== Turn Navigator Rail (right edge along scrollbar track) ===== */
+.agent-client-turn-rail {
+	position: absolute;
+	top: 8px;
+	bottom: 52px;
+	right: 2px;
+	width: 14px;
+	pointer-events: none;
+	z-index: 11;
+}
+
+.agent-client-turn-rail-marker {
+	position: absolute;
+	right: 0;
+	transform: translateY(-50%);
+	width: 14px;
+	height: 12px;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	min-width: unset !important;
+	min-height: unset !important;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	cursor: pointer;
+	pointer-events: auto;
+	outline: none !important;
+}
+
+.agent-client-turn-rail-tick {
+	display: block;
+	height: 2px;
+	width: 8px;
+	border-radius: 999px;
+	background-color: var(--text-muted);
+	opacity: 0.55;
+	transition:
+		width 0.12s ease,
+		height 0.12s ease,
+		opacity 0.12s ease,
+		background-color 0.12s ease;
+}
+
+.agent-client-turn-rail-marker:hover .agent-client-turn-rail-tick,
+.agent-client-turn-rail-marker:focus-visible .agent-client-turn-rail-tick {
+	width: 13px;
+	height: 3px;
+	opacity: 1;
+	background-color: var(--interactive-accent);
+}
+
+.agent-client-turn-rail-marker.is-active .agent-client-turn-rail-tick {
+	width: 13px;
+	height: 3px;
+	opacity: 1;
+	background-color: var(--interactive-accent);
+}
+
+.agent-client-turn-rail-tooltip {
+	position: absolute;
+	right: 18px;
+	transform: translateY(-50%);
+	max-width: 240px;
+	padding: 5px 8px;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+	box-shadow: var(--shadow-s);
+	pointer-events: none;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	z-index: 20;
+}
+
+.agent-client-turn-rail-tooltip-title {
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	color: var(--interactive-accent);
+	line-height: 1.2;
+}
+
+.agent-client-turn-rail-tooltip-preview {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.25;
 }
 
 /* ===== Jump to Top chip (top center of message viewport) =====
@@ -3559,9 +3682,9 @@ If your plugin does not need CSS, delete this file.
 	min-height: 0;
 }
 
-/* Pin jump-to-bottom to the floating chat scrollbar track corner.
-   Jump-to-top uses the shared bottom-center rule above. */
-.agent-client-floating-messages-container .agent-client-scroll-to-bottom {
+/* Pin scroll controls to the floating chat scrollbar track corner.
+   Jump-to-top uses the shared top-center rule above. */
+.agent-client-floating-messages-container .agent-client-scroll-controls {
 	bottom: 0;
 	right: 0;
 }

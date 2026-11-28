@@ -1103,6 +1103,30 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						);
 
 					new Setting(nestedEl)
+						.setName("Stream responses downwards")
+						.setDesc(
+							"Anchor your new prompt at the top of the viewport so replies stream downwards without auto-scrolling to the bottom.",
+						)
+						.addToggle((toggle) =>
+							toggle
+								.setValue(
+									this.plugin.settings.displaySettings
+										.streamResponsesDownwards,
+								)
+								.onChange(async (value) => {
+									await this.plugin.settingsService.updateSettings(
+										{
+											displaySettings: {
+												...this.plugin.settings
+													.displaySettings,
+												streamResponsesDownwards: value,
+											},
+										},
+									);
+								}),
+						);
+
+					new Setting(nestedEl)
 						.setName("Show emojis")
 						.setDesc(
 							"Display emoji icons in tool calls, thoughts, plans, and terminal blocks.",

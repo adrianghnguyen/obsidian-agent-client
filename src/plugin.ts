@@ -1014,6 +1014,10 @@ export default class AgentClientPlugin extends Plugin {
 					rd.showLinkedNotesOnAssistantMessages,
 					D.displaySettings.showLinkedNotesOnAssistantMessages,
 				),
+				streamResponsesDownwards: bool(
+					rd.streamResponsesDownwards,
+					D.displaySettings.streamResponsesDownwards,
+				),
 			},
 			savedSessions: Array.isArray(raw.savedSessions)
 				? (raw.savedSessions as SavedSessionInfo[])

@@ -231,6 +231,8 @@ function selectChatPanelSettings(s: AgentClientPluginSettings) {
 			toolCallFailureAnalysis: s.displaySettings.toolCallFailureAnalysis,
 			showLinkedNotesOnAssistantMessages:
 				s.displaySettings.showLinkedNotesOnAssistantMessages,
+			streamResponsesDownwards:
+				s.displaySettings.streamResponsesDownwards,
 		},
 	};
 }
@@ -259,7 +261,9 @@ function chatPanelSettingsEqual(
 		a.displaySettings.toolCallFailureAnalysis ===
 			b.displaySettings.toolCallFailureAnalysis &&
 		a.displaySettings.showLinkedNotesOnAssistantMessages ===
-			b.displaySettings.showLinkedNotesOnAssistantMessages
+			b.displaySettings.showLinkedNotesOnAssistantMessages &&
+		a.displaySettings.streamResponsesDownwards ===
+			b.displaySettings.streamResponsesDownwards
 	);
 }
 
@@ -659,6 +663,17 @@ export const ChatPanel = React.memo(function ChatPanel({
 		},
 		[plugin.settingsService],
 	);
+
+	const handleStreamResponsesDownwardsToggle = useCallback(() => {
+		const snapshot = plugin.settingsService.getSnapshot();
+		void plugin.settingsService.updateSettings({
+			displaySettings: {
+				...snapshot.displaySettings,
+				streamResponsesDownwards:
+					!snapshot.displaySettings.streamResponsesDownwards,
+			},
+		});
+	}, [plugin.settingsService]);
 
 	const { handleOpenHistory } = useHistoryModal(
 		plugin,
@@ -2193,6 +2208,12 @@ export const ChatPanel = React.memo(function ChatPanel({
 			}
 			showLinkedNotesOnAssistantMessages={
 				settings.displaySettings.showLinkedNotesOnAssistantMessages
+			}
+			streamResponsesDownwards={
+				settings.displaySettings.streamResponsesDownwards
+			}
+			onToggleStreamResponsesDownwards={
+				handleStreamResponsesDownwardsToggle
 			}
 			onApprovePermission={agent.approvePermission}
 			hasActivePermission={agent.hasActivePermission}
